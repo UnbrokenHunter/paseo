@@ -14,6 +14,8 @@ import {
   getWorkspaceIndexJumpModifierKey,
 } from "@/keyboard/keyboard-shortcuts";
 import { resolveKeyboardFocusScope } from "@/keyboard/focus-scope";
+import { hasEscapeDismissHandler } from "@/keyboard/escape-dismiss-stack";
+import { hasOpenWebOverlay } from "@/lib/overlay-root";
 import {
   buildBrowserKeyboardPolicy,
   parseBrowserShortcutInput,
@@ -229,6 +231,7 @@ export function useKeyboardShortcuts({
           isDesktop: isDesktopApp,
           focusScope: input.focusScope,
           commandCenterOpen: store.commandCenterOpen,
+          overlayOpen: hasOpenWebOverlay() || hasEscapeDismissHandler(),
         },
         chordState: chordStateRef.current,
         onChordReset: () => {
