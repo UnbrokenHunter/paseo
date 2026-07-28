@@ -1809,10 +1809,13 @@ export const ptBR: TranslationResources = {
       searchPlaceholder: "Pesquisar atalhos",
       unavailableOnMobile: "Atalhos de teclado estão disponíveis apenas no desktop",
       capturePrompt: "Pressione o atalho...",
+      unassigned: "Não definido",
       actions: {
         done: "Concluído",
         cancel: "Cancelar",
+        bind: "Atribuir",
         rebind: "Reatribuir",
+        clear: "Limpar",
         reset: "Redefinir",
         resetAll: "Redefinir tudo",
       },

@@ -1794,10 +1794,13 @@ export const ja: TranslationResources = {
       searchPlaceholder: "ショートカットを検索",
       unavailableOnMobile: "キーボードショートカットはデスクトップでのみ利用できます",
       capturePrompt: "ショートカットを押してください...",
+      unassigned: "未設定",
       actions: {
         done: "完了",
         cancel: "キャンセル",
+        bind: "割り当て",
         rebind: "再割り当て",
+        clear: "クリア",
         reset: "リセット",
         resetAll: "すべてリセット",
       },

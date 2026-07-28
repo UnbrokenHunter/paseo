@@ -1828,10 +1828,13 @@ export const fr: TranslationResources = {
       searchPlaceholder: "Rechercher des raccourcis",
       unavailableOnMobile: "Les raccourcis clavier ne sont disponibles que sur le bureau",
       capturePrompt: "Appuyez sur le raccourci...",
+      unassigned: "Non défini",
       actions: {
         done: "Fait",
         cancel: "Annuler",
+        bind: "Attribuer",
         rebind: "Relier",
+        clear: "Effacer",
         reset: "Réinitialiser",
         resetAll: "Tout réinitialiser",
       },
