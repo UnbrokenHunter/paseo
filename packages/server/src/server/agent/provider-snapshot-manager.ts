@@ -407,17 +407,6 @@ export class ProviderSnapshotManager {
       this.providerLoads.delete(cwd);
       this.snapshots.set(cwd, this.reconcileSnapshotForRegistry(cwd));
       this.emitChange(cwd);
-      // Load whatever the reconcile left as "loading" — providers added by
-      // this config change — so already-subscribed clients see their models
-      // without having to force a refresh themselves.
-      const target =
-        cwd === GLOBAL_PROVIDER_SNAPSHOT_KEY
-          ? createGlobalSnapshotTarget()
-          : createWorkspaceSnapshotTarget(cwd);
-      const providersToWarm = this.resolveProvidersToWarm(cwd);
-      if (providersToWarm.length > 0) {
-        void this.warmUp(target, providersToWarm);
-      }
     }
 
     return this.getAgentManagerProviderState();
