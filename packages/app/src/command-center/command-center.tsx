@@ -39,8 +39,10 @@ import {
 import { useHosts } from "@/runtime/host-runtime";
 import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
 import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
-import { getBindingIdForAction, getDefaultKeysForAction } from "@/keyboard/keyboard-shortcuts";
-import { chordStringToShortcutKeys } from "@/keyboard/shortcut-string";
+import {
+  resolveShortcutKeysForAction,
+  type ShortcutOverrides,
+} from "@/keyboard/keyboard-shortcuts";
 import { keyboardActionDispatcher } from "@/keyboard/keyboard-action-dispatcher";
 import {
   clearCommandCenterFocusRestoreElement,
@@ -101,19 +103,14 @@ function HomeIcon({ size }: CommandCenterIconProps) {
 
 function resolveActionShortcutKeys(
   actionId: string | undefined,
-  overrides: Record<string, string>,
+  overrides: ShortcutOverrides,
 ): ShortcutKey[][] | undefined {
   if (!actionId) return undefined;
   const platform = {
     isMac: getShortcutOs() === "mac",
     isDesktop: getIsElectronRuntime(),
   };
-  const bindingId = getBindingIdForAction(actionId, platform);
-  if (!bindingId) return undefined;
-  const override = overrides[bindingId];
-  if (override) return chordStringToShortcutKeys(override);
-  const defaultKeys = getDefaultKeysForAction(actionId, platform);
-  return defaultKeys ? [defaultKeys] : undefined;
+  return resolveShortcutKeysForAction(actionId, overrides, platform) ?? undefined;
 }
 
 export function CommandCenterRootActions() {

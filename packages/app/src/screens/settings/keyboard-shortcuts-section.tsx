@@ -11,14 +11,16 @@ import { useKeyboardShortcutOverrides } from "@/hooks/use-keyboard-shortcut-over
 import {
   buildKeyboardShortcutHelpSections,
   getBindingIdForAction,
+  getDefaultKeysForAction,
+  resolveShortcutKeysForAction,
   type KeyboardShortcutHelpRow,
 } from "@/keyboard/keyboard-shortcuts";
 import {
-  chordStringToShortcutKeys,
   comboStringToShortcutKeys,
   heldModifiersFromEvent,
   keyboardEventToComboString,
 } from "@/keyboard/shortcut-string";
+import type { ShortcutKey } from "@/utils/format-shortcut";
 import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
 import { getShortcutOs } from "@/utils/shortcut-platform";
 import { getIsElectronRuntime } from "@/constants/layout";
@@ -53,31 +55,41 @@ function ShortcutSequence({
 interface ShortcutRowContainerProps {
   row: KeyboardShortcutHelpRow;
   bindingId: string | null;
-  overrideCombo: string | undefined;
+  displayChord: ShortcutKey[][] | null;
+  hasOverride: boolean;
+  hasDefault: boolean;
   isCapturing: boolean;
   capturedCombos: string[];
   heldModifiers: string | null;
   onStartCapture: (bindingId: string) => void;
   onSaveCapture: () => void;
   onCancelCapture: () => void;
+  onClearOverride: (bindingId: string) => void;
   onRemoveOverride: (bindingId: string) => void;
 }
 
 function ShortcutRowContainer({
   row,
   bindingId,
-  overrideCombo,
+  displayChord,
+  hasOverride,
+  hasDefault,
   isCapturing,
   capturedCombos,
   heldModifiers,
   onStartCapture,
   onSaveCapture,
   onCancelCapture,
+  onClearOverride,
   onRemoveOverride,
 }: ShortcutRowContainerProps) {
   const handleRebind = useCallback(() => {
     if (bindingId) onStartCapture(bindingId);
   }, [bindingId, onStartCapture]);
+
+  const handleClear = useCallback(() => {
+    if (bindingId) onClearOverride(bindingId);
+  }, [bindingId, onClearOverride]);
 
   const handleReset = useCallback(() => {
     if (bindingId) onRemoveOverride(bindingId);
@@ -87,74 +99,118 @@ function ShortcutRowContainer({
     <ShortcutRow
       row={row}
       bindingId={bindingId}
-      overrideCombo={overrideCombo}
+      displayChord={displayChord}
+      hasOverride={hasOverride}
+      hasDefault={hasDefault}
       isCapturing={isCapturing}
       capturedCombos={capturedCombos}
       heldModifiers={heldModifiers}
       onRebind={handleRebind}
       onDone={onSaveCapture}
       onCancel={onCancelCapture}
+      onClear={handleClear}
       onReset={handleReset}
     />
   );
 }
 
+function ShortcutRowKeys({
+  displayChord,
+  isCapturing,
+  capturedCombos,
+  heldModifiers,
+}: {
+  displayChord: ShortcutKey[][] | null;
+  isCapturing: boolean;
+  capturedCombos: string[];
+  heldModifiers: string | null;
+}) {
+  const { t } = useTranslation();
+
+  if (isCapturing) {
+    return <ShortcutSequence chord={capturedCombos} heldModifiers={heldModifiers} />;
+  }
+  if (displayChord === null) {
+    return <Text style={styles.unassignedText}>{t("settings.shortcuts.unassigned")}</Text>;
+  }
+  return <Shortcut chord={displayChord} />;
+}
+
 function ShortcutRow({
   row,
   bindingId,
-  overrideCombo,
+  displayChord,
+  hasOverride,
+  hasDefault,
   isCapturing,
   capturedCombos,
   heldModifiers,
   onRebind,
   onDone,
   onCancel,
+  onClear,
   onReset,
 }: {
   row: KeyboardShortcutHelpRow;
   bindingId: string | null;
-  overrideCombo: string | undefined;
+  displayChord: ShortcutKey[][] | null;
+  hasOverride: boolean;
+  hasDefault: boolean;
   isCapturing: boolean;
   capturedCombos: string[];
   heldModifiers: string | null;
   onRebind: () => void;
   onDone: () => void;
   onCancel: () => void;
+  onClear: () => void;
   onReset: () => void;
 }) {
   const { t } = useTranslation();
-  const displayChord = useMemo(
-    () => (overrideCombo ? chordStringToShortcutKeys(overrideCombo) : [row.keys]),
-    [overrideCombo, row.keys],
-  );
   const rowStyle = useMemo(() => [styles.row, isCapturing && styles.rowCapturing], [isCapturing]);
+
+  const isBindable = bindingId !== null;
+  const showDone = isCapturing && capturedCombos.length > 0;
+  const showClear = isBindable && !isCapturing && displayChord !== null;
+  // Reset restores the default, so it is only meaningful when there is a
+  // default to restore. A binding that ships without one would otherwise show a
+  // Reset that lands on the same "Not set" state Clear already produced.
+  const showReset = hasOverride && hasDefault && !isCapturing;
+  // Nothing is bound in the unassigned state, so there is nothing to *re*-bind.
+  const bindLabel = displayChord === null ? "bind" : "rebind";
 
   return (
     <View style={rowStyle}>
       <Text style={styles.rowLabel}>{t(row.labelKey)}</Text>
       <View style={styles.rowActions}>
-        {isCapturing ? (
-          <ShortcutSequence chord={capturedCombos} heldModifiers={heldModifiers} />
-        ) : (
-          <Shortcut chord={displayChord} />
+        <ShortcutRowKeys
+          displayChord={displayChord}
+          isCapturing={isCapturing}
+          capturedCombos={capturedCombos}
+          heldModifiers={heldModifiers}
+        />
+        {showDone && (
+          <Button variant="ghost" size="sm" onPress={onDone}>
+            {t("settings.shortcuts.actions.done")}
+          </Button>
         )}
-        {bindingId !== null && (
-          <>
-            {isCapturing && capturedCombos.length > 0 ? (
-              <Button variant="ghost" size="sm" onPress={onDone}>
-                {t("settings.shortcuts.actions.done")}
-              </Button>
-            ) : null}
-            <Button variant="ghost" size="sm" onPress={isCapturing ? onCancel : onRebind}>
-              {isCapturing
-                ? t("settings.shortcuts.actions.cancel")
-                : t("settings.shortcuts.actions.rebind")}
-            </Button>
-          </>
+        {isBindable && isCapturing && (
+          <Button variant="ghost" size="sm" onPress={onCancel}>
+            {t("settings.shortcuts.actions.cancel")}
+          </Button>
         )}
-        {overrideCombo !== undefined && !isCapturing && (
-          <Button variant="ghost" size="sm" onPress={onReset}>
-            <Text style={styles.resetText}>{t("settings.shortcuts.actions.reset")}</Text>
+        {isBindable && !isCapturing && (
+          <Button variant="ghost" size="sm" onPress={onRebind} testID={`shortcut-bind-${row.id}`}>
+            {t(`settings.shortcuts.actions.${bindLabel}`)}
+          </Button>
+        )}
+        {showClear && (
+          <Button variant="ghost" size="sm" onPress={onClear} testID={`shortcut-clear-${row.id}`}>
+            <Text style={styles.mutedActionText}>{t("settings.shortcuts.actions.clear")}</Text>
+          </Button>
+        )}
+        {showReset && (
+          <Button variant="ghost" size="sm" onPress={onReset} testID={`shortcut-reset-${row.id}`}>
+            <Text style={styles.mutedActionText}>{t("settings.shortcuts.actions.reset")}</Text>
           </Button>
         )}
       </View>
@@ -167,7 +223,7 @@ export function KeyboardShortcutsSection() {
   const [capturingBindingId, setCapturingBindingId] = useState<string | null>(null);
   const [capturedCombos, setCapturedCombos] = useState<string[]>([]);
   const [heldModifiers, setHeldModifiers] = useState<string | null>(null);
-  const { overrides, hasOverrides, setOverride, removeOverride, resetAll } =
+  const { overrides, hasOverrides, setOverride, clearOverride, removeOverride, resetAll } =
     useKeyboardShortcutOverrides();
   const setCapturingShortcut = useKeyboardShortcutsStore((s) => s.setCapturingShortcut);
   const capturing = useKeyboardShortcutsStore((s) => s.capturingShortcut);
@@ -256,6 +312,10 @@ export function KeyboardShortcutsSection() {
   }, [capturing]);
 
   const handleResetAll = useCallback(() => void resetAll(), [resetAll]);
+  const handleClearOverride = useCallback(
+    (bindingId: string) => void clearOverride(bindingId),
+    [clearOverride],
+  );
   const handleRemoveOverride = useCallback(
     (bindingId: string) => void removeOverride(bindingId),
     [removeOverride],
@@ -288,18 +348,23 @@ export function KeyboardShortcutsSection() {
           >
             <View style={settingsStyles.card}>
               {section.rows.map(function (row, index) {
-                const bindingId = getBindingIdForAction(row.id, {
-                  isMac,
-                  isDesktop: isDesktopApp,
-                });
-                const overrideCombo = bindingId ? overrides[bindingId] : undefined;
+                const platform = { isMac, isDesktop: isDesktopApp };
+                const bindingId = getBindingIdForAction(row.id, platform);
+                const displayChord = resolveShortcutKeysForAction(row.id, overrides, platform);
+                // `in`, not a truthiness check: an unassigned shortcut stores
+                // null, and Reset has to stay available to undo it.
+                const hasOverride = bindingId !== null && bindingId in overrides;
+                // A binding authored with `combo: ""` has nothing to reset to.
+                const hasDefault = getDefaultKeysForAction(row.id, platform) !== null;
 
                 return (
                   <View key={row.id}>
                     <ShortcutRowContainer
                       row={row}
                       bindingId={bindingId}
-                      overrideCombo={overrideCombo}
+                      displayChord={displayChord}
+                      hasOverride={hasOverride}
+                      hasDefault={hasDefault}
                       isCapturing={capturingBindingId === bindingId}
                       capturedCombos={
                         capturingBindingId === bindingId ? capturedCombos : EMPTY_CAPTURED_COMBOS
@@ -308,6 +373,7 @@ export function KeyboardShortcutsSection() {
                       onStartCapture={startCapture}
                       onSaveCapture={saveCapture}
                       onCancelCapture={cancelCapture}
+                      onClearOverride={handleClearOverride}
                       onRemoveOverride={handleRemoveOverride}
                     />
                     {index < section.rows.length - 1 && <View style={styles.separator} />}
@@ -347,7 +413,11 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.sm,
     color: theme.colors.foregroundMuted,
   },
-  resetText: {
+  mutedActionText: {
+    color: theme.colors.foregroundMuted,
+  },
+  unassignedText: {
+    fontSize: theme.fontSize.sm,
     color: theme.colors.foregroundMuted,
   },
   separator: {

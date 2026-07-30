@@ -1818,10 +1818,13 @@ export const ru: TranslationResources = {
       searchPlaceholder: "Поиск сочетаний клавиш",
       unavailableOnMobile: "Сочетания клавиш доступны только на рабочем столе.",
       capturePrompt: "Нажмите ярлык...",
+      unassigned: "Не задано",
       actions: {
         done: "Сделанный",
         cancel: "Отмена",
+        bind: "Привязать",
         rebind: "Перепривязка",
+        clear: "Очистить",
         reset: "Перезагрузить",
         resetAll: "Сбросить все",
       },

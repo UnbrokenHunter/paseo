@@ -1759,10 +1759,13 @@ export const zhCN: TranslationResources = {
       searchPlaceholder: "搜索快捷键",
       unavailableOnMobile: "键盘快捷键仅在桌面端可用",
       capturePrompt: "按下快捷键...",
+      unassigned: "未设置",
       actions: {
         done: "完成",
         cancel: "取消",
+        bind: "绑定",
         rebind: "重新绑定",
+        clear: "清除",
         reset: "重置",
         resetAll: "全部重置",
       },

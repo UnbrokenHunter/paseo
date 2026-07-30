@@ -1790,10 +1790,13 @@ export const en = {
       searchPlaceholder: "Search shortcuts",
       unavailableOnMobile: "Keyboard shortcuts are only available on desktop",
       capturePrompt: "Press shortcut...",
+      unassigned: "Not set",
       actions: {
         done: "Done",
         cancel: "Cancel",
+        bind: "Bind",
         rebind: "Rebind",
+        clear: "Clear",
         reset: "Reset",
         resetAll: "Reset all",
       },

@@ -1828,10 +1828,13 @@ export const es: TranslationResources = {
       searchPlaceholder: "Buscar atajos",
       unavailableOnMobile: "Los atajos de teclado solo están disponibles en el escritorio",
       capturePrompt: "Presione el acceso directo...",
+      unassigned: "Sin asignar",
       actions: {
         done: "Hecho",
         cancel: "Cancelar",
+        bind: "Asignar",
         rebind: "Reencuadernar",
+        clear: "Borrar",
         reset: "Reiniciar",
         resetAll: "Restablecer todo",
       },
