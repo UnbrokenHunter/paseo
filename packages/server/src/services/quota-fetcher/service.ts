@@ -34,6 +34,7 @@ export class ProviderUsageService {
   private readonly now: () => number;
   private cached: { fetchedAtMs: number; result: ProviderUsageListResult } | null = null;
   private inFlight: Promise<ProviderUsageListResult> | null = null;
+  private generation = 0;
 
   constructor(options: ProviderUsageServiceOptions) {
     this.logger = options.logger.child({ module: "provider-usage-service" });
@@ -51,7 +52,9 @@ export class ProviderUsageService {
 
   /** Drops cached usage so an account added just now shows up immediately. */
   invalidate(): void {
+    this.generation += 1;
     this.cached = null;
+    this.inFlight = null;
   }
 
   async listUsage(options?: { forceRefresh?: boolean }): Promise<ProviderUsageListResult> {
@@ -68,7 +71,8 @@ export class ProviderUsageService {
       return this.inFlight;
     }
 
-    const request = this.fetchFreshUsage(nowMs);
+    const generation = this.generation;
+    const request = this.fetchFreshUsage(nowMs, generation);
     this.inFlight = request;
     try {
       return await request;
@@ -79,7 +83,10 @@ export class ProviderUsageService {
     }
   }
 
-  private async fetchFreshUsage(nowMs: number): Promise<ProviderUsageListResult> {
+  private async fetchFreshUsage(
+    nowMs: number,
+    generation: number,
+  ): Promise<ProviderUsageListResult> {
     const fetchers = [
       ...this.fetchers,
       ...createProviderUsageAccountFetchers(this.listAccountProfiles(), {
@@ -105,7 +112,9 @@ export class ProviderUsageService {
     });
 
     const result = { fetchedAt: new Date(nowMs).toISOString(), providers };
-    this.cached = { fetchedAtMs: nowMs, result };
+    if (generation === this.generation) {
+      this.cached = { fetchedAtMs: nowMs, result };
+    }
     return result;
   }
 }

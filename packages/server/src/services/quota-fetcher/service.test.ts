@@ -420,6 +420,52 @@ describe("ProviderUsageService", () => {
     ]);
   });
 
+  it("does not let an invalidated in-flight request replace fresh cached usage", async () => {
+    let calls = 0;
+    let resolveStale: ((usage: ProviderUsage) => void) | null = null;
+    const makeUsage = (usedPct: number): ProviderUsage => ({
+      providerId: "claude",
+      displayName: "Claude",
+      status: "available",
+      planLabel: "Max",
+      windows: [{ id: "session", label: "Session", usedPct }],
+    });
+    const service = new ProviderUsageService({
+      logger: createLogger(),
+      now: () => Date.parse("2026-06-19T00:00:00.000Z"),
+      fetchers: [
+        {
+          providerId: "claude",
+          displayName: "Claude",
+          fetchUsage: () => {
+            calls += 1;
+            if (calls === 1) {
+              return new Promise<ProviderUsage>((resolve) => {
+                resolveStale = resolve;
+              });
+            }
+            return Promise.resolve(makeUsage(2));
+          },
+        },
+      ],
+    });
+
+    const staleRequest = service.listUsage();
+    expect(calls).toBe(1);
+
+    service.invalidate();
+    const freshResult = await service.listUsage();
+    expect(calls).toBe(2);
+    expect(freshResult.providers[0]?.windows[0]?.usedPct).toBe(2);
+
+    resolveStale?.(makeUsage(1));
+    await staleRequest;
+
+    const cachedResult = await service.listUsage();
+    expect(calls).toBe(2);
+    expect(cachedResult).toBe(freshResult);
+  });
+
   it("isolates one provider error without dropping other providers", async () => {
     const service = new ProviderUsageService({
       logger: createLogger(),
