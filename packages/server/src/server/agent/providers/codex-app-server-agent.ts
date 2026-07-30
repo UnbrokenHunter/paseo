@@ -3026,8 +3026,15 @@ export function buildCodexAppServerEnv(
 ): NodeJS.ProcessEnv {
   return createProviderEnv({
     runtimeSettings,
-    overlays: [launchEnv],
+    overlays: [launchEnv, resolveCodexAccountHomeOverlay(runtimeSettings)],
   });
+}
+
+function resolveCodexAccountHomeOverlay(
+  runtimeSettings?: ProviderRuntimeSettings,
+): Record<string, string> | undefined {
+  const accountHome = runtimeSettings?.env?.CODEX_HOME?.trim();
+  return accountHome ? { CODEX_HOME: accountHome } : undefined;
 }
 
 function buildCodexAppServerInitializeParams(): {
@@ -6316,7 +6323,7 @@ export class CodexAppServerAgentClient implements AgentClient {
       stdio: ["pipe", "pipe", "pipe"],
       ...createProviderEnvSpec({
         runtimeSettings: this.runtimeSettings,
-        overlays: [launchEnv],
+        overlays: [launchEnv, resolveCodexAccountHomeOverlay(this.runtimeSettings)],
       }),
     });
     assertChildWithPipes(child);

@@ -1791,9 +1791,10 @@ describe("Codex app-server provider", () => {
     }
   });
 
-  test("builds app-server env from launch-context env overrides", () => {
+  test("builds app-server env from launch context without overriding the selected account", () => {
     const launchContext: AgentLaunchContext = {
       env: {
+        CODEX_HOME: "/accounts/codex-other",
         PASEO_AGENT_ID: "00000000-0000-4000-8000-000000000301",
         PASEO_TEST_FLAG: "codex-launch-value",
       },
