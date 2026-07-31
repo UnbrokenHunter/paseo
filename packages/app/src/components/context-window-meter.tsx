@@ -1,11 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Pressable,
-  Text,
-  View,
-  type LayoutChangeEvent,
-  type TextLayoutEventData,
-} from "react-native";
+import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
+import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
@@ -24,8 +18,9 @@ import {
   type ActiveAccountUsage,
   type ProviderUsageLimit,
 } from "@/provider-usage/active-account";
-import { formatAgo, formatCompactUsage } from "@/provider-usage/format";
+import { formatAgeDuration, formatCompactUsage } from "@/provider-usage/format";
 import { getProviderBrandColors } from "@/provider-usage/brand-colors";
+import type { ProviderUsageView } from "@/provider-usage/types";
 import { useProviderUsage } from "@/provider-usage/use-provider-usage";
 import { formatTokenCount } from "./context-window-meter.utils";
 
@@ -52,6 +47,7 @@ const COMPACT_STROKE_WIDTH = 1.75;
 const COMPACT_CIRCUMFERENCE = 2 * Math.PI * COMPACT_RADIUS;
 
 const ROTATION_INTERVAL_MS = 8000;
+const FADE_DURATION_MS = 250;
 const MARQUEE_SPEED_MS_PER_PX = 16;
 
 function isValidMaxTokens(value: number): boolean {
@@ -105,6 +101,7 @@ function getMeterGeometry(showPercentage: boolean, glyphSize?: number) {
       radius: COMPACT_RADIUS,
       strokeWidth: COMPACT_STROKE_WIDTH,
       circumference: COMPACT_CIRCUMFERENCE,
+      ringOnlyStyle: styles.containerWithLabel,
     };
   }
   const resolvedSize = glyphSize ?? SVG_SIZE;
@@ -115,40 +112,192 @@ function getMeterGeometry(showPercentage: boolean, glyphSize?: number) {
     radius: (resolvedSize - resolvedStrokeWidth) / 2,
     strokeWidth: resolvedStrokeWidth,
     circumference: Math.PI * (resolvedSize - resolvedStrokeWidth),
+    ringOnlyStyle: styles.containerIdle,
   };
 }
 
+/**
+ * The compact bar's sentence. `null` with `skeleton` false means the bar has nothing
+ * to say and the meter falls back to the bare ring — that is the `unsupported` case,
+ * where the host cannot answer and a retry the user presses would change nothing.
+ */
 function formatBarText(
   accountUsage: ActiveAccountUsage,
   activeLimit: ProviderUsageLimit | undefined,
   t: ReturnType<typeof useTranslation>["t"],
-): { node: React.ReactNode; skeleton?: boolean } {
+): { label: string | null; skeleton: boolean } {
   switch (accountUsage.state) {
     case "loading":
-      return { node: null, skeleton: true };
+      return { label: null, skeleton: true };
+    case "unsupported":
+      return { label: null, skeleton: false };
     case "unavailable":
-      return { node: t("providerUsage.states.unavailable") };
+      return { label: t("providerUsage.states.unavailable"), skeleton: false };
     case "error":
       return {
-        node: `${t("providerUsage.states.failed")} · ${t("providerUsage.states.retry")}`,
+        label: `${t("providerUsage.states.failed")} · ${t("providerUsage.states.retry")}`,
+        skeleton: false,
       };
     case "available":
-    case "stale":
+    case "stale": {
       if (!activeLimit) {
-        return { node: t("providerUsage.states.unavailable") };
+        return { label: t("providerUsage.states.unavailable"), skeleton: false };
       }
       const { percent, duration } = formatCompactUsage({
         remainingPct: activeLimit.remainingPct,
         resetsAt: activeLimit.resetsAt,
       });
       return {
-        node: duration
+        label: duration
           ? t("providerUsage.compact.remainingWithReset", { percent, duration })
           : t("providerUsage.compact.remaining", { percent }),
+        skeleton: false,
       };
-    default:
-      return { node: t("providerUsage.states.unavailable") };
+    }
   }
+}
+
+/** Screen readers get the context-window ring and the usage sentence as one label. */
+function meterAccessibilityLabel(
+  percentage: number,
+  barLabel: string | null,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
+  const context = t("contextWindow.accessibility", { percentage });
+  return barLabel ? `${context}. ${barLabel}` : context;
+}
+
+type MeterGeometry = ReturnType<typeof getMeterGeometry>;
+
+/**
+ * Reserves the meter's footprint with a track-only ring while a session is active but
+ * has reported no tokens yet, so the real ring appears without shifting its siblings.
+ */
+function IdleMeter({
+  geometry,
+  showPercentage,
+}: {
+  geometry: MeterGeometry;
+  showPercentage: boolean;
+}) {
+  const { theme } = useUnistyles();
+  return (
+    <View style={geometry.ringOnlyStyle}>
+      <Svg
+        width={geometry.svgSize}
+        height={geometry.svgSize}
+        viewBox={`0 0 ${geometry.svgSize} ${geometry.svgSize}`}
+        style={styles.svg}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <Circle
+          cx={geometry.center}
+          cy={geometry.center}
+          r={geometry.radius}
+          fill="none"
+          stroke={theme.colors.surface3}
+          strokeWidth={geometry.strokeWidth}
+        />
+      </Svg>
+      {showPercentage ? <View style={styles.percentageSkeleton} /> : null}
+    </View>
+  );
+}
+
+type AnimatedStyle = ComponentProps<typeof Animated.View>["style"];
+
+/** The pill's sentence, or its loading placeholder. */
+function UsageBarLabel({
+  fadeStyle,
+  foreground,
+  label,
+  marqueeStyle,
+  onWrapperLayout,
+  skeleton,
+}: {
+  fadeStyle: AnimatedStyle;
+  foreground: string;
+  label: string | null;
+  marqueeStyle: AnimatedStyle;
+  onWrapperLayout: (event: LayoutChangeEvent) => void;
+  skeleton: boolean;
+}) {
+  if (skeleton) {
+    return <View style={[styles.skeletonLabel, { backgroundColor: `${foreground}40` }]} />;
+  }
+  return (
+    <Animated.View
+      style={[styles.barTextWrapper, fadeStyle, marqueeStyle]}
+      onLayout={onWrapperLayout}
+    >
+      <Text style={[styles.barText, { color: foreground }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Animated.View>
+  );
+}
+
+/**
+ * The popover body: the context-window numbers the meter has always shown, plus the
+ * provider-usage story when the account's own numbers are failing or out of date.
+ */
+function ContextWindowTooltipBody({
+  accountUsage,
+  maxTokens,
+  percentage,
+  provider,
+  sessionCost,
+  usageView,
+  usedTokens,
+}: {
+  accountUsage: ActiveAccountUsage;
+  maxTokens: number;
+  percentage: number;
+  provider: string | null | undefined;
+  sessionCost: string | null;
+  usageView: ProviderUsageView;
+  usedTokens: number;
+}) {
+  const { t } = useTranslation();
+  const staleAge =
+    accountUsage.state === "stale" ? formatAgeDuration(accountUsage.lastFetchedAt) : null;
+
+  return (
+    <View style={styles.tooltipContent}>
+      <Text style={styles.tooltipTitle}>{t("contextWindow.title")}</Text>
+      <Text style={styles.tooltipText}>{t("contextWindow.used", { percentage })}</Text>
+      <Text style={styles.tooltipDetail}>
+        {t("contextWindow.tokens", {
+          used: formatTokenCount(usedTokens),
+          max: formatTokenCount(maxTokens),
+        })}
+      </Text>
+      {sessionCost ? (
+        <Text style={styles.tooltipDetail}>
+          {t("contextWindow.sessionCost", { cost: sessionCost })}
+        </Text>
+      ) : null}
+      {accountUsage.state === "error" ? (
+        <View style={styles.errorRow}>
+          <Text style={styles.errorText}>{accountUsage.message}</Text>
+          <Text style={styles.tooltipDetail}>{t("providerUsage.states.pressToRetry")}</Text>
+        </View>
+      ) : null}
+      {accountUsage.state === "stale" ? (
+        <View style={styles.errorRow}>
+          <Text style={styles.errorText}>{accountUsage.refreshError}</Text>
+          <Text style={styles.tooltipDetail}>
+            {staleAge
+              ? t("providerUsage.states.staleAge", { age: staleAge })
+              : t("providerUsage.states.staleJustNow")}
+          </Text>
+          <Text style={styles.tooltipDetail}>{t("providerUsage.states.pressToRetry")}</Text>
+        </View>
+      ) : null}
+      <ProviderUsageTooltipSection view={usageView} activeProviderId={provider} />
+    </View>
+  );
 }
 
 export function ContextWindowMeter({
@@ -202,9 +351,13 @@ export function ContextWindowMeter({
     return () => clearInterval(id);
   }, [shouldRotate, limits.length]);
 
+  // Fade the outgoing sentence out and the incoming one back in. Skipped on the very
+  // first limit so the bar does not blink into view on mount.
   const textOpacity = useSharedValue(1);
   useEffect(() => {
-    textOpacity.value = withTiming(1, { duration: 250 });
+    if (rotationIndex === 0) return;
+    textOpacity.value = 0;
+    textOpacity.value = withTiming(1, { duration: FADE_DURATION_MS });
   }, [rotationIndex, textOpacity]);
 
   const fadeStyle = useAnimatedStyle(() => ({ opacity: textOpacity.value }));
@@ -212,12 +365,11 @@ export function ContextWindowMeter({
   const enableMarquee = textWidth > barWidth && barWidth > 0;
   const marqueeTranslate = useSharedValue(0);
   useEffect(() => {
-    if (!enableMarquee || textWidth <= 0 || barWidth <= 0) {
+    if (!enableMarquee) {
       marqueeTranslate.value = 0;
       return;
     }
-    const distance = textWidth + barWidth;
-    const duration = distance * MARQUEE_SPEED_MS_PER_PX;
+    const duration = (textWidth + barWidth) * MARQUEE_SPEED_MS_PER_PX;
     marqueeTranslate.value = barWidth;
     marqueeTranslate.value = withRepeat(
       withTiming(-textWidth, { duration, easing: Easing.linear }),
@@ -232,39 +384,35 @@ export function ContextWindowMeter({
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-      setIsTooltipOpen((prev) => {
-        if (nextOpen && !prev) {
-          void refreshProviderUsage().catch(() => {});
-        }
-        return nextOpen;
-      });
+      if (nextOpen && !isTooltipOpen) {
+        void refreshProviderUsage().catch(() => {});
+      }
+      setIsTooltipOpen(nextOpen);
       if (!nextOpen) {
         setPinned(false);
       }
     },
-    [refreshProviderUsage],
+    [isTooltipOpen, refreshProviderUsage],
   );
 
+  // Pressing the bar toggles the pin. It also retries whenever the numbers on screen
+  // are not current, because the popover itself is not interactive.
   const handlePress = useCallback(() => {
-    if (accountUsage.state === "error") {
+    if (accountUsage.state === "error" || accountUsage.state === "stale") {
       void refreshProviderUsage().catch(() => {});
     }
-    setPinned((prev) => {
-      const next = !prev;
-      setIsTooltipOpen(next);
-      return next;
-    });
-  }, [accountUsage.state, refreshProviderUsage]);
+    const next = !pinned;
+    setPinned(next);
+    setIsTooltipOpen(next);
+  }, [accountUsage.state, pinned, refreshProviderUsage]);
 
-  const handleTextLayout = useCallback(
-    (event: { nativeEvent: { lines: TextLayoutEventData["lines"] } }) => {
-      const firstLine = event.nativeEvent.lines[0];
-      if (firstLine) {
-        setTextWidth(firstLine.width);
-      }
-    },
-    [],
-  );
+  // Measured on the wrapper rather than via `onTextLayout`, which react-native-web
+  // does not implement. The text opts out of shrinking so this is its natural width;
+  // on native the text still measures against the available width, so the marquee
+  // only engages on web and elsewhere the label ellipsizes.
+  const handleTextLayout = useCallback((event: LayoutChangeEvent) => {
+    setTextWidth(event.nativeEvent.layout.width);
+  }, []);
 
   const handleBarLayout = useCallback((event: LayoutChangeEvent) => {
     setBarWidth(event.nativeEvent.layout.width);
@@ -279,45 +427,25 @@ export function ContextWindowMeter({
     if (!pending) {
       return null;
     }
-    return (
-      <View style={styles.containerIdle}>
-        <Svg
-          width={geometry.svgSize}
-          height={geometry.svgSize}
-          viewBox={`0 0 ${geometry.svgSize} ${geometry.svgSize}`}
-          style={styles.svg}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        >
-          <Circle
-            cx={geometry.center}
-            cy={geometry.center}
-            r={geometry.radius}
-            fill="none"
-            stroke={theme.colors.surface3}
-            strokeWidth={geometry.strokeWidth}
-          />
-        </Svg>
-      </View>
-    );
+    return <IdleMeter geometry={geometry} showPercentage={showPercentage} />;
   }
 
   const clampedPercentage = clampPercentage(percentage);
   const roundedPercentage = Math.round(percentage);
-  const { svgSize, center, radius, strokeWidth, circumference } = geometry;
+  const { svgSize, center, radius, strokeWidth, circumference, ringOnlyStyle } = geometry;
   const dashOffset = circumference - (clampedPercentage / 100) * circumference;
   const colors = getMeterColors(clampedPercentage, theme);
   const formattedSessionCost =
     typeof totalCostUsd === "number" ? formatSessionCost(totalCostUsd) : null;
 
+  const { label: barLabel, skeleton: isBarSkeleton } = formatBarText(accountUsage, activeLimit, t);
+  // Nothing to say and nothing pending: fall back to the bare ring the meter has
+  // always been, rather than a brand-coloured pill with no content.
+  const showBar = barLabel !== null || isBarSkeleton;
   const brandColors = getProviderBrandColors(provider);
-  const barBackground = brandColors.background;
-  const barForeground = brandColors.foreground;
-  const { node: barTextNode, skeleton: isBarSkeleton } = formatBarText(
-    accountUsage,
-    activeLimit,
-    t,
-  );
+  const barForeground = showBar ? brandColors.foreground : theme.colors.foregroundMuted;
+
+  const accessibilityLabel = meterAccessibilityLabel(roundedPercentage, barLabel, t);
 
   return (
     <Tooltip
@@ -331,31 +459,28 @@ export function ContextWindowMeter({
     >
       <TooltipTrigger asChild triggerRefProp="ref">
         <Pressable
-          style={[styles.container, { backgroundColor: barBackground }]}
+          style={
+            showBar
+              ? [styles.container, { backgroundColor: brandColors.background }]
+              : ringOnlyStyle
+          }
           testID="context-window-meter"
-          accessibilityRole="image"
-          accessibilityLabel={t("contextWindow.accessibility", {
-            percentage: roundedPercentage,
-          })}
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel}
           onPress={handlePress}
         >
-          <View style={styles.barTextContainer} onLayout={handleBarLayout}>
-            {isBarSkeleton ? (
-              <View style={[styles.skeletonLabel, { backgroundColor: `${barForeground}40` }]} />
-            ) : (
-              <Animated.View
-                style={[styles.barTextWrapper, fadeStyle, enableMarquee ? marqueeStyle : undefined]}
-              >
-                <Text
-                  style={[styles.barText, { color: barForeground }]}
-                  numberOfLines={1}
-                  onTextLayout={handleTextLayout}
-                >
-                  {barTextNode}
-                </Text>
-              </Animated.View>
-            )}
-          </View>
+          {showBar ? (
+            <View style={styles.barTextContainer} onLayout={handleBarLayout}>
+              <UsageBarLabel
+                fadeStyle={fadeStyle}
+                foreground={barForeground}
+                label={barLabel}
+                marqueeStyle={enableMarquee ? marqueeStyle : undefined}
+                onWrapperLayout={handleTextLayout}
+                skeleton={isBarSkeleton}
+              />
+            </View>
+          ) : null}
           {showPercentage ? (
             <Text
               style={[styles.percentageLabel, { color: barForeground }]}
@@ -392,39 +517,15 @@ export function ContextWindowMeter({
         </Pressable>
       </TooltipTrigger>
       <TooltipContent side="top" align="center" offset={8}>
-        <View style={styles.tooltipContent}>
-          <Text style={styles.tooltipTitle}>{t("contextWindow.title")}</Text>
-          <Text style={styles.tooltipText}>
-            {t("contextWindow.used", { percentage: roundedPercentage })}
-          </Text>
-          <Text style={styles.tooltipDetail}>
-            {t("contextWindow.tokens", {
-              used: formatTokenCount(usedTokens),
-              max: formatTokenCount(maxTokens),
-            })}
-          </Text>
-          {formattedSessionCost ? (
-            <Text style={styles.tooltipDetail}>
-              {t("contextWindow.sessionCost", { cost: formattedSessionCost })}
-            </Text>
-          ) : null}
-          {accountUsage.state === "error" ? (
-            <View style={styles.errorRow}>
-              <Text style={styles.errorText}>{accountUsage.message}</Text>
-            </View>
-          ) : null}
-          {accountUsage.state === "stale" ? (
-            <View style={styles.errorRow}>
-              <Text style={styles.errorText}>{accountUsage.refreshError}</Text>
-              <Text style={styles.tooltipDetail}>
-                {t("providerUsage.states.staleAge", {
-                  age: formatAgo(accountUsage.lastFetchedAt),
-                })}
-              </Text>
-            </View>
-          ) : null}
-          <ProviderUsageTooltipSection view={providerUsageView} activeProviderId={provider} />
-        </View>
+        <ContextWindowTooltipBody
+          accountUsage={accountUsage}
+          maxTokens={maxTokens}
+          percentage={roundedPercentage}
+          provider={provider}
+          sessionCost={formattedSessionCost}
+          usageView={providerUsageView}
+          usedTokens={usedTokens}
+        />
       </TooltipContent>
     </Tooltip>
   );
@@ -448,12 +549,23 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "center",
   },
+  containerWithLabel: {
+    height: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing[1],
+    borderRadius: theme.borderRadius.full,
+  },
   barTextContainer: {
     flexShrink: 1,
     overflow: "hidden",
   },
+  // The wrapper opts out of shrinking so its measured width is the sentence's natural
+  // width, which is what tells the marquee whether the label overflows the pill.
   barTextWrapper: {
     flexDirection: "row",
+    flexShrink: 0,
   },
   barText: {
     fontSize: theme.fontSize.xs,
@@ -463,6 +575,12 @@ const styles = StyleSheet.create((theme) => ({
     width: 80,
     height: theme.fontSize.xs,
     borderRadius: theme.borderRadius.full,
+  },
+  percentageSkeleton: {
+    width: 22,
+    height: theme.fontSize.sm,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.surface3,
   },
   svg: {
     transform: [{ rotate: "-90deg" }],

@@ -364,7 +364,9 @@ export function TooltipTrigger({
       }
       if (ctx.openOnPress) {
         clearOpenTimer();
-        ctx.setOpen(true);
+        // A pinned tooltip is already open, so this press is the one that unpins it.
+        // Forcing it back open here would make the pin impossible to release.
+        ctx.setOpen(!ctx.pinned);
         return;
       }
       close();
