@@ -1,0 +1,93 @@
+name: PaseoPlus Windows Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "PaseoPlus version, for example 1.0.0"
+        required: true
+        default: "1.0.0"
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paseoplus-release
+  cancel-in-progress: false
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out selected branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare PaseoPlus identity and version
+        run: node scripts/prepare-paseoplus-build.mjs "${{ inputs.version }}"
+
+      - name: Typecheck desktop
+        run: npm run typecheck --workspace=@getpaseo/desktop
+
+      - name: Build Windows installer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EP_GH_IGNORE_TIME: true
+        run: npm run build:desktop -- --publish never --win --x64
+
+      - name: Verify updater files
+        shell: pwsh
+        run: |
+          $release = "packages/desktop/release"
+          $installer = Get-ChildItem $release -Filter "PaseoPlus-Setup-${{ inputs.version }}-x64.exe" -File
+          $manifest = Get-Item "$release/latest.yml"
+          if (-not $installer) { throw "PaseoPlus installer was not generated" }
+          if (-not $manifest) { throw "latest.yml was not generated" }
+
+      - name: Create or update GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = "${{ inputs.version }}"
+          $tag = "paseoplus-v$version"
+          $release = "packages/desktop/release"
+
+          gh release view $tag --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag `
+              --repo "${{ github.repository }}" `
+              --target "${{ github.sha }}" `
+              --title "PaseoPlus $version" `
+              --notes "PaseoPlus Windows release $version"
+          }
+
+          $files = Get-ChildItem $release -File | Where-Object {
+            $_.Name -match '\.(exe|blockmap|yml|zip)$'
+          } | ForEach-Object { $_.FullName }
+
+          if (-not $files) { throw "No release files found" }
+          gh release upload $tag $files --clobber --repo "${{ github.repository }}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PaseoPlus-${{ inputs.version }}-windows-x64
+          path: |
+            packages/desktop/release/PaseoPlus-Setup-${{ inputs.version }}-x64.exe
+            packages/desktop/release/PaseoPlus-Setup-${{ inputs.version }}-x64.exe.blockmap
+            packages/desktop/release/latest.yml
+          retention-days: 14
