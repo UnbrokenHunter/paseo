@@ -279,14 +279,26 @@ describe("selectActiveAccountUsage", () => {
 
   it("reports the view error when there is nothing to fall back on", () => {
     const result = selectActiveAccountUsage({
-      view: { kind: "error", message: "Update the host to see provider usage" },
+      view: { kind: "error", message: "Usage lookup timed out" },
       providerId: "claude",
     });
 
     expect(result).toEqual({
       state: "error",
-      message: "Update the host to see provider usage",
+      message: "Usage lookup timed out",
       usage: null,
+    });
+  });
+
+  it("keeps a host that cannot answer separate from a fetch that failed", () => {
+    const result = selectActiveAccountUsage({
+      view: { kind: "unsupported", message: "Update the host to see provider usage" },
+      providerId: "claude",
+    });
+
+    expect(result).toEqual({
+      state: "unsupported",
+      message: "Update the host to see provider usage",
     });
   });
 

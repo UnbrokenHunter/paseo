@@ -28,30 +28,10 @@ export function formatResetLabel(iso: string | null | undefined): string | null 
   return rel === "now" ? "resetting now" : `resets ${rel}`;
 }
 
-/** "resets in 3h" — the prose form used by the compact usage bar and the popover. */
-export function formatResetInLabel(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  const rel = relativeDuration(iso);
-  if (!rel) return null;
-  return rel === "now" ? "resetting now" : `resets in ${rel}`;
-}
-
-export interface UsageSummaryParts {
+export interface CompactUsageParts {
   remainingPct: number;
   resetsAt: string | null;
 }
-
-/**
- * The one-line usage summary: `78% remaining · resets in 3h`, or just
- * `78% remaining` when the limit has no known reset time.
- */
-export function formatUsageSummary(parts: UsageSummaryParts): string {
-  const remaining = `${formatPct(parts.remainingPct)} remaining`;
-  const reset = formatResetInLabel(parts.resetsAt);
-  return reset ? `${remaining} · ${reset}` : remaining;
-}
-
-export interface CompactUsageParts extends UsageSummaryParts {}
 
 /**
  * Values needed by the compact bar's translated sentence:
@@ -67,6 +47,23 @@ export function formatCompactUsage(parts: CompactUsageParts): {
     percent: Math.round(clampPct(parts.remainingPct)),
     duration: duration === "now" ? null : duration,
   };
+}
+
+/**
+ * Bare age of a timestamp — `5m`, `2h`, `3d` — for interpolation into a translated
+ * "last updated {{age}} ago" sentence. Null under a minute, so callers say
+ * "just now" in their own locale instead of rendering "0m ago".
+ */
+export function formatAgeDuration(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const diffMs = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 60_000) return null;
+  const diffMinutes = Math.floor(diffMs / 60_000);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays > 0) return `${diffDays}d`;
+  if (diffHours > 0) return `${diffHours}h`;
+  return `${diffMinutes}m`;
 }
 
 export function formatAgo(iso: string | null | undefined): string | null {

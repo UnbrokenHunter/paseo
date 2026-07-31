@@ -43,9 +43,12 @@ interface ActiveAccountUsageData {
  * OpenCode, Pi, or an account the daemon could not read). `error` means a fetch
  * failed and there is nothing to fall back on. `stale` means the last known
  * numbers are still worth showing even though the newest refresh failed.
+ * `unsupported` means the host cannot answer at all, which is not the user's
+ * problem to retry — compact surfaces render nothing for it.
  */
 export type ActiveAccountUsage =
   | { state: "loading" }
+  | { state: "unsupported"; message: string }
   | ({ state: "available" } & ActiveAccountUsageData)
   | ({ state: "stale"; refreshError: string } & ActiveAccountUsageData)
   | { state: "unavailable"; usage: ProviderUsage | null; reason: string | null }
@@ -180,6 +183,9 @@ export function selectActiveAccountUsage({
 }: SelectActiveAccountUsageInput): ActiveAccountUsage {
   if (view.kind === "loading") {
     return { state: "loading" };
+  }
+  if (view.kind === "unsupported") {
+    return { state: "unsupported", message: view.message };
   }
   if (view.kind === "error") {
     return { state: "error", message: view.message, usage: null };

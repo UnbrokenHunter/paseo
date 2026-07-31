@@ -84,10 +84,10 @@ export function useProviderUsage(
 
   const view = useMemo<ProviderUsageView>(() => {
     if (!serverId || !client || !isConnected) {
-      return { kind: "error", message: t("providerUsage.hostUnavailable") };
+      return { kind: "unsupported", message: t("providerUsage.hostUnavailable") };
     }
     if (!supportsProviderUsage) {
-      return { kind: "error", message: t("providerUsage.hostUpgradeRequired") };
+      return { kind: "unsupported", message: t("providerUsage.hostUpgradeRequired") };
     }
     const failure = query.isError ? errorMessage(query.error) : null;
     if (query.data) {

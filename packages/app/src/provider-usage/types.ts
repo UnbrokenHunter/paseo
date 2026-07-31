@@ -27,9 +27,14 @@ export type ProviderUsageListPayload = ProviderUsageListResponseMessage["payload
  * recent refresh failed — `refreshError` and `lastFetchedAt` are what let a surface
  * show a last-known value together with how old it is and why it stopped updating.
  * `error` means there is nothing to show at all.
+ *
+ * `unsupported` is not a failure: the host is disconnected or too old to answer
+ * `providerUsageList`. Surfaces stay quiet for it instead of showing a retry the
+ * user cannot act on — see docs/protocol-compatibility.md.
  */
 export type ProviderUsageView =
   | { kind: "loading" }
+  | { kind: "unsupported"; message: string }
   | { kind: "error"; message: string }
   | {
       kind: "ready";

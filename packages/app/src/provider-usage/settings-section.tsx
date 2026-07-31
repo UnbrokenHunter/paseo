@@ -64,6 +64,16 @@ function ProviderUsageBody({
     );
   }
 
+  // A host that cannot answer at all is not something retrying fixes, so it gets a
+  // plain explanation rather than an error with a dead retry button.
+  if (view.kind === "unsupported") {
+    return (
+      <View style={[settingsStyles.card, styles.emptyCard]}>
+        <Text style={styles.emptyText}>{view.message}</Text>
+      </View>
+    );
+  }
+
   if (view.kind === "error") {
     return (
       <Alert variant="error" title={t("providerUsage.errorTitle")} description={view.message}>

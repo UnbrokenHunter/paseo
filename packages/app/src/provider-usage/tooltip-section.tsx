@@ -26,6 +26,10 @@ export function ProviderUsageTooltipSection({
     );
   }
 
+  // The meter owns the "this host can't report usage" story; adding a second line
+  // here would just repeat it inside the same popover.
+  if (view.kind === "unsupported") return null;
+
   if (view.kind === "error") {
     return (
       <>
@@ -42,7 +46,6 @@ export function ProviderUsageTooltipSection({
     <>
       <View style={styles.divider} />
       <ProviderUsageCard usage={usage} compact testID="provider-usage-tooltip-card" />
-      {view.refreshError ? <Text style={styles.error}>{view.refreshError}</Text> : null}
     </>
   );
 }

@@ -24,7 +24,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getProviderIcon } from "@/components/provider-icons";
 import { selectActiveAccountUsage } from "@/provider-usage/active-account";
-import { formatUsageSummary } from "@/provider-usage/format";
+import { formatCompactUsage } from "@/provider-usage/format";
 import type { ProviderUsageView } from "@/provider-usage/types";
 import { useProviderUsage } from "@/provider-usage/use-provider-usage";
 import { useIsCompactFormFactor } from "@/constants/layout";
@@ -102,13 +102,16 @@ function ModelProviderUsageSummary({
     );
   }
 
+  // A host that cannot report usage is not this row's business to explain.
+  if (account.state === "unsupported") return null;
+
   if (account.state === "unavailable") {
     return (
       <Tooltip enabledOnDesktop enabledOnMobile delayDuration={0}>
         <TooltipTrigger asChild>
-          <View style={styles.usageSummaryRow} testID={testID}>
+          <Pressable style={styles.usageSummaryRow} testID={testID}>
             <Text style={styles.usageSummaryText}>{t("providerUsage.states.unavailable")}</Text>
-          </View>
+          </Pressable>
         </TooltipTrigger>
         <TooltipContent side="top" align="center">
           <Text style={styles.usageSummaryTooltipText}>
@@ -119,13 +122,16 @@ function ModelProviderUsageSummary({
     );
   }
 
+  const { percent, duration } = formatCompactUsage({
+    remainingPct: account.primary.remainingPct,
+    resetsAt: account.primary.resetsAt,
+  });
   return (
     <View style={styles.usageSummaryRow} testID={testID}>
       <Text style={styles.usageSummaryText}>
-        {formatUsageSummary({
-          remainingPct: account.primary.remainingPct,
-          resetsAt: account.primary.resetsAt,
-        })}
+        {duration
+          ? t("providerUsage.compact.remainingWithReset", { percent, duration })
+          : t("providerUsage.compact.remaining", { percent })}
       </Text>
     </View>
   );
@@ -231,8 +237,6 @@ interface ModelBrowserContentProps extends Omit<ModelBrowserProps, "state" | "sc
   selectedModel: string;
   searchQuery: string;
   favoriteKeys: Set<string>;
-  providerUsageView: ProviderUsageView;
-  refreshProviderUsage: () => Promise<void>;
   onDrillDown: (providerId: string, providerLabel: string) => void;
   scrolling: "sheet" | "independent";
 }
@@ -751,18 +755,48 @@ function FavoritesSection({
 
 function GroupProviderButton({
   provider,
-  providerUsageView,
-  refreshProviderUsage,
   onDrillDown,
 }: {
   provider: ProviderSelectorProvider;
-  providerUsageView: ProviderUsageView;
-  refreshProviderUsage: () => Promise<void>;
   onDrillDown: (providerId: string, providerLabel: string) => void;
 }) {
+  const { t } = useTranslation();
+  const selection = provider.modelSelection;
   const handlePress = useCallback(() => {
     onDrillDown(provider.id, provider.label);
   }, [onDrillDown, provider.id, provider.label]);
+
+  // The row keeps reporting how the provider's model list is doing; usage belongs to
+  // the provider header the row drills into, so it is not repeated per row.
+  const stateNode = useMemo(() => {
+    if (selection.kind === "models") {
+      const count = selection.rows.length;
+      return (
+        <Text style={styles.drillDownCount}>
+          {t(count === 1 ? "modelSelector.modelCount" : "modelSelector.modelCountPlural", {
+            count,
+          })}
+        </Text>
+      );
+    }
+    if (selection.kind === "loading") {
+      return (
+        <View style={styles.rowStateInline}>
+          <View style={styles.rowSpinner}>
+            <ThemedLoadingSpinner size={ICON_SIZE.sm} uniProps={foregroundMutedMapping} />
+          </View>
+          <Text style={styles.drillDownCount}>{t("modelSelector.loadingShort")}</Text>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.rowStateInline}>
+        <ThemedAlertTriangle size={ICON_SIZE.sm} uniProps={foregroundMutedMapping} />
+        <Text style={styles.drillDownCount}>{t("modelSelector.error")}</Text>
+      </View>
+    );
+  }, [selection, t]);
+
   const leadingSlot = useMemo(
     () => <ModelProviderGlyph provider={provider.id} size={ICON_SIZE.sm} />,
     [provider.id],
@@ -770,16 +804,11 @@ function GroupProviderButton({
   const trailingSlot = useMemo(
     () => (
       <View style={styles.drillDownTrailing}>
-        <ModelProviderUsageSummary
-          view={providerUsageView}
-          providerId={provider.id}
-          onRefresh={refreshProviderUsage}
-          testID={`provider-usage-summary-${provider.id}`}
-        />
+        {stateNode}
         <ThemedChevronRight size={ICON_SIZE.sm} uniProps={foregroundMutedMapping} />
       </View>
     ),
-    [provider.id, providerUsageView, refreshProviderUsage],
+    [stateNode],
   );
 
   return (
@@ -797,13 +826,9 @@ function GroupProviderButton({
 
 function GroupedProviderRows({
   providers,
-  providerUsageView,
-  refreshProviderUsage,
   onDrillDown,
 }: {
   providers: ProviderSelectorProvider[];
-  providerUsageView: ProviderUsageView;
-  refreshProviderUsage: () => Promise<void>;
   onDrillDown: (providerId: string, providerLabel: string) => void;
 }) {
   return (
@@ -811,12 +836,7 @@ function GroupedProviderRows({
       {providers.map((provider, index) => (
         <View key={provider.id}>
           {index > 0 ? <View style={styles.separator} /> : null}
-          <GroupProviderButton
-            provider={provider}
-            providerUsageView={providerUsageView}
-            refreshProviderUsage={refreshProviderUsage}
-            onDrillDown={onDrillDown}
-          />
+          <GroupProviderButton provider={provider} onDrillDown={onDrillDown} />
         </View>
       ))}
     </View>
@@ -994,8 +1014,6 @@ function ModelBrowserContent({
   selectedModel,
   searchQuery,
   favoriteKeys,
-  providerUsageView,
-  refreshProviderUsage,
   onSelect,
   onToggleFavorite,
   onDrillDown,
@@ -1080,12 +1098,7 @@ function ModelBrowserContent({
         onToggleFavorite={onToggleFavorite}
       />
       {providers.length > 0 ? (
-        <GroupedProviderRows
-          providers={providers}
-          providerUsageView={providerUsageView}
-          refreshProviderUsage={refreshProviderUsage}
-          onDrillDown={onDrillDown}
-        />
+        <GroupedProviderRows providers={providers} onDrillDown={onDrillDown} />
       ) : null}
       {!hasResults ? emptyState : null}
     </View>
@@ -1114,8 +1127,6 @@ export function ModelBrowser({
       selectedModel={state.selectedModel}
       searchQuery={state.searchQuery}
       favoriteKeys={state.favoriteKeys}
-      providerUsageView={state.providerUsageView}
-      refreshProviderUsage={state.refreshProviderUsage}
       onSelect={onSelect}
       onToggleFavorite={onToggleFavorite}
       onDrillDown={state.drillDown}
@@ -1267,6 +1278,17 @@ const styles = StyleSheet.create((theme) => ({
   },
   providerIconForeground: {
     color: theme.colors.foreground,
+  },
+  drillDownCount: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.foregroundMuted,
+  },
+  rowStateInline: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+    flexShrink: 1,
+    minWidth: 0,
   },
   usageSummaryRow: {
     flexDirection: "row",

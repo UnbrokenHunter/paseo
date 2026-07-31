@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatCompactUsage, formatResetInLabel, formatUsageSummary } from "./format";
+import { formatAgeDuration, formatCompactUsage } from "./format";
 
 const NOW = new Date("2026-07-31T12:00:00.000Z");
 
@@ -16,37 +16,22 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("formatResetInLabel", () => {
-  it("counts down in the largest whole unit", () => {
-    expect(formatResetInLabel(inHours(3))).toBe("resets in 3h");
-    expect(formatResetInLabel(inHours(0.5))).toBe("resets in 30m");
-    expect(formatResetInLabel(inHours(72))).toBe("resets in 3d");
+describe("formatAgeDuration", () => {
+  it("reports the age in the largest whole unit, with no 'ago' of its own", () => {
+    expect(formatAgeDuration(inHours(-3))).toBe("3h");
+    expect(formatAgeDuration(inHours(-0.5))).toBe("30m");
+    expect(formatAgeDuration(inHours(-72))).toBe("3d");
   });
 
-  it("says the reset is happening once the deadline passes", () => {
-    expect(formatResetInLabel(inHours(-1))).toBe("resetting now");
+  it("returns null under a minute so callers can say 'just now' themselves", () => {
+    expect(formatAgeDuration(inHours(-0.001))).toBeNull();
+    expect(formatAgeDuration(NOW.toISOString())).toBeNull();
   });
 
-  it("returns null when there is no reset time to show", () => {
-    expect(formatResetInLabel(null)).toBeNull();
-    expect(formatResetInLabel(undefined)).toBeNull();
-    expect(formatResetInLabel("not-a-date")).toBeNull();
-  });
-});
-
-describe("formatUsageSummary", () => {
-  it("reads as remaining percentage then reset countdown", () => {
-    expect(formatUsageSummary({ remainingPct: 78, resetsAt: inHours(3) })).toBe(
-      "78% remaining · resets in 3h",
-    );
-  });
-
-  it("rounds the percentage to a whole number", () => {
-    expect(formatUsageSummary({ remainingPct: 77.6, resetsAt: null })).toBe("78% remaining");
-  });
-
-  it("omits the countdown when the limit has no reset time", () => {
-    expect(formatUsageSummary({ remainingPct: 12, resetsAt: null })).toBe("12% remaining");
+  it("returns null when there is no usable timestamp", () => {
+    expect(formatAgeDuration(null)).toBeNull();
+    expect(formatAgeDuration(undefined)).toBeNull();
+    expect(formatAgeDuration("not-a-date")).toBeNull();
   });
 });
 
