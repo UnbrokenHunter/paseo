@@ -1622,20 +1622,16 @@ export const fr: TranslationResources = {
     compact: {
       remaining: "{{percent}}% restant",
       remainingWithReset: "{{percent}}% restant · réinitialisation dans {{duration}}",
-      unknown: "Utilisation indisponible",
     },
     states: {
       unavailable: "Utilisation indisponible",
-      unavailableExplanation: "Connectez-vous à cet hôte pour voir l'utilisation du fournisseur.",
+      unavailableExplanation: "Ce fournisseur ne communique pas de limites d'utilisation.",
       loading: "Chargement de l'utilisation…",
       retry: "Réessayer",
       failed: "Impossible de charger l'utilisation",
       staleAge: "Dernière mise à jour il y a {{age}}",
-    },
-    sections: {
-      account: "Compte",
-      limits: "Limites d'utilisation",
-      extraUsage: "Utilisation supplémentaire",
+      staleJustNow: "Mis à jour à l'instant",
+      pressToRetry: "Appuyez pour réessayer",
     },
   },
   review: {

@@ -1557,20 +1557,16 @@ export const zhCN: TranslationResources = {
     compact: {
       remaining: "剩余 {{percent}}%",
       remainingWithReset: "剩余 {{percent}}% · {{duration}}后重置",
-      unknown: "用量不可用",
     },
     states: {
       unavailable: "用量不可用",
-      unavailableExplanation: "连接此主机以查看提供商用量。",
+      unavailableExplanation: "该提供商不报告用量限制。",
       loading: "正在加载用量…",
       retry: "重试",
       failed: "无法加载用量",
       staleAge: "{{age}}前更新",
-    },
-    sections: {
-      account: "账户",
-      limits: "用量限制",
-      extraUsage: "额外用量",
+      staleJustNow: "刚刚更新",
+      pressToRetry: "点按以重试",
     },
   },
   review: {

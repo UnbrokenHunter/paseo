@@ -1605,20 +1605,16 @@ export const ptBR: TranslationResources = {
     compact: {
       remaining: "{{percent}}% restante",
       remainingWithReset: "{{percent}}% restante · reinicia em {{duration}}",
-      unknown: "Uso indisponível",
     },
     states: {
       unavailable: "Uso indisponível",
-      unavailableExplanation: "Conecte-se a este host para ver o uso do provedor.",
+      unavailableExplanation: "Este provedor não informa limites de uso.",
       loading: "Carregando uso…",
       retry: "Tentar novamente",
       failed: "Não foi possível carregar o uso",
       staleAge: "Última atualização há {{age}}",
-    },
-    sections: {
-      account: "Conta",
-      limits: "Limites de uso",
-      extraUsage: "Uso extra",
+      staleJustNow: "Atualizado agora mesmo",
+      pressToRetry: "Toque para tentar novamente",
     },
   },
   review: {

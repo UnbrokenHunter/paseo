@@ -1576,20 +1576,16 @@ export const ar: TranslationResources = {
     compact: {
       remaining: "متبقٍ {{percent}}%",
       remainingWithReset: "متبقٍ {{percent}}% · إعادة التعيين خلال {{duration}}",
-      unknown: "الاستخدام غير متاح",
     },
     states: {
       unavailable: "الاستخدام غير متاح",
-      unavailableExplanation: "اتصل بهذا المضيف لعرض استخدام المزود.",
+      unavailableExplanation: "هذا المزود لا يبلّغ عن حدود الاستخدام.",
       loading: "جارٍ تحميل الاستخدام…",
       retry: "إعادة المحاولة",
       failed: "تعذر تحميل الاستخدام",
       staleAge: "آخر تحديث قبل {{age}}",
-    },
-    sections: {
-      account: "الحساب",
-      limits: "حدود الاستخدام",
-      extraUsage: "استخدام إضافي",
+      staleJustNow: "آخر تحديث الآن",
+      pressToRetry: "اضغط لإعادة المحاولة",
     },
   },
   review: {

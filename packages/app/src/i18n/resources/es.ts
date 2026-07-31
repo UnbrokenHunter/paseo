@@ -1619,20 +1619,16 @@ export const es: TranslationResources = {
     compact: {
       remaining: "{{percent}}% restante",
       remainingWithReset: "{{percent}}% restante · se reinicia en {{duration}}",
-      unknown: "Uso no disponible",
     },
     states: {
       unavailable: "Uso no disponible",
-      unavailableExplanation: "Conéctate a este host para ver el uso del proveedor.",
+      unavailableExplanation: "Este proveedor no informa límites de uso.",
       loading: "Cargando uso…",
       retry: "Reintentar",
       failed: "No se pudo cargar el uso",
       staleAge: "Última actualización hace {{age}}",
-    },
-    sections: {
-      account: "Cuenta",
-      limits: "Límites de uso",
-      extraUsage: "Uso adicional",
+      staleJustNow: "Actualizado hace un momento",
+      pressToRetry: "Pulsa para reintentar",
     },
   },
   review: {

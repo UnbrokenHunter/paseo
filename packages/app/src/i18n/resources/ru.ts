@@ -1610,20 +1610,16 @@ export const ru: TranslationResources = {
     compact: {
       remaining: "Осталось {{percent}}%",
       remainingWithReset: "Осталось {{percent}}% · сброс через {{duration}}",
-      unknown: "Использование недоступно",
     },
     states: {
       unavailable: "Использование недоступно",
-      unavailableExplanation: "Подключитесь к этому хосту, чтобы увидеть использование провайдера.",
+      unavailableExplanation: "Этот провайдер не сообщает лимиты использования.",
       loading: "Загрузка использования…",
       retry: "Повторить",
       failed: "Не удалось загрузить данные об использовании",
       staleAge: "Обновлено {{age}} назад",
-    },
-    sections: {
-      account: "Аккаунт",
-      limits: "Лимиты использования",
-      extraUsage: "Дополнительное использование",
+      staleJustNow: "Обновлено только что",
+      pressToRetry: "Нажмите, чтобы повторить",
     },
   },
   review: {

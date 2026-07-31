@@ -1592,20 +1592,16 @@ export const ja: TranslationResources = {
     compact: {
       remaining: "残り{{percent}}%",
       remainingWithReset: "残り{{percent}}%・{{duration}}後にリセット",
-      unknown: "使用状況を利用できません",
     },
     states: {
       unavailable: "使用状況を利用できません",
-      unavailableExplanation: "プロバイダーの使用状況を見るにはこのホストに接続してください。",
+      unavailableExplanation: "このプロバイダーは使用制限を報告しません。",
       loading: "使用状況を読み込み中…",
       retry: "再試行",
       failed: "使用状況を読み込めませんでした",
       staleAge: "{{age}}前に更新",
-    },
-    sections: {
-      account: "アカウント",
-      limits: "使用制限",
-      extraUsage: "追加使用量",
+      staleJustNow: "たった今更新",
+      pressToRetry: "タップで再試行",
     },
   },
   review: {

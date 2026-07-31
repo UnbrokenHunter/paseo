@@ -1587,20 +1587,16 @@ export const en = {
     compact: {
       remaining: "{{percent}}% remaining",
       remainingWithReset: "{{percent}}% remaining · resets in {{duration}}",
-      unknown: "Usage unavailable",
     },
     states: {
       unavailable: "Usage unavailable",
-      unavailableExplanation: "Connect to this host to see provider usage.",
+      unavailableExplanation: "This provider does not report usage limits.",
       loading: "Loading usage…",
       retry: "Retry",
       failed: "Unable to load usage",
       staleAge: "Last updated {{age}} ago",
-    },
-    sections: {
-      account: "Account",
-      limits: "Usage limits",
-      extraUsage: "Extra usage",
+      staleJustNow: "Last updated just now",
+      pressToRetry: "Press to retry",
     },
   },
   review: {
