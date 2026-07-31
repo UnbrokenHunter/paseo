@@ -210,28 +210,26 @@ type AnimatedStyle = ComponentProps<typeof Animated.View>["style"];
 /** The pill's sentence, or its loading placeholder. */
 function UsageBarLabel({
   fadeStyle,
-  foreground,
   label,
   marqueeStyle,
   onWrapperLayout,
   skeleton,
 }: {
   fadeStyle: AnimatedStyle;
-  foreground: string;
   label: string | null;
   marqueeStyle: AnimatedStyle;
   onWrapperLayout: (event: LayoutChangeEvent) => void;
   skeleton: boolean;
 }) {
   if (skeleton) {
-    return <View style={[styles.skeletonLabel, { backgroundColor: `${foreground}40` }]} />;
+    return <View style={styles.skeletonLabel} />;
   }
   return (
     <Animated.View
       style={[styles.barTextWrapper, fadeStyle, marqueeStyle]}
       onLayout={onWrapperLayout}
     >
-      <Text style={[styles.barText, { color: foreground }]} numberOfLines={1}>
+      <Text style={styles.barText} numberOfLines={1}>
         {label}
       </Text>
     </Animated.View>
@@ -440,10 +438,9 @@ export function ContextWindowMeter({
 
   const { label: barLabel, skeleton: isBarSkeleton } = formatBarText(accountUsage, activeLimit, t);
   // Nothing to say and nothing pending: fall back to the bare ring the meter has
-  // always been, rather than a brand-coloured pill with no content.
+  // always been, rather than a tinted pill with no content.
   const showBar = barLabel !== null || isBarSkeleton;
   const brandColors = getProviderBrandColors(provider);
-  const barForeground = showBar ? brandColors.foreground : theme.colors.foregroundMuted;
 
   const accessibilityLabel = meterAccessibilityLabel(roundedPercentage, barLabel, t);
 
@@ -461,7 +458,10 @@ export function ContextWindowMeter({
         <Pressable
           style={
             showBar
-              ? [styles.container, { backgroundColor: brandColors.background }]
+              ? [
+                  styles.container,
+                  { backgroundColor: brandColors.tint, borderColor: brandColors.border },
+                ]
               : ringOnlyStyle
           }
           testID="context-window-meter"
@@ -470,21 +470,21 @@ export function ContextWindowMeter({
           onPress={handlePress}
         >
           {showBar ? (
-            <View style={styles.barTextContainer} onLayout={handleBarLayout}>
-              <UsageBarLabel
-                fadeStyle={fadeStyle}
-                foreground={barForeground}
-                label={barLabel}
-                marqueeStyle={enableMarquee ? marqueeStyle : undefined}
-                onWrapperLayout={handleTextLayout}
-                skeleton={isBarSkeleton}
-              />
-            </View>
+            <>
+              <View style={[styles.brandDot, { backgroundColor: brandColors.accent }]} />
+              <View style={styles.barTextContainer} onLayout={handleBarLayout}>
+                <UsageBarLabel
+                  fadeStyle={fadeStyle}
+                  label={barLabel}
+                  marqueeStyle={enableMarquee ? marqueeStyle : undefined}
+                  onWrapperLayout={handleTextLayout}
+                  skeleton={isBarSkeleton}
+                />
+              </View>
+            </>
           ) : null}
           {showPercentage ? (
-            <Text
-              style={[styles.percentageLabel, { color: barForeground }]}
-            >{`${roundedPercentage}%`}</Text>
+            <Text style={styles.percentageLabel}>{`${roundedPercentage}%`}</Text>
           ) : null}
           <Svg
             width={svgSize}
@@ -538,9 +538,16 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "center",
     gap: theme.spacing[1.5],
-    paddingHorizontal: theme.spacing[2],
+    paddingLeft: theme.spacing[2],
+    paddingRight: theme.spacing[1.5],
     borderRadius: theme.borderRadius.full,
-    maxWidth: 180,
+    borderWidth: 1,
+    // The pill shares the composer's right-hand controls with the voice and send
+    // buttons, so it is capped harder where there is less room to share.
+    maxWidth: {
+      xs: 132,
+      sm: 180,
+    },
   },
   containerIdle: {
     width: 28,
@@ -557,6 +564,13 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing[1],
     borderRadius: theme.borderRadius.full,
   },
+  // Carries the provider's brand into the pill without letting it own the whole fill.
+  brandDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    flexShrink: 0,
+  },
   barTextContainer: {
     flexShrink: 1,
     overflow: "hidden",
@@ -568,6 +582,7 @@ const styles = StyleSheet.create((theme) => ({
     flexShrink: 0,
   },
   barText: {
+    color: theme.colors.foreground,
     fontSize: theme.fontSize.xs,
     fontWeight: theme.fontWeight.medium,
   },
@@ -575,6 +590,7 @@ const styles = StyleSheet.create((theme) => ({
     width: 80,
     height: theme.fontSize.xs,
     borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.surface3,
   },
   percentageSkeleton: {
     width: 22,
@@ -586,6 +602,7 @@ const styles = StyleSheet.create((theme) => ({
     transform: [{ rotate: "-90deg" }],
   },
   percentageLabel: {
+    color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.normal,
   },

@@ -1,27 +1,49 @@
+/**
+ * Accent colors drawn from each provider's visual identity, as opaque sRGB hex.
+ *
+ * These are accents, not fills. The usage pill tints its background with `accent` at
+ * low alpha and takes its text color from the theme, so a light brand on a light theme
+ * and a near-black brand like Copilot's on a dark theme both stay readable. Painting
+ * the pill in solid brand color instead makes it the loudest thing in the composer and
+ * leaves the text contrast at the mercy of whichever brand is active.
+ */
+const BRAND_ACCENTS: Record<string, string> = {
+  claude: "#D97757",
+  codex: "#10A37F",
+  copilot: "#6E7681",
+  cursor: "#7C7CF0",
+  gemini: "#4285F4",
+  grok: "#8E8EA0",
+  kimi: "#4D6BFE",
+  minimax: "#F97316",
+  opencode: "#6366F1",
+  pi: "#8B5CF6",
+  zai: "#3B82F6",
+};
+
+/** Providers with no brand of their own get the neutral accent. */
+const DEFAULT_ACCENT = "#8B95A5";
+
+/** Alpha suffixes for 8-digit hex. Tuned against both the light and dark surfaces. */
+const TINT_ALPHA = "24";
+const BORDER_ALPHA = "59";
+
 export interface ProviderBrandColors {
-  background: string;
-  foreground: string;
+  /** Full-strength accent, for the status dot. */
+  accent: string;
+  /** Accent at low alpha, for the pill background. */
+  tint: string;
+  /** Accent at medium alpha, for the pill outline. */
+  border: string;
 }
 
-const DEFAULT_BRAND: ProviderBrandColors = {
-  background: "#6B7280",
-  foreground: "#FFFFFF",
-};
-
-// Brand colors are chosen from each provider's official visual identity and are
-// stored as opaque sRGB hex values. The foreground is pre-selected for accessible
-// contrast against the background.
-const BRAND_COLORS: Record<string, ProviderBrandColors> = {
-  claude: { background: "#D97757", foreground: "#FFFFFF" },
-  codex: { background: "#10A37F", foreground: "#FFFFFF" },
-  copilot: { background: "#24292F", foreground: "#FFFFFF" },
-  gemini: { background: "#4285F4", foreground: "#FFFFFF" },
-  opencode: { background: "#6366F1", foreground: "#FFFFFF" },
-  pi: { background: "#8B5CF6", foreground: "#FFFFFF" },
-  minimax: { background: "#F97316", foreground: "#FFFFFF" },
-};
-
 export function getProviderBrandColors(providerId: string | null | undefined): ProviderBrandColors {
-  if (!providerId) return DEFAULT_BRAND;
-  return BRAND_COLORS[providerId.toLowerCase()] ?? DEFAULT_BRAND;
+  const accent = providerId
+    ? (BRAND_ACCENTS[providerId.toLowerCase()] ?? DEFAULT_ACCENT)
+    : DEFAULT_ACCENT;
+  return {
+    accent,
+    tint: `${accent}${TINT_ALPHA}`,
+    border: `${accent}${BORDER_ALPHA}`,
+  };
 }
