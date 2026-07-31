@@ -1572,6 +1572,37 @@ export const en = {
     sessionCost: "Session cost {{cost}}",
     accessibility: "Context window {{percentage}}% used",
   },
+  providerUsage: {
+    title: "Plan usage",
+    refresh: "Refresh",
+    refreshing: "Refreshing...",
+    empty: "No usage data",
+    errorTitle: "Unable to load usage",
+    refreshFailedTitle: "Showing last known usage",
+    hostUnavailable: "Connect to this host to see provider usage",
+    hostUpgradeRequired: "Update the host to see provider usage",
+    clientUnavailable: "Host connection is not ready",
+    retry: "Try again",
+    tooltipLoading: "Loading plan usage…",
+    compact: {
+      remaining: "{{percent}}% remaining",
+      remainingWithReset: "{{percent}}% remaining · resets in {{duration}}",
+      unknown: "Usage unavailable",
+    },
+    states: {
+      unavailable: "Usage unavailable",
+      unavailableExplanation: "Connect to this host to see provider usage.",
+      loading: "Loading usage…",
+      retry: "Retry",
+      failed: "Unable to load usage",
+      staleAge: "Last updated {{age}} ago",
+    },
+    sections: {
+      account: "Account",
+      limits: "Usage limits",
+      extraUsage: "Extra usage",
+    },
+  },
   review: {
     comment: {
       add: "Add review comment",
@@ -1671,6 +1702,11 @@ export const en = {
         label: "Always expand reasoning",
         description: "Show agent thinking and chain-of-thought blocks fully expanded by default",
       },
+      providerUsageRotation: {
+        label: "Rotate provider usage limits",
+        description:
+          "Cycle through all usage limits in the indicator. When off, only the limit closest to running out is shown.",
+      },
       toolCallDetail: {
         label: "Tool call display",
         description: "How tool calls appear in the timeline",
@@ -1763,6 +1799,9 @@ export const en = {
       },
       detailLevel: {
         title: "Detail level",
+      },
+      providerUsage: {
+        title: "Usage indicator",
       },
       fonts: {
         title: "Fonts",

@@ -1561,6 +1561,37 @@ export const ar: TranslationResources = {
     sessionCost: "تكلفة الجلسة{{cost}}",
     accessibility: "تم استخدام نافذة السياق{{percentage}}%",
   },
+  providerUsage: {
+    title: "استخدام الخطة",
+    refresh: "تحديث",
+    refreshing: "جارٍ التحديث...",
+    empty: "لا توجد بيانات استخدام",
+    errorTitle: "تعذر تحميل الاستخدام",
+    refreshFailedTitle: "يتم عرض آخر استخدام معروف",
+    hostUnavailable: "اتصل بهذا المضيف لعرض استخدام المزود",
+    hostUpgradeRequired: "حدّث المضيف لعرض استخدام المزود",
+    clientUnavailable: "اتصال المضيف غير جاهز",
+    retry: "إعادة المحاولة",
+    tooltipLoading: "جارٍ تحميل استخدام الخطة…",
+    compact: {
+      remaining: "متبقٍ {{percent}}%",
+      remainingWithReset: "متبقٍ {{percent}}% · إعادة التعيين خلال {{duration}}",
+      unknown: "الاستخدام غير متاح",
+    },
+    states: {
+      unavailable: "الاستخدام غير متاح",
+      unavailableExplanation: "اتصل بهذا المضيف لعرض استخدام المزود.",
+      loading: "جارٍ تحميل الاستخدام…",
+      retry: "إعادة المحاولة",
+      failed: "تعذر تحميل الاستخدام",
+      staleAge: "آخر تحديث قبل {{age}}",
+    },
+    sections: {
+      account: "الحساب",
+      limits: "حدود الاستخدام",
+      extraUsage: "استخدام إضافي",
+    },
+  },
   review: {
     comment: {
       add: "إضافة تعليق المراجعة",
@@ -1661,6 +1692,11 @@ export const ar: TranslationResources = {
         label: "عرض التفكير دائماً",
         description: "إظهار تفكير الوكيل وخطوات الاستدلال بشكل كامل بشكل افتراضي",
       },
+      providerUsageRotation: {
+        label: "تدوير حدود استخدام المزود",
+        description:
+          "يعرض جميع حدود الاستخدام بالتناوب في المؤشر. عند إيقافه، يُعرض فقط الحد الأقرب إلى النفاد.",
+      },
       toolCallDetail: {
         label: "عرض استدعاءات الأدوات",
         description: "كيفية ظهور استدعاءات الأدوات في المخطط الزمني",
@@ -1753,6 +1789,9 @@ export const ar: TranslationResources = {
       },
       detailLevel: {
         title: "مستوى التفاصيل",
+      },
+      providerUsage: {
+        title: "مؤشر الاستخدام",
       },
       fonts: {
         title: "الخطوط",

@@ -212,6 +212,28 @@ function AutoExpandReasoningRow({ value, onChange }: AutoExpandReasoningRowProps
   );
 }
 
+interface ProviderUsageRotationRowProps {
+  value: boolean;
+  onChange: (value: boolean) => void;
+}
+
+function ProviderUsageRotationRow({ value, onChange }: ProviderUsageRotationRowProps) {
+  const { t } = useTranslation();
+  return (
+    <View style={settingsStyles.row}>
+      <View style={settingsStyles.rowContent}>
+        <Text style={settingsStyles.rowTitle}>
+          {t("settings.general.providerUsageRotation.label")}
+        </Text>
+        <Text style={settingsStyles.rowHint}>
+          {t("settings.general.providerUsageRotation.description")}
+        </Text>
+      </View>
+      <Switch value={value} onValueChange={onChange} />
+    </View>
+  );
+}
+
 const TOOL_CALL_DETAIL_LEVELS: readonly AppSettings["toolCallDetailLevel"][] = [
   "detailed",
   "overview",
@@ -503,6 +525,13 @@ export function AppearanceSection() {
     [updateSettings],
   );
 
+  const handleProviderUsageRotationChange = useCallback(
+    (providerUsageRotation: boolean) => {
+      void updateSettings({ providerUsageRotation });
+    },
+    [updateSettings],
+  );
+
   const commitUiFontFamily = useCallback(
     (value: string) => {
       const sanitized = sanitizeFontFamily(value);
@@ -592,6 +621,14 @@ export function AppearanceSection() {
           <ToolCallDetailRow
             value={settings.toolCallDetailLevel}
             onChange={handleToolCallDetailLevelChange}
+          />
+        </View>
+      </SettingsSection>
+      <SettingsSection title={t("settings.appearance.providerUsage.title")}>
+        <View style={settingsStyles.card}>
+          <ProviderUsageRotationRow
+            value={settings.providerUsageRotation}
+            onChange={handleProviderUsageRotationChange}
           />
         </View>
       </SettingsSection>

@@ -1607,6 +1607,37 @@ export const fr: TranslationResources = {
     sessionCost: "Coût de la séance{{cost}}",
     accessibility: "Fenêtre contextuelle{{percentage}}% utilisé",
   },
+  providerUsage: {
+    title: "Utilisation du forfait",
+    refresh: "Actualiser",
+    refreshing: "Actualisation...",
+    empty: "Aucune donnée d'utilisation",
+    errorTitle: "Impossible de charger l'utilisation",
+    refreshFailedTitle: "Affichage de la dernière utilisation connue",
+    hostUnavailable: "Connectez-vous à cet hôte pour voir l'utilisation du fournisseur",
+    hostUpgradeRequired: "Mettez à jour l'hôte pour voir l'utilisation du fournisseur",
+    clientUnavailable: "La connexion à l'hôte n'est pas prête",
+    retry: "Réessayer",
+    tooltipLoading: "Chargement de l'utilisation du forfait…",
+    compact: {
+      remaining: "{{percent}}% restant",
+      remainingWithReset: "{{percent}}% restant · réinitialisation dans {{duration}}",
+      unknown: "Utilisation indisponible",
+    },
+    states: {
+      unavailable: "Utilisation indisponible",
+      unavailableExplanation: "Connectez-vous à cet hôte pour voir l'utilisation du fournisseur.",
+      loading: "Chargement de l'utilisation…",
+      retry: "Réessayer",
+      failed: "Impossible de charger l'utilisation",
+      staleAge: "Dernière mise à jour il y a {{age}}",
+    },
+    sections: {
+      account: "Compte",
+      limits: "Limites d'utilisation",
+      extraUsage: "Utilisation supplémentaire",
+    },
+  },
   review: {
     comment: {
       add: "Ajouter un commentaire",
@@ -1709,6 +1740,11 @@ export const fr: TranslationResources = {
         label: "Toujours afficher le raisonnement",
         description: "Afficher le raisonnement de l'agent entièrement développé par défaut",
       },
+      providerUsageRotation: {
+        label: "Faire défiler les limites d'utilisation du fournisseur",
+        description:
+          "Parcourt tous les seuils d'utilisation dans l'indicateur. Si désactivé, seul le seuil le plus proche de l'épuisement est affiché.",
+      },
       toolCallDetail: {
         label: "Affichage des appels d’outils",
         description: "Comment les appels d’outils apparaissent dans la chronologie",
@@ -1802,6 +1838,9 @@ export const fr: TranslationResources = {
       },
       detailLevel: {
         title: "Niveau de détail",
+      },
+      providerUsage: {
+        title: "Indicateur d'utilisation",
       },
       fonts: {
         title: "Polices",

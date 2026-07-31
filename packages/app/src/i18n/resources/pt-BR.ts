@@ -1590,6 +1590,37 @@ export const ptBR: TranslationResources = {
     sessionCost: "Custo da sessão {{cost}}",
     accessibility: "Janela de contexto {{percentage}}% usada",
   },
+  providerUsage: {
+    title: "Uso do plano",
+    refresh: "Atualizar",
+    refreshing: "Atualizando...",
+    empty: "Nenhum dado de uso",
+    errorTitle: "Não foi possível carregar o uso",
+    refreshFailedTitle: "Exibindo o último uso conhecido",
+    hostUnavailable: "Conecte-se a este host para ver o uso do provedor",
+    hostUpgradeRequired: "Atualize o host para ver o uso do provedor",
+    clientUnavailable: "A conexão com o host não está pronta",
+    retry: "Tentar novamente",
+    tooltipLoading: "Carregando uso do plano…",
+    compact: {
+      remaining: "{{percent}}% restante",
+      remainingWithReset: "{{percent}}% restante · reinicia em {{duration}}",
+      unknown: "Uso indisponível",
+    },
+    states: {
+      unavailable: "Uso indisponível",
+      unavailableExplanation: "Conecte-se a este host para ver o uso do provedor.",
+      loading: "Carregando uso…",
+      retry: "Tentar novamente",
+      failed: "Não foi possível carregar o uso",
+      staleAge: "Última atualização há {{age}}",
+    },
+    sections: {
+      account: "Conta",
+      limits: "Limites de uso",
+      extraUsage: "Uso extra",
+    },
+  },
   review: {
     comment: {
       add: "Adicionar comentário de revisão",
@@ -1692,6 +1723,11 @@ export const ptBR: TranslationResources = {
         description:
           "Mostrar os blocos de pensamento e raciocínio do agente totalmente expandidos por padrão",
       },
+      providerUsageRotation: {
+        label: "Alternar limites de uso do provedor",
+        description:
+          "Percorre todos os limites de uso no indicador. Quando desativado, mostra apenas o limite mais próximo de se esgotar.",
+      },
       toolCallDetail: {
         label: "Exibição de chamadas de ferramentas",
         description: "Como as chamadas de ferramentas aparecem na linha do tempo",
@@ -1784,6 +1820,9 @@ export const ptBR: TranslationResources = {
       },
       detailLevel: {
         title: "Nível de detalhe",
+      },
+      providerUsage: {
+        title: "Indicador de uso",
       },
       fonts: {
         title: "Fontes",

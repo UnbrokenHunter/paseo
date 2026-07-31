@@ -466,6 +466,24 @@ describe("appearance settings", () => {
 
     expect((await loadAppSettingsFromStorage(deps)).syntaxTheme).toBe("one");
   });
+
+  it("defaults provider usage rotation to enabled when storage is empty", async () => {
+    const deps = makeDeps();
+
+    const result = await loadAppSettingsFromStorage(deps);
+
+    expect(result.providerUsageRotation).toBe(true);
+  });
+
+  it("loads a persisted disabled provider usage rotation setting", async () => {
+    const deps = makeDeps({
+      storage: createInMemoryKeyValueStorage({
+        [APP_SETTINGS_KEY]: JSON.stringify({ providerUsageRotation: false }),
+      }),
+    });
+
+    expect((await loadAppSettingsFromStorage(deps)).providerUsageRotation).toBe(false);
+  });
 });
 
 describe("parseClampedFontSize", () => {

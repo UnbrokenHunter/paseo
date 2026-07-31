@@ -1542,6 +1542,37 @@ export const zhCN: TranslationResources = {
     sessionCost: "会话费用 {{cost}}",
     accessibility: "上下文窗口已使用 {{percentage}}%",
   },
+  providerUsage: {
+    title: "套餐用量",
+    refresh: "刷新",
+    refreshing: "正在刷新...",
+    empty: "暂无用量数据",
+    errorTitle: "无法加载用量",
+    refreshFailedTitle: "正在显示上次已知用量",
+    hostUnavailable: "连接此主机以查看提供商用量",
+    hostUpgradeRequired: "更新主机以查看提供商用量",
+    clientUnavailable: "主机连接尚未就绪",
+    retry: "重试",
+    tooltipLoading: "正在加载套餐用量…",
+    compact: {
+      remaining: "剩余 {{percent}}%",
+      remainingWithReset: "剩余 {{percent}}% · {{duration}}后重置",
+      unknown: "用量不可用",
+    },
+    states: {
+      unavailable: "用量不可用",
+      unavailableExplanation: "连接此主机以查看提供商用量。",
+      loading: "正在加载用量…",
+      retry: "重试",
+      failed: "无法加载用量",
+      staleAge: "{{age}}前更新",
+    },
+    sections: {
+      account: "账户",
+      limits: "用量限制",
+      extraUsage: "额外用量",
+    },
+  },
   review: {
     comment: {
       add: "添加 review 评论",
@@ -1641,6 +1672,10 @@ export const zhCN: TranslationResources = {
         label: "始终展开推理过程",
         description: "默认情况下完全展开 AI 的思考和推理过程",
       },
+      providerUsageRotation: {
+        label: "轮播提供商用量限制",
+        description: "在指示器中依次显示所有用量限制。关闭后,仅显示最接近用尽的限制。",
+      },
       toolCallDetail: {
         label: "工具调用显示",
         description: "工具调用在时间线中的显示方式",
@@ -1733,6 +1768,9 @@ export const zhCN: TranslationResources = {
       },
       detailLevel: {
         title: "详细程度",
+      },
+      providerUsage: {
+        title: "用量指示器",
       },
       fonts: {
         title: "字体",
