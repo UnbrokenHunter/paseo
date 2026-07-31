@@ -40,9 +40,11 @@ function footerText(usage: ProviderUsage): string | null {
 export function ProviderUsageCard({
   usage,
   compact = false,
+  testID,
 }: {
   usage: ProviderUsage;
   compact?: boolean;
+  testID?: string;
 }) {
   const status = statusText(usage);
   const footer = footerText(usage);
@@ -63,7 +65,7 @@ export function ProviderUsageCard({
   );
 
   return (
-    <View style={containerStyle}>
+    <View style={containerStyle} testID={testID}>
       <View style={styles.header}>
         <ThemedProviderUsageIcon iconKey={usage.providerId} size={14} uniProps={mutedIconColor} />
         <Text style={styles.name} numberOfLines={1}>
