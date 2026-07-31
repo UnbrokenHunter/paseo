@@ -21,7 +21,12 @@ import type { AgentProvider } from "@getpaseo/protocol/agent-types";
 import type { SheetHeader } from "@/components/adaptive-modal-sheet";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getProviderIcon } from "@/components/provider-icons";
+import { selectActiveAccountUsage } from "@/provider-usage/active-account";
+import { formatUsageSummary } from "@/provider-usage/format";
+import type { ProviderUsageView } from "@/provider-usage/types";
+import { useProviderUsage } from "@/provider-usage/use-provider-usage";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isNative, isWeb } from "@/constants/platform";
 import {
@@ -53,6 +58,78 @@ const ThemedLoadingSpinner = withUnistyles(LoadingSpinner);
 const ThemedSearch = withUnistyles(Search);
 const ThemedSettings = withUnistyles(Settings);
 const ThemedStar = withUnistyles(Star);
+
+interface ModelProviderUsageSummaryProps {
+  view: ProviderUsageView;
+  providerId: string;
+  onRefresh: () => Promise<void>;
+  testID?: string;
+}
+
+function ModelProviderUsageSummary({
+  view,
+  providerId,
+  onRefresh,
+  testID,
+}: ModelProviderUsageSummaryProps) {
+  const { t } = useTranslation();
+  const account = useMemo(() => selectActiveAccountUsage({ view, providerId }), [view, providerId]);
+
+  const handleRetry = useCallback(() => {
+    void onRefresh().catch(() => {});
+  }, [onRefresh]);
+
+  if (account.state === "loading") {
+    return (
+      <View style={styles.usageSummaryRow} testID={testID}>
+        <View style={styles.rowSpinner}>
+          <ThemedLoadingSpinner size={ICON_SIZE.sm} uniProps={foregroundMutedMapping} />
+        </View>
+        <Text style={styles.usageSummaryText}>{t("providerUsage.states.loading")}</Text>
+      </View>
+    );
+  }
+
+  if (account.state === "error") {
+    return (
+      <View style={styles.usageSummaryRow} testID={testID}>
+        <ThemedAlertTriangle size={ICON_SIZE.sm} uniProps={foregroundMutedMapping} />
+        <Text style={styles.usageSummaryText}>{t("providerUsage.states.failed")}</Text>
+        <Button variant="ghost" size="xs" onPress={handleRetry}>
+          {t("providerUsage.states.retry")}
+        </Button>
+      </View>
+    );
+  }
+
+  if (account.state === "unavailable") {
+    return (
+      <Tooltip enabledOnDesktop enabledOnMobile delayDuration={0}>
+        <TooltipTrigger asChild>
+          <View style={styles.usageSummaryRow} testID={testID}>
+            <Text style={styles.usageSummaryText}>{t("providerUsage.states.unavailable")}</Text>
+          </View>
+        </TooltipTrigger>
+        <TooltipContent side="top" align="center">
+          <Text style={styles.usageSummaryTooltipText}>
+            {account.reason ?? t("providerUsage.states.unavailableExplanation")}
+          </Text>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <View style={styles.usageSummaryRow} testID={testID}>
+      <Text style={styles.usageSummaryText}>
+        {formatUsageSummary({
+          remainingPct: account.primary.remainingPct,
+          resetsAt: account.primary.resetsAt,
+        })}
+      </Text>
+    </View>
+  );
+}
 
 function ProviderSettingsAction({
   accessibilityLabel,
@@ -130,6 +207,9 @@ export interface ModelBrowserState {
   triggerLabel: string;
   desktopFixedHeight: number | undefined;
   isProviderView: boolean;
+  serverId: string | null;
+  providerUsageView: ProviderUsageView;
+  refreshProviderUsage: () => Promise<void>;
   prepareToOpen: () => void;
   reset: () => void;
   drillDown: (providerId: string, providerLabel: string) => void;
@@ -151,6 +231,8 @@ interface ModelBrowserContentProps extends Omit<ModelBrowserProps, "state" | "sc
   selectedModel: string;
   searchQuery: string;
   favoriteKeys: Set<string>;
+  providerUsageView: ProviderUsageView;
+  refreshProviderUsage: () => Promise<void>;
   onDrillDown: (providerId: string, providerLabel: string) => void;
   scrolling: "sheet" | "independent";
 }
@@ -234,6 +316,9 @@ export function useModelBrowser({
   const [view, setView] = useState<ModelBrowserView>({ kind: "all" });
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResetKey, bumpSearchResetKey] = useReducer((key: number) => key + 1, 0);
+  const { view: providerUsageView, refresh: refreshProviderUsage } = useProviderUsage(serverId, {
+    persistent: true,
+  });
 
   const initialView = useMemo(
     () =>
@@ -275,6 +360,14 @@ export function useModelBrowser({
     }
     return {
       title: view.providerLabel,
+      subtitle: (
+        <ModelProviderUsageSummary
+          view={providerUsageView}
+          providerId={view.providerId}
+          onRefresh={refreshProviderUsage}
+          testID="provider-usage-header-summary"
+        />
+      ),
       leading: (
         <ModelProviderGlyph provider={view.providerId} size={ICON_SIZE.md} tone="foreground" />
       ),
@@ -299,6 +392,8 @@ export function useModelBrowser({
   }, [
     handleBackToAll,
     handleSearchQueryChange,
+    providerUsageView,
+    refreshProviderUsage,
     searchResetKey,
     serverId,
     singleProviderView,
@@ -341,6 +436,9 @@ export function useModelBrowser({
     triggerLabel,
     desktopFixedHeight,
     isProviderView: view.kind === "provider",
+    serverId,
+    providerUsageView,
+    refreshProviderUsage,
     prepareToOpen,
     reset,
     drillDown,
@@ -653,45 +751,18 @@ function FavoritesSection({
 
 function GroupProviderButton({
   provider,
+  providerUsageView,
+  refreshProviderUsage,
   onDrillDown,
 }: {
   provider: ProviderSelectorProvider;
+  providerUsageView: ProviderUsageView;
+  refreshProviderUsage: () => Promise<void>;
   onDrillDown: (providerId: string, providerLabel: string) => void;
 }) {
-  const { t } = useTranslation();
-  const selection = provider.modelSelection;
   const handlePress = useCallback(() => {
     onDrillDown(provider.id, provider.label);
   }, [onDrillDown, provider.id, provider.label]);
-
-  const stateNode = useMemo(() => {
-    if (selection.kind === "models") {
-      const count = selection.rows.length;
-      return (
-        <Text style={styles.drillDownCount}>
-          {t(count === 1 ? "modelSelector.modelCount" : "modelSelector.modelCountPlural", {
-            count,
-          })}
-        </Text>
-      );
-    }
-    if (selection.kind === "loading") {
-      return (
-        <View style={styles.rowStateInline}>
-          <View style={styles.rowSpinner}>
-            <ThemedLoadingSpinner size={ICON_SIZE.sm} uniProps={foregroundMutedMapping} />
-          </View>
-          <Text style={styles.drillDownCount}>{t("modelSelector.loadingShort")}</Text>
-        </View>
-      );
-    }
-    return (
-      <View style={styles.rowStateInline}>
-        <ThemedAlertTriangle size={ICON_SIZE.sm} uniProps={foregroundMutedMapping} />
-        <Text style={styles.drillDownCount}>{t("modelSelector.error")}</Text>
-      </View>
-    );
-  }, [selection, t]);
   const leadingSlot = useMemo(
     () => <ModelProviderGlyph provider={provider.id} size={ICON_SIZE.sm} />,
     [provider.id],
@@ -699,11 +770,16 @@ function GroupProviderButton({
   const trailingSlot = useMemo(
     () => (
       <View style={styles.drillDownTrailing}>
-        {stateNode}
+        <ModelProviderUsageSummary
+          view={providerUsageView}
+          providerId={provider.id}
+          onRefresh={refreshProviderUsage}
+          testID={`provider-usage-summary-${provider.id}`}
+        />
         <ThemedChevronRight size={ICON_SIZE.sm} uniProps={foregroundMutedMapping} />
       </View>
     ),
-    [stateNode],
+    [provider.id, providerUsageView, refreshProviderUsage],
   );
 
   return (
@@ -721,9 +797,13 @@ function GroupProviderButton({
 
 function GroupedProviderRows({
   providers,
+  providerUsageView,
+  refreshProviderUsage,
   onDrillDown,
 }: {
   providers: ProviderSelectorProvider[];
+  providerUsageView: ProviderUsageView;
+  refreshProviderUsage: () => Promise<void>;
   onDrillDown: (providerId: string, providerLabel: string) => void;
 }) {
   return (
@@ -731,7 +811,12 @@ function GroupedProviderRows({
       {providers.map((provider, index) => (
         <View key={provider.id}>
           {index > 0 ? <View style={styles.separator} /> : null}
-          <GroupProviderButton provider={provider} onDrillDown={onDrillDown} />
+          <GroupProviderButton
+            provider={provider}
+            providerUsageView={providerUsageView}
+            refreshProviderUsage={refreshProviderUsage}
+            onDrillDown={onDrillDown}
+          />
         </View>
       ))}
     </View>
@@ -909,6 +994,8 @@ function ModelBrowserContent({
   selectedModel,
   searchQuery,
   favoriteKeys,
+  providerUsageView,
+  refreshProviderUsage,
   onSelect,
   onToggleFavorite,
   onDrillDown,
@@ -993,7 +1080,12 @@ function ModelBrowserContent({
         onToggleFavorite={onToggleFavorite}
       />
       {providers.length > 0 ? (
-        <GroupedProviderRows providers={providers} onDrillDown={onDrillDown} />
+        <GroupedProviderRows
+          providers={providers}
+          providerUsageView={providerUsageView}
+          refreshProviderUsage={refreshProviderUsage}
+          onDrillDown={onDrillDown}
+        />
       ) : null}
       {!hasResults ? emptyState : null}
     </View>
@@ -1022,6 +1114,8 @@ export function ModelBrowser({
       selectedModel={state.selectedModel}
       searchQuery={state.searchQuery}
       favoriteKeys={state.favoriteKeys}
+      providerUsageView={state.providerUsageView}
+      refreshProviderUsage={state.refreshProviderUsage}
       onSelect={onSelect}
       onToggleFavorite={onToggleFavorite}
       onDrillDown={state.drillDown}
@@ -1120,17 +1214,6 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: theme.spacing[1],
   },
-  drillDownCount: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.foregroundMuted,
-  },
-  rowStateInline: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[1],
-    flexShrink: 1,
-    minWidth: 0,
-  },
   rowIconButton: {
     width: 24,
     height: 24,
@@ -1183,6 +1266,21 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.foregroundMuted,
   },
   providerIconForeground: {
+    color: theme.colors.foreground,
+  },
+  usageSummaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  usageSummaryText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.foregroundMuted,
+  },
+  usageSummaryTooltipText: {
+    fontSize: theme.fontSize.sm,
     color: theme.colors.foreground,
   },
 }));
