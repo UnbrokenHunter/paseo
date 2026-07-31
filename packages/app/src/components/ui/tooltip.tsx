@@ -47,6 +47,7 @@ interface TooltipContextValue {
   triggerRef: React.RefObject<View | null>;
   enabled: boolean;
   openOnPress: boolean;
+  pinned: boolean;
   delayDuration: number;
 }
 
@@ -231,6 +232,8 @@ export function Tooltip({
   delayDuration = 0,
   enabledOnDesktop = true,
   enabledOnMobile = false,
+  openOnPress,
+  pinned = false,
   children,
 }: PropsWithChildren<{
   open?: boolean;
@@ -239,6 +242,8 @@ export function Tooltip({
   delayDuration?: number;
   enabledOnDesktop?: boolean;
   enabledOnMobile?: boolean;
+  openOnPress?: boolean;
+  pinned?: boolean;
 }>): ReactElement {
   const triggerRef = useRef<View>(null);
   const [isOpen, setIsOpen] = useControllableOpenState({
@@ -256,10 +261,11 @@ export function Tooltip({
       setOpen: setIsOpen,
       triggerRef,
       enabled,
-      openOnPress: isCompact,
+      openOnPress: openOnPress ?? isCompact,
+      pinned,
       delayDuration,
     }),
-    [isOpen, setIsOpen, enabled, isCompact, delayDuration],
+    [isOpen, setIsOpen, enabled, openOnPress, isCompact, pinned, delayDuration],
   );
 
   return <TooltipContext.Provider value={value}>{children}</TooltipContext.Provider>;
@@ -325,9 +331,10 @@ export function TooltipTrigger({
   const handleHoverOut = useCallback(
     (e?: unknown) => {
       if (isCallable(onHoverOut)) onHoverOut(e);
+      if (ctx.pinned) return;
       close();
     },
-    [onHoverOut, close],
+    [onHoverOut, close, ctx.pinned],
   );
 
   const handleFocus = useCallback(
@@ -446,6 +453,7 @@ export function TooltipContent({
   maxWidth?: number;
 }>): ReactElement | null {
   const ctx = useTooltipContext("TooltipContent");
+  const contentRef = useRef<View>(null);
   const [triggerRect, setTriggerRect] = useState<Rect | null>(null);
   const [contentSize, setContentSize] = useState<{ width: number; height: number } | null>(null);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
@@ -494,6 +502,36 @@ export function TooltipContent({
     [],
   );
 
+  useEffect(() => {
+    if (!isWeb || !ctx.open || !ctx.enabled) return;
+
+    const contentNode = contentRef.current as unknown as Node | null;
+    const triggerNode = ctx.triggerRef.current as unknown as Node | null;
+
+    function containsNode(node: Node | null, target: EventTarget | null): boolean {
+      return node != null && target instanceof Node && node.contains(target);
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!containsNode(contentNode, event.target) && !containsNode(triggerNode, event.target)) {
+        ctx.setOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        ctx.setOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [ctx]);
+
   const frameStyle = useMemo(
     () => [
       {
@@ -518,6 +556,7 @@ export function TooltipContent({
     return createPortal(
       <View pointerEvents="none" style={styles.portalOverlay}>
         <FloatingSurface
+          ref={contentRef}
           pointerEvents="none"
           entering={FadeIn.duration(80)}
           exiting={FadeOut.duration(80)}
@@ -544,6 +583,7 @@ export function TooltipContent({
     >
       <Pressable style={styles.overlay} onPress={handleDismiss}>
         <FloatingSurface
+          ref={contentRef}
           pointerEvents="none"
           entering={FadeIn.duration(80)}
           exiting={FadeOut.duration(80)}
