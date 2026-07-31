@@ -39,6 +39,9 @@ jobs:
       - name: Prepare PaseoPlus identity and version
         run: node scripts/prepare-paseoplus-build.mjs "${{ inputs.version }}"
 
+      - name: Build internal desktop dependencies
+        run: npm run build:server
+
       - name: Typecheck desktop
         run: npm run typecheck --workspace=@getpaseo/desktop
 
