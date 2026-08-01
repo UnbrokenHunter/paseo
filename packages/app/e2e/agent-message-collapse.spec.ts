@@ -2,7 +2,15 @@ import { test, expect } from "./fixtures";
 import { awaitAssistantMessage } from "./helpers/agent-stream";
 import { startRunningMockAgent } from "./helpers/composer";
 
-const PROMPT = "Collapse me from the conversation.";
+// Tall enough to be worth collapsing — a message has to roughly halve its own
+// height before the control is offered at all.
+const PROMPT = [
+  "Collapse me from the conversation.",
+  "This prompt runs over several lines",
+  "so the collapsed bubble saves real height,",
+  "which is the only case where",
+  "the collapse control is offered at all.",
+].join("\n");
 
 test.describe("Message collapse", () => {
   test("collapses and expands a user prompt in place", async ({ page }) => {
@@ -28,6 +36,27 @@ test.describe("Message collapse", () => {
       await page.getByTestId("expand-message-user").first().click();
       await expect(page.getByTestId("user-message").filter({ hasText: PROMPT })).toHaveCount(1);
       await expect(page.getByTestId("collapsed-message-user")).toHaveCount(0);
+    } finally {
+      await agent.cleanup();
+    }
+  });
+
+  test("withholds the control from a prompt that barely beats its own stub", async ({ page }) => {
+    test.setTimeout(120_000);
+    const shortPrompt = ["Two lines here.", "And a second line."].join("\n");
+    const agent = await startRunningMockAgent(page, {
+      prefix: "collapse-short-",
+      model: "one-minute-stream",
+      prompt: shortPrompt,
+    });
+    try {
+      const userMessage = page
+        .getByTestId("user-message")
+        .filter({ hasText: "Two lines here." })
+        .first();
+      await expect(userMessage).toBeVisible({ timeout: 30_000 });
+      await userMessage.hover();
+      await expect(page.getByTestId("collapse-message-user")).toHaveCount(0);
     } finally {
       await agent.cleanup();
     }

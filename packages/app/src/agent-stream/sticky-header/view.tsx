@@ -140,7 +140,7 @@ function StickySide({ agentId, align, role, preview, onPress }: StickySideProps)
         )}
         testID={`sticky-conversation-preview-${role}`}
       >
-        <View style={[alignmentStyle, align === "left" ? styles.insetEnd : styles.insetStart]}>
+        <View style={[alignmentStyle, align === "left" ? styles.insetStart : styles.insetEnd]}>
           <Text style={[styles.previewText, textAlignStyle]} numberOfLines={1} ellipsizeMode="tail">
             {preview.text}
           </Text>
@@ -152,7 +152,7 @@ function StickySide({ agentId, align, role, preview, onPress }: StickySideProps)
       <View
         style={[
           styles.toggleSlot,
-          align === "left" ? styles.toggleSlotEnd : styles.toggleSlotStart,
+          align === "left" ? styles.toggleSlotStart : styles.toggleSlotEnd,
           showToggle ? styles.toggleVisible : styles.toggleHidden,
         ]}
         pointerEvents={showToggle ? "auto" : "none"}
@@ -205,8 +205,10 @@ const styles = StyleSheet.create((theme) => ({
     minWidth: 0,
     justifyContent: "center",
   },
-  // The toggle is absolute and the inset is unconditional, so revealing it on
-  // hover cannot move the preview out from under the cursor.
+  // Each side's toggle sits on its own outer edge — AI left, user right — the
+  // same corner the arrow takes on the message itself. The toggle is absolute
+  // and the inset is unconditional, so revealing it on hover cannot move the
+  // preview out from under the cursor.
   insetStart: {
     paddingLeft: TOGGLE_SLOT_WIDTH,
   },
