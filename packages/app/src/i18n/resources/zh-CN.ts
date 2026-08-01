@@ -187,6 +187,10 @@ export const zhCN: TranslationResources = {
   agentStream: {
     empty: "开始和这个 Agent 对话...",
     scrollToBottom: "滚动到底部",
+    stickyHeader: {
+      userAccessibilityLabel: "跳转到最后一条用户消息：{{preview}}",
+      assistantAccessibilityLabel: "跳转到最后一条 AI 回复：{{preview}}",
+    },
     permission: {
       plan: "Plan",
       required: "需要权限",
@@ -1706,6 +1710,16 @@ export const zhCN: TranslationResources = {
         options: {
           overview: "摘要",
           detailed: "完整详情",
+        },
+      },
+      stickyConversationHeader: {
+        label: "固定会话标题栏",
+        description: "滚动时保持最近的提问与回复可见",
+        accessibilityLabel: "选择固定会话标题栏（{{value}}）",
+        options: {
+          off: "关闭",
+          user: "仅用户提问",
+          userAndAi: "用户 + AI",
         },
       },
       language: {

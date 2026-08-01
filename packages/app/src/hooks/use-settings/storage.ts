@@ -13,11 +13,17 @@ export type ReleaseChannel = "stable" | "beta";
 export type ServiceUrlBehavior = "ask" | "in-app" | "external";
 export type WorkspaceTitleSource = "title" | "branch";
 export type ToolCallDetailLevel = "overview" | "detailed";
+export type StickyConversationHeaderMode = "off" | "user" | "user-and-ai";
 
 const VALID_THEMES = new Set<string>([...Object.keys(THEME_TO_UNISTYLES), "auto"]);
 const VALID_SERVICE_URL_BEHAVIORS = new Set<ServiceUrlBehavior>(["ask", "in-app", "external"]);
 const VALID_WORKSPACE_TITLE_SOURCES = new Set<WorkspaceTitleSource>(["title", "branch"]);
 const VALID_TOOL_CALL_DETAIL_LEVELS = new Set<ToolCallDetailLevel>(["overview", "detailed"]);
+const VALID_STICKY_CONVERSATION_HEADER_MODES = new Set<StickyConversationHeaderMode>([
+  "off",
+  "user",
+  "user-and-ai",
+]);
 export const DEFAULT_TERMINAL_SCROLLBACK_LINES = 10_000;
 export const MIN_TERMINAL_SCROLLBACK_LINES = 0;
 export const MAX_TERMINAL_SCROLLBACK_LINES = 1_000_000;
@@ -43,6 +49,7 @@ export interface AppSettings {
   workspaceTitleSource: WorkspaceTitleSource;
   autoExpandReasoning: boolean;
   toolCallDetailLevel: ToolCallDetailLevel;
+  stickyConversationHeader: StickyConversationHeaderMode;
   vimKeybindings: boolean;
   providerUsageRotation: boolean;
 }
@@ -68,6 +75,7 @@ export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
   workspaceTitleSource: "title",
   autoExpandReasoning: false,
   toolCallDetailLevel: "detailed",
+  stickyConversationHeader: "user-and-ai",
   vimKeybindings: false,
   providerUsageRotation: true,
 };
@@ -242,6 +250,12 @@ function pickAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
     VALID_WORKSPACE_TITLE_SOURCES.has(stored.workspaceTitleSource)
   ) {
     result.workspaceTitleSource = stored.workspaceTitleSource;
+  }
+  if (
+    typeof stored.stickyConversationHeader === "string" &&
+    VALID_STICKY_CONVERSATION_HEADER_MODES.has(stored.stickyConversationHeader)
+  ) {
+    result.stickyConversationHeader = stored.stickyConversationHeader;
   }
   assignBooleanAppSettings(result, stored);
   const toolCallDetailLevel = parseToolCallDetailLevel(stored);

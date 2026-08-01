@@ -307,6 +307,84 @@ function ToolCallDetailRow({ value, onChange }: ToolCallDetailRowProps) {
   );
 }
 
+const STICKY_CONVERSATION_HEADER_MODES: readonly AppSettings["stickyConversationHeader"][] = [
+  "user-and-ai",
+  "user",
+  "off",
+];
+
+const STICKY_CONVERSATION_HEADER_LABEL_KEYS: Record<
+  AppSettings["stickyConversationHeader"],
+  string
+> = {
+  "user-and-ai": "settings.general.stickyConversationHeader.options.userAndAi",
+  user: "settings.general.stickyConversationHeader.options.user",
+  off: "settings.general.stickyConversationHeader.options.off",
+};
+
+interface StickyConversationHeaderMenuItemProps {
+  value: AppSettings["stickyConversationHeader"];
+  selected: boolean;
+  onChange: (value: AppSettings["stickyConversationHeader"]) => void;
+}
+
+function StickyConversationHeaderMenuItem({
+  value,
+  selected,
+  onChange,
+}: StickyConversationHeaderMenuItemProps) {
+  const { t } = useTranslation();
+  const handleSelect = useCallback(() => onChange(value), [onChange, value]);
+  return (
+    <DropdownMenuItem selected={selected} onSelect={handleSelect}>
+      {t(STICKY_CONVERSATION_HEADER_LABEL_KEYS[value])}
+    </DropdownMenuItem>
+  );
+}
+
+interface StickyConversationHeaderRowProps {
+  value: AppSettings["stickyConversationHeader"];
+  onChange: (value: AppSettings["stickyConversationHeader"]) => void;
+}
+
+function StickyConversationHeaderRow({ value, onChange }: StickyConversationHeaderRowProps) {
+  const { t } = useTranslation();
+  const selectedLabel = t(STICKY_CONVERSATION_HEADER_LABEL_KEYS[value]);
+  return (
+    <View style={[settingsStyles.row, settingsStyles.rowBorder]}>
+      <View style={settingsStyles.rowContent}>
+        <Text style={settingsStyles.rowTitle}>
+          {t("settings.general.stickyConversationHeader.label")}
+        </Text>
+        <Text style={settingsStyles.rowHint}>
+          {t("settings.general.stickyConversationHeader.description")}
+        </Text>
+      </View>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          style={dropdownTriggerStyle}
+          accessibilityLabel={t("settings.general.stickyConversationHeader.accessibilityLabel", {
+            value: selectedLabel,
+          })}
+        >
+          <Text style={styles.triggerText}>{selectedLabel}</Text>
+          <ThemedChevronDown size={ICON_SIZE.sm} uniProps={mutedColorMapping} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="bottom" align="end" width={220}>
+          {STICKY_CONVERSATION_HEADER_MODES.map((option) => (
+            <StickyConversationHeaderMenuItem
+              key={option}
+              value={option}
+              selected={value === option}
+              onChange={onChange}
+            />
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </View>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Fonts: family text fields + numeric size fields (commit on blur/submit)
 // ---------------------------------------------------------------------------
@@ -529,6 +607,13 @@ export function AppearanceSection() {
     [updateSettings],
   );
 
+  const handleStickyConversationHeaderChange = useCallback(
+    (stickyConversationHeader: AppSettings["stickyConversationHeader"]) => {
+      void updateSettings({ stickyConversationHeader });
+    },
+    [updateSettings],
+  );
+
   const handleProviderUsageRotationChange = useCallback(
     (providerUsageRotation: boolean) => {
       void updateSettings({ providerUsageRotation });
@@ -625,6 +710,10 @@ export function AppearanceSection() {
           <ToolCallDetailRow
             value={settings.toolCallDetailLevel}
             onChange={handleToolCallDetailLevelChange}
+          />
+          <StickyConversationHeaderRow
+            value={settings.stickyConversationHeader}
+            onChange={handleStickyConversationHeaderChange}
           />
         </View>
       </SettingsSection>

@@ -187,6 +187,10 @@ export const ptBR: TranslationResources = {
   agentStream: {
     empty: "Comece a conversar com este agente...",
     scrollToBottom: "Rolar para o fim",
+    stickyHeader: {
+      userAccessibilityLabel: "Ir para a última mensagem do usuário: {{preview}}",
+      assistantAccessibilityLabel: "Ir para a última resposta da IA: {{preview}}",
+    },
     permission: {
       plan: "Plano",
       required: "Permissão necessária",
@@ -1760,6 +1764,16 @@ export const ptBR: TranslationResources = {
         options: {
           overview: "Resumo",
           detailed: "Detalhes completos",
+        },
+      },
+      stickyConversationHeader: {
+        label: "Cabeçalho fixo da conversa",
+        description: "Mantenha a última mensagem e a última resposta visíveis ao rolar",
+        accessibilityLabel: "Selecionar cabeçalho fixo da conversa ({{value}})",
+        options: {
+          off: "Desativado",
+          user: "Apenas mensagens do usuário",
+          userAndAi: "Usuário + IA",
         },
       },
       language: {

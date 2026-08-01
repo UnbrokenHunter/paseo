@@ -187,6 +187,10 @@ export const es: TranslationResources = {
   agentStream: {
     empty: "Comience a chatear con este agente...",
     scrollToBottom: "Desplazarse hacia abajo",
+    stickyHeader: {
+      userAccessibilityLabel: "Ir al último mensaje del usuario: {{preview}}",
+      assistantAccessibilityLabel: "Ir a la última respuesta de la IA: {{preview}}",
+    },
     permission: {
       plan: "Plan",
       required: "Permiso requerido",
@@ -1776,6 +1780,16 @@ export const es: TranslationResources = {
         options: {
           overview: "Resumen",
           detailed: "Detalle completo",
+        },
+      },
+      stickyConversationHeader: {
+        label: "Encabezado fijo de conversación",
+        description: "Mantén visibles el último mensaje y la última respuesta al desplazarte",
+        accessibilityLabel: "Seleccionar encabezado fijo de conversación ({{value}})",
+        options: {
+          off: "Desactivado",
+          user: "Solo mensajes del usuario",
+          userAndAi: "Usuario + IA",
         },
       },
       language: {

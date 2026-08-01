@@ -187,6 +187,10 @@ export const ja: TranslationResources = {
   agentStream: {
     empty: "このエージェントとチャットを始めましょう...",
     scrollToBottom: "下にスクロール",
+    stickyHeader: {
+      userAccessibilityLabel: "最後のユーザープロンプトに移動：{{preview}}",
+      assistantAccessibilityLabel: "最後のAIの応答に移動：{{preview}}",
+    },
     permission: {
       plan: "プラン",
       required: "権限が必要です",
@@ -1744,6 +1748,16 @@ export const ja: TranslationResources = {
         options: {
           overview: "要約",
           detailed: "すべての詳細",
+        },
+      },
+      stickyConversationHeader: {
+        label: "固定会話ヘッダー",
+        description: "スクロール中も直前のプロンプトと応答を表示したままにします",
+        accessibilityLabel: "固定会話ヘッダーを選択（{{value}}）",
+        options: {
+          off: "オフ",
+          user: "ユーザーのプロンプトのみ",
+          userAndAi: "ユーザー + AI",
         },
       },
       language: {
