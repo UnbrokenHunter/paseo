@@ -191,6 +191,12 @@ export const ru: TranslationResources = {
       userAccessibilityLabel: "Перейти к последнему запросу пользователя: {{preview}}",
       assistantAccessibilityLabel: "Перейти к последнему ответу ИИ: {{preview}}",
     },
+    messageCollapse: {
+      collapseUser: "Свернуть этот запрос",
+      collapseAssistant: "Свернуть этот ответ",
+      expandUser: "Развернуть этот запрос",
+      expandAssistant: "Развернуть этот ответ",
+    },
     permission: {
       plan: "План",
       required: "Требуется разрешение",

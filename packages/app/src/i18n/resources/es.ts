@@ -191,6 +191,12 @@ export const es: TranslationResources = {
       userAccessibilityLabel: "Ir al último mensaje del usuario: {{preview}}",
       assistantAccessibilityLabel: "Ir a la última respuesta de la IA: {{preview}}",
     },
+    messageCollapse: {
+      collapseUser: "Contraer este mensaje",
+      collapseAssistant: "Contraer esta respuesta",
+      expandUser: "Expandir este mensaje",
+      expandAssistant: "Expandir esta respuesta",
+    },
     permission: {
       plan: "Plan",
       required: "Permiso requerido",

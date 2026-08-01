@@ -191,6 +191,12 @@ export const ar: TranslationResources = {
       userAccessibilityLabel: "الانتقال إلى آخر رسالة للمستخدم: {{preview}}",
       assistantAccessibilityLabel: "الانتقال إلى آخر رد للذكاء الاصطناعي: {{preview}}",
     },
+    messageCollapse: {
+      collapseUser: "طي هذه الرسالة",
+      collapseAssistant: "طي هذا الرد",
+      expandUser: "توسيع هذه الرسالة",
+      expandAssistant: "توسيع هذا الرد",
+    },
     permission: {
       plan: "يخطط",
       required: "الإذن مطلوب",

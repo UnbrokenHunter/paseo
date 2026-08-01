@@ -191,6 +191,12 @@ export const ptBR: TranslationResources = {
       userAccessibilityLabel: "Ir para a última mensagem do usuário: {{preview}}",
       assistantAccessibilityLabel: "Ir para a última resposta da IA: {{preview}}",
     },
+    messageCollapse: {
+      collapseUser: "Recolher esta mensagem",
+      collapseAssistant: "Recolher esta resposta",
+      expandUser: "Expandir esta mensagem",
+      expandAssistant: "Expandir esta resposta",
+    },
     permission: {
       plan: "Plano",
       required: "Permissão necessária",

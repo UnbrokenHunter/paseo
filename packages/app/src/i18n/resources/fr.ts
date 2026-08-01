@@ -193,6 +193,12 @@ export const fr: TranslationResources = {
       userAccessibilityLabel: "Aller à la dernière invite de l’utilisateur : {{preview}}",
       assistantAccessibilityLabel: "Aller à la dernière réponse de l’IA : {{preview}}",
     },
+    messageCollapse: {
+      collapseUser: "Réduire cette invite",
+      collapseAssistant: "Réduire cette réponse",
+      expandUser: "Développer cette invite",
+      expandAssistant: "Développer cette réponse",
+    },
     permission: {
       plan: "Plan",
       required: "Autorisation requise",

@@ -191,6 +191,12 @@ export const ja: TranslationResources = {
       userAccessibilityLabel: "最後のユーザープロンプトに移動：{{preview}}",
       assistantAccessibilityLabel: "最後のAIの応答に移動：{{preview}}",
     },
+    messageCollapse: {
+      collapseUser: "このプロンプトを折りたたむ",
+      collapseAssistant: "この応答を折りたたむ",
+      expandUser: "このプロンプトを展開する",
+      expandAssistant: "この応答を展開する",
+    },
     permission: {
       plan: "プラン",
       required: "権限が必要です",
