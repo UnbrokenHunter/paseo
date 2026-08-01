@@ -229,7 +229,11 @@ function ProviderUsageRotationRow({ value, onChange }: ProviderUsageRotationRowP
           {t("settings.general.providerUsageRotation.description")}
         </Text>
       </View>
-      <Switch value={value} onValueChange={onChange} />
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        accessibilityLabel={t("settings.general.providerUsageRotation.label")}
+      />
     </View>
   );
 }

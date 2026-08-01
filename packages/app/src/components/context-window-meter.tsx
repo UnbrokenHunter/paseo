@@ -266,7 +266,14 @@ function UsageBarLabel({
   if (skeleton || label === null) {
     return <View style={styles.skeletonLabel} />;
   }
-  return <UsageMarquee label={label} textStyle={styles.barText} fadeStyle={fadeStyle} />;
+  return (
+    <UsageMarquee
+      label={label}
+      textStyle={styles.barText}
+      fadeStyle={fadeStyle}
+      testID="provider-usage-bar-label"
+    />
+  );
 }
 
 /**

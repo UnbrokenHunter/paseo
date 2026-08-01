@@ -29,10 +29,13 @@ export function UsageMarquee({
   label,
   textStyle,
   fadeStyle,
+  testID,
 }: {
   label: string;
   textStyle: React.ComponentProps<typeof Text>["style"];
   fadeStyle: React.ComponentProps<typeof Animated.View>["style"];
+  /** Lands on the visible copy only, so tests never match the invisible sizer. */
+  testID?: string;
 }) {
   const [viewportWidth, setViewportWidth] = useState(0);
   const [contentWidth, setContentWidth] = useState(0);
@@ -92,7 +95,7 @@ export function UsageMarquee({
         pointerEvents="none"
       >
         <Animated.View style={[fadeStyle, scrolling ? marqueeStyle : undefined]}>
-          <Text style={textStyle} numberOfLines={1}>
+          <Text style={textStyle} numberOfLines={1} testID={testID}>
             {label}
           </Text>
         </Animated.View>

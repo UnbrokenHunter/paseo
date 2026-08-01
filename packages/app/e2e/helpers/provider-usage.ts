@@ -38,7 +38,7 @@ function getSessionMessage(message: WebSocketMessage): Record<string, unknown> |
   return maybeEnvelope.message as Record<string, unknown>;
 }
 
-function withProviderUsageFeature(message: WebSocketMessage): string | null {
+function withProviderUsageFeature(message: WebSocketMessage, supported: boolean): string | null {
   const envelope = parseJson(message);
   if (!envelope || typeof envelope !== "object") {
     return null;
@@ -68,17 +68,27 @@ function withProviderUsageFeature(message: WebSocketMessage): string | null {
           ...(typeof payload.features === "object" && payload.features !== null
             ? payload.features
             : {}),
-          providerUsageList: true,
+          providerUsageList: supported,
         },
       },
     },
   });
 }
 
+export interface ProviderUsageFixtureOptions {
+  /**
+   * Whether the daemon advertises `providerUsageList`. Set false to stand in for a
+   * host too old to answer, which the real dev daemon always would.
+   */
+  supported?: boolean;
+}
+
 export async function installProviderUsageFixture(
   page: Page,
   payloads: ProviderUsageFixturePayload[],
+  options: ProviderUsageFixtureOptions = {},
 ): Promise<ProviderUsageFixture> {
+  const supported = options.supported ?? true;
   let requests = 0;
   const waiters: Array<{ count: number; resolve: () => void }> = [];
 
@@ -133,7 +143,8 @@ export async function installProviderUsageFixture(
     });
 
     server.onMessage((message) => {
-      const serverInfo = typeof message === "string" ? withProviderUsageFeature(message) : null;
+      const serverInfo =
+        typeof message === "string" ? withProviderUsageFeature(message, supported) : null;
       ws.send(serverInfo ?? message);
     });
   });
