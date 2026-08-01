@@ -1,9 +1,12 @@
 import type { Logger } from "pino";
 import type { ProviderUsage } from "../../server/messages.js";
-import type { ProviderAccountProfile } from "../../server/daemon-config-store.js";
+import type {
+  LocalProviderProfile,
+  ProviderAccountProfile,
+} from "../../server/daemon-config-store.js";
 import { createProviderUsageAccountFetchers, createProviderUsageFetchers } from "./manifest.js";
 import type { ProviderApiFetch, ProviderUsageFetcher } from "./provider.js";
-import { unavailableUsage } from "./usage.js";
+import { unavailableUsage, unmeteredUsage } from "./usage.js";
 
 export interface ProviderUsageServiceOptions {
   logger: Logger;
@@ -16,6 +19,11 @@ export interface ProviderUsageServiceOptions {
    * added and removed while the daemon is running.
    */
   listAccountProfiles?: () => readonly ProviderAccountProfile[];
+  /**
+   * Providers pointed at a locally hosted model. No fetcher covers them, so they are
+   * reported as unmetered rather than left out and shown as a failed lookup.
+   */
+  listLocalProviders?: () => readonly LocalProviderProfile[];
 }
 
 export interface ProviderUsageListResult {
@@ -30,6 +38,7 @@ export class ProviderUsageService {
   private readonly fetchers: ProviderUsageFetcher[];
   private readonly fetch?: ProviderApiFetch;
   private readonly listAccountProfiles: () => readonly ProviderAccountProfile[];
+  private readonly listLocalProviders: () => readonly LocalProviderProfile[];
   private readonly cacheTtlMs: number;
   private readonly now: () => number;
   private cached: { fetchedAtMs: number; result: ProviderUsageListResult } | null = null;
@@ -46,6 +55,7 @@ export class ProviderUsageService {
         fetch: options.fetch,
       });
     this.listAccountProfiles = options.listAccountProfiles ?? (() => []);
+    this.listLocalProviders = options.listLocalProviders ?? (() => []);
     this.cacheTtlMs = options.cacheTtlMs ?? DEFAULT_PROVIDER_USAGE_CACHE_TTL_MS;
     this.now = options.now ?? Date.now;
   }
@@ -111,7 +121,24 @@ export class ProviderUsageService {
       });
     });
 
-    const result = { fetchedAt: new Date(nowMs).toISOString(), providers };
+    // Local providers are appended rather than fetched. A row already produced by a
+    // fetcher wins, so extending a provider that does have a quota API and pointing it
+    // at a proxy on localhost still reports that quota.
+    const reported = new Set(providers.map((usage) => usage.providerId));
+    const local = this.listLocalProviders()
+      .filter((profile) => !reported.has(profile.providerId))
+      .map((profile) =>
+        unmeteredUsage({
+          providerId: profile.providerId,
+          displayName: profile.displayName,
+          sourceLabel: profile.endpointLabel,
+        }),
+      );
+
+    const result = {
+      fetchedAt: new Date(nowMs).toISOString(),
+      providers: [...providers, ...local],
+    };
     if (generation === this.generation) {
       this.cached = { fetchedAtMs: nowMs, result };
     }

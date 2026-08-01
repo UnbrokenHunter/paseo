@@ -16,6 +16,7 @@ import type { LoopService } from "./loop-service.js";
 import type { ScheduleService } from "./schedule/service.js";
 import type { CheckoutDiffManager, CheckoutDiffMetrics } from "./checkout-diff-manager.js";
 import {
+  listLocalProviderProfiles,
   listProviderAccountProfiles,
   toClientMutableDaemonConfig,
   type DaemonConfigStore,
@@ -683,6 +684,7 @@ export class VoiceAssistantWebSocketServer {
     this.providerUsageService = new ProviderUsageService({
       logger: this.logger,
       listAccountProfiles: () => listProviderAccountProfiles(this.daemonConfigStore.get()),
+      listLocalProviders: () => listLocalProviderProfiles(this.daemonConfigStore.get()),
     });
 
     this.wss = this.createWebSocketServer(server, wsConfig, auth);

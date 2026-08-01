@@ -1602,6 +1602,14 @@ export const ja: TranslationResources = {
       staleAge: "{{age}}前に更新",
       staleJustNow: "たった今更新",
       pressToRetry: "タップで再試行",
+      unmetered: "使用制限なし",
+      unmeteredExplanation:
+        "このモデルは自分のマシンで動作しているため、報告する割り当てはありません。",
+    },
+    card: {
+      statusError: "エラー",
+      statusUnavailable: "利用不可",
+      updated: "{{age}}に更新",
     },
   },
   review: {

@@ -325,6 +325,18 @@ describe("selectActiveAccountUsage", () => {
     });
   });
 
+  it("calls out a locally hosted model as unmetered rather than unavailable", () => {
+    const usage = providerUsage({
+      providerId: "local-llama",
+      status: "unavailable",
+      unmetered: true,
+    });
+
+    expect(
+      selectActiveAccountUsage({ view: readyView([usage]), providerId: "local-llama" }),
+    ).toEqual({ state: "unmetered", usage });
+  });
+
   it("surfaces the provider's own fetch failure as an error", () => {
     const usage = providerUsage({ status: "error", error: "401 from api.anthropic.com" });
 

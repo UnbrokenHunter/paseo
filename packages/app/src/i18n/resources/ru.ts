@@ -1620,6 +1620,13 @@ export const ru: TranslationResources = {
       staleAge: "Обновлено {{age}} назад",
       staleJustNow: "Обновлено только что",
       pressToRetry: "Нажмите, чтобы повторить",
+      unmetered: "Без лимитов использования",
+      unmeteredExplanation: "Эта модель работает на вашей машине, поэтому сообщать о квоте нечего.",
+    },
+    card: {
+      statusError: "Ошибка",
+      statusUnavailable: "Недоступно",
+      updated: "Обновлено {{age}}",
     },
   },
   review: {

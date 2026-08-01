@@ -1615,6 +1615,14 @@ export const ptBR: TranslationResources = {
       staleAge: "Última atualização há {{age}}",
       staleJustNow: "Atualizado agora mesmo",
       pressToRetry: "Toque para tentar novamente",
+      unmetered: "Sem limites de uso",
+      unmeteredExplanation:
+        "Este modelo é servido pela sua própria máquina, então não há cota a informar.",
+    },
+    card: {
+      statusError: "Erro",
+      statusUnavailable: "Indisponível",
+      updated: "Atualizado {{age}}",
     },
   },
   review: {

@@ -1629,6 +1629,14 @@ export const es: TranslationResources = {
       staleAge: "Última actualización hace {{age}}",
       staleJustNow: "Actualizado hace un momento",
       pressToRetry: "Pulsa para reintentar",
+      unmetered: "Sin límites de uso",
+      unmeteredExplanation:
+        "Este modelo se sirve desde tu propia máquina, así que no hay cuota que informar.",
+    },
+    card: {
+      statusError: "Error",
+      statusUnavailable: "No disponible",
+      updated: "Actualizado {{age}}",
     },
   },
   review: {

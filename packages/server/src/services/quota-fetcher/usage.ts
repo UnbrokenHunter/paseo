@@ -47,6 +47,29 @@ export function unavailableUsage(provider: {
   };
 }
 
+/**
+ * A provider serving a model you host yourself. There is no quota behind it, so this
+ * says so outright instead of reporting the same "unavailable" a failed lookup does.
+ */
+export function unmeteredUsage(provider: {
+  providerId: string;
+  displayName: string;
+  sourceLabel?: string | null;
+}): ProviderUsage {
+  return {
+    providerId: provider.providerId,
+    displayName: provider.displayName,
+    status: "unavailable",
+    unmetered: true,
+    planLabel: null,
+    sourceLabel: provider.sourceLabel ?? null,
+    windows: [],
+    balances: [],
+    details: [],
+    error: null,
+  };
+}
+
 export function windowFromUsedPct(input: {
   id: string;
   label: string;

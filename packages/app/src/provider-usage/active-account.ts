@@ -44,11 +44,13 @@ interface ActiveAccountUsageData {
  * failed and there is nothing to fall back on. `stale` means the last known
  * numbers are still worth showing even though the newest refresh failed.
  * `unsupported` means the host cannot answer at all, which is not the user's
- * problem to retry — compact surfaces render nothing for it.
+ * problem to retry — compact surfaces render nothing for it. `unmetered` means
+ * there is nothing to meter: the model is served from your own machine.
  */
 export type ActiveAccountUsage =
   | { state: "loading" }
   | { state: "unsupported"; message: string }
+  | { state: "unmetered"; usage: ProviderUsage }
   | ({ state: "available" } & ActiveAccountUsageData)
   | ({ state: "stale"; refreshError: string } & ActiveAccountUsageData)
   | { state: "unavailable"; usage: ProviderUsage | null; reason: string | null }
@@ -197,6 +199,11 @@ export function selectActiveAccountUsage({
   }
   if (usage.status === "error") {
     return { state: "error", message: usage.error ?? "Usage lookup failed", usage };
+  }
+  // A locally hosted model has no quota, which is a fact worth stating rather than
+  // the absence of one. Checked before limits because it never carries any.
+  if (usage.unmetered) {
+    return { state: "unmetered", usage };
   }
 
   const limits = rotationOrder(toUsageLimits(usage));

@@ -1632,6 +1632,14 @@ export const fr: TranslationResources = {
       staleAge: "Dernière mise à jour il y a {{age}}",
       staleJustNow: "Mis à jour à l'instant",
       pressToRetry: "Appuyez pour réessayer",
+      unmetered: "Aucune limite d'utilisation",
+      unmeteredExplanation:
+        "Ce modèle est servi depuis votre propre machine, il n'y a donc aucun quota à afficher.",
+    },
+    card: {
+      statusError: "Erreur",
+      statusUnavailable: "Indisponible",
+      updated: "Mis à jour {{age}}",
     },
   },
   review: {

@@ -105,6 +105,14 @@ function ModelProviderUsageSummary({
   // A host that cannot report usage is not this row's business to explain.
   if (account.state === "unsupported") return null;
 
+  if (account.state === "unmetered") {
+    return (
+      <View style={styles.usageSummaryRow} testID={testID}>
+        <Text style={styles.usageSummaryText}>{t("providerUsage.states.unmetered")}</Text>
+      </View>
+    );
+  }
+
   if (account.state === "unavailable") {
     return (
       <Tooltip enabledOnDesktop enabledOnMobile delayDuration={0}>

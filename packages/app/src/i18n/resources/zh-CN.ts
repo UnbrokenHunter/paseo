@@ -1567,6 +1567,13 @@ export const zhCN: TranslationResources = {
       staleAge: "{{age}}前更新",
       staleJustNow: "刚刚更新",
       pressToRetry: "点按以重试",
+      unmetered: "无用量限制",
+      unmeteredExplanation: "该模型由你自己的机器提供服务，因此没有配额可报告。",
+    },
+    card: {
+      statusError: "错误",
+      statusUnavailable: "不可用",
+      updated: "{{age}}更新",
     },
   },
   review: {

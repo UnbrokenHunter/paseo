@@ -1586,6 +1586,13 @@ export const ar: TranslationResources = {
       staleAge: "آخر تحديث قبل {{age}}",
       staleJustNow: "آخر تحديث الآن",
       pressToRetry: "اضغط لإعادة المحاولة",
+      unmetered: "لا توجد حدود استخدام",
+      unmeteredExplanation: "يُقدَّم هذا النموذج من جهازك، لذا لا توجد حصة لعرضها.",
+    },
+    card: {
+      statusError: "خطأ",
+      statusUnavailable: "غير متاح",
+      updated: "تم التحديث {{age}}",
     },
   },
   review: {
