@@ -1,15 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
-import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppSettings } from "@/hooks/use-settings";
 import { ProviderUsageTooltipSection } from "@/provider-usage/tooltip-section";
@@ -21,6 +15,7 @@ import {
 import { formatAgeDuration, formatCompactUsage } from "@/provider-usage/format";
 import { getProviderBrandColors } from "@/provider-usage/brand-colors";
 import type { ProviderUsageView } from "@/provider-usage/types";
+import { UsageMarquee } from "@/provider-usage/usage-marquee";
 import { useProviderUsage } from "@/provider-usage/use-provider-usage";
 import { formatTokenCount } from "./context-window-meter.utils";
 
@@ -48,7 +43,6 @@ const COMPACT_CIRCUMFERENCE = 2 * Math.PI * COMPACT_RADIUS;
 
 const ROTATION_INTERVAL_MS = 8000;
 const FADE_DURATION_MS = 250;
-const MARQUEE_SPEED_MS_PER_PX = 16;
 
 function isValidMaxTokens(value: number): boolean {
   return Number.isFinite(value) && value > 0;
@@ -213,29 +207,16 @@ type AnimatedStyle = ComponentProps<typeof Animated.View>["style"];
 function UsageBarLabel({
   fadeStyle,
   label,
-  marqueeStyle,
-  onWrapperLayout,
   skeleton,
 }: {
   fadeStyle: AnimatedStyle;
   label: string | null;
-  marqueeStyle: AnimatedStyle;
-  onWrapperLayout: (event: LayoutChangeEvent) => void;
   skeleton: boolean;
 }) {
-  if (skeleton) {
+  if (skeleton || label === null) {
     return <View style={styles.skeletonLabel} />;
   }
-  return (
-    <Animated.View
-      style={[styles.barTextWrapper, fadeStyle, marqueeStyle]}
-      onLayout={onWrapperLayout}
-    >
-      <Text style={styles.barText} numberOfLines={1}>
-        {label}
-      </Text>
-    </Animated.View>
-  );
+  return <UsageMarquee label={label} textStyle={styles.barText} fadeStyle={fadeStyle} />;
 }
 
 /**
@@ -316,8 +297,6 @@ export function ContextWindowMeter({
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const [pinned, setPinned] = useState(false);
   const [rotationIndex, setRotationIndex] = useState(0);
-  const [barWidth, setBarWidth] = useState(0);
-  const [textWidth, setTextWidth] = useState(0);
 
   const { view: providerUsageView, refresh: refreshProviderUsage } = useProviderUsage(
     serverId ?? null,
@@ -362,26 +341,6 @@ export function ContextWindowMeter({
 
   const fadeStyle = useAnimatedStyle(() => ({ opacity: textOpacity.value }));
 
-  const enableMarquee = textWidth > barWidth && barWidth > 0;
-  const marqueeTranslate = useSharedValue(0);
-  useEffect(() => {
-    if (!enableMarquee) {
-      marqueeTranslate.value = 0;
-      return;
-    }
-    const duration = (textWidth + barWidth) * MARQUEE_SPEED_MS_PER_PX;
-    marqueeTranslate.value = barWidth;
-    marqueeTranslate.value = withRepeat(
-      withTiming(-textWidth, { duration, easing: Easing.linear }),
-      -1,
-      false,
-    );
-  }, [enableMarquee, textWidth, barWidth, marqueeTranslate]);
-
-  const marqueeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: marqueeTranslate.value }],
-  }));
-
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (nextOpen && !isTooltipOpen) {
@@ -405,18 +364,6 @@ export function ContextWindowMeter({
     setPinned(next);
     setIsTooltipOpen(next);
   }, [accountUsage.state, pinned, refreshProviderUsage]);
-
-  // Measured on the wrapper rather than via `onTextLayout`, which react-native-web
-  // does not implement. The text opts out of shrinking so this is its natural width;
-  // on native the text still measures against the available width, so the marquee
-  // only engages on web and elsewhere the label ellipsizes.
-  const handleTextLayout = useCallback((event: LayoutChangeEvent) => {
-    setTextWidth(event.nativeEvent.layout.width);
-  }, []);
-
-  const handleBarLayout = useCallback((event: LayoutChangeEvent) => {
-    setBarWidth(event.nativeEvent.layout.width);
-  }, []);
 
   const percentage =
     maxTokens !== null && usedTokens !== null ? getUsagePercentage(maxTokens, usedTokens) : null;
@@ -474,15 +421,7 @@ export function ContextWindowMeter({
           {showBar ? (
             <>
               <View style={[styles.brandDot, { backgroundColor: brandColors.accent }]} />
-              <View style={styles.barTextContainer} onLayout={handleBarLayout}>
-                <UsageBarLabel
-                  fadeStyle={fadeStyle}
-                  label={barLabel}
-                  marqueeStyle={enableMarquee ? marqueeStyle : undefined}
-                  onWrapperLayout={handleTextLayout}
-                  skeleton={isBarSkeleton}
-                />
-              </View>
+              <UsageBarLabel fadeStyle={fadeStyle} label={barLabel} skeleton={isBarSkeleton} />
             </>
           ) : null}
           {showPercentage ? (
@@ -573,16 +512,6 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: 3,
     flexShrink: 0,
   },
-  barTextContainer: {
-    flexShrink: 1,
-    overflow: "hidden",
-  },
-  // The wrapper opts out of shrinking so its measured width is the sentence's natural
-  // width, which is what tells the marquee whether the label overflows the pill.
-  barTextWrapper: {
-    flexDirection: "row",
-    flexShrink: 0,
-  },
   barText: {
     color: theme.colors.foreground,
     fontSize: theme.fontSize.xs,
@@ -594,12 +523,6 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.borderRadius.full,
     backgroundColor: theme.colors.surface3,
   },
-  percentageSkeleton: {
-    width: 22,
-    height: theme.fontSize.sm,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.surface3,
-  },
   svg: {
     transform: [{ rotate: "-90deg" }],
   },
@@ -607,6 +530,12 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.normal,
+  },
+  percentageSkeleton: {
+    width: 22,
+    height: theme.fontSize.sm,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.surface3,
   },
   tooltipContent: {
     gap: theme.spacing[1.5],
