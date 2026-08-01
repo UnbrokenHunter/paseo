@@ -8,9 +8,13 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
+import { EdgeFade } from "./edge-fade";
 
-const SPEED_MS_PER_PX = 16;
-/** Ignore sub-pixel overflow, which would otherwise start a marquee that never moves. */
+/** Reading pace, not attention-grabbing pace. */
+const SPEED_PX_PER_SECOND = 22;
+/** Blank run between the end of one pass and the start of the next. */
+const GAP_PX = 40;
+/** Ignore sub-pixel overflow, which would otherwise scroll a label that already fits. */
 const OVERFLOW_EPSILON = 1;
 
 /**
@@ -20,10 +24,13 @@ const OVERFLOW_EPSILON = 1;
  * bounded row measures against the space it was given, so it reports the truncated
  * width and never looks like it overflows — and `onTextLayout`, the API that would
  * report the real line width, is not implemented by react-native-web. So the label is
- * rendered twice: an invisible copy sizes the box (and gets clamped by whatever
- * max-width the parent imposes), and a horizontal ScrollView laid over it reports the
- * true content width, because ScrollView content is measured unbounded along its
- * scroll axis on every platform.
+ * rendered in an invisible copy that sizes the box (and gets clamped by whatever
+ * max-width the parent imposes), with a horizontal ScrollView laid over it: ScrollView
+ * content is measured unbounded along its scroll axis on every platform.
+ *
+ * The scroll is a ticker, not a back-and-forth: a second copy follows the first a gap
+ * behind, and the track resets the instant that second copy reaches the first one's
+ * starting point, so the loop has no seam and the text always reads left to right.
  */
 export function UsageMarquee({
   label,
@@ -38,9 +45,10 @@ export function UsageMarquee({
   testID?: string;
 }) {
   const [viewportWidth, setViewportWidth] = useState(0);
-  const [contentWidth, setContentWidth] = useState(0);
-  const overflow = contentWidth - viewportWidth;
-  const scrolling = viewportWidth > 0 && overflow > OVERFLOW_EPSILON;
+  const [labelWidth, setLabelWidth] = useState(0);
+  const scrolling =
+    viewportWidth > 0 && labelWidth > 0 && labelWidth - viewportWidth > OVERFLOW_EPSILON;
+  const cycleWidth = labelWidth + GAP_PX;
 
   const translate = useSharedValue(0);
   useEffect(() => {
@@ -50,14 +58,14 @@ export function UsageMarquee({
     }
     translate.value = 0;
     translate.value = withRepeat(
-      withTiming(-overflow, {
-        duration: overflow * SPEED_MS_PER_PX,
+      withTiming(-cycleWidth, {
+        duration: (cycleWidth / SPEED_PX_PER_SECOND) * 1000,
         easing: Easing.linear,
       }),
       -1,
-      true,
+      false,
     );
-  }, [scrolling, overflow, translate]);
+  }, [scrolling, cycleWidth, translate]);
 
   const marqueeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translate.value }],
@@ -70,43 +78,54 @@ export function UsageMarquee({
     [],
   );
 
-  const handleContentSize = useCallback((width: number) => {
-    setContentWidth(width);
+  const handleLabelLayout = useCallback((event: { nativeEvent: { layout: { width: number } } }) => {
+    setLabelWidth(event.nativeEvent.layout.width);
   }, []);
 
   return (
-    <View
-      style={styles.viewport}
-      onLayout={handleViewportLayout}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      {/* Sizes the box. Invisible, but still the thing the parent measures. */}
-      <Text style={[textStyle, styles.sizer]} numberOfLines={1}>
-        {label}
-      </Text>
-      <ScrollView
-        horizontal
-        scrollEnabled={false}
-        showsHorizontalScrollIndicator={false}
-        style={RNStyleSheet.absoluteFill}
-        contentContainerStyle={styles.track}
-        onContentSizeChange={handleContentSize}
-        pointerEvents="none"
+    <EdgeFade active={scrolling} style={styles.viewport}>
+      <View
+        style={styles.viewportInner}
+        onLayout={handleViewportLayout}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
       >
-        <Animated.View style={[fadeStyle, scrolling ? marqueeStyle : undefined]}>
-          <Text style={textStyle} numberOfLines={1} testID={testID}>
-            {label}
-          </Text>
-        </Animated.View>
-      </ScrollView>
-    </View>
+        {/* Sizes the box. Invisible, but still the thing the parent measures. */}
+        <Text style={[textStyle, styles.sizer]} numberOfLines={1}>
+          {label}
+        </Text>
+        <ScrollView
+          horizontal
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          style={RNStyleSheet.absoluteFill}
+          contentContainerStyle={styles.track}
+          pointerEvents="none"
+        >
+          <Animated.View style={[styles.run, fadeStyle, scrolling ? marqueeStyle : undefined]}>
+            <Text style={textStyle} numberOfLines={1} onLayout={handleLabelLayout} testID={testID}>
+              {label}
+            </Text>
+            {scrolling ? (
+              <>
+                <View style={styles.gap} />
+                <Text style={textStyle} numberOfLines={1}>
+                  {label}
+                </Text>
+              </>
+            ) : null}
+          </Animated.View>
+        </ScrollView>
+      </View>
+    </EdgeFade>
   );
 }
 
 const styles = StyleSheet.create(() => ({
   viewport: {
     flexShrink: 1,
+  },
+  viewportInner: {
     justifyContent: "center",
     overflow: "hidden",
   },
@@ -115,5 +134,12 @@ const styles = StyleSheet.create(() => ({
   },
   track: {
     alignItems: "center",
+  },
+  run: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  gap: {
+    width: GAP_PX,
   },
 }));
