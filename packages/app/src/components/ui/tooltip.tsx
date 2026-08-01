@@ -48,8 +48,8 @@ interface TooltipContextValue {
   enabled: boolean;
   openOnPress: boolean;
   pinnable: boolean;
-  pinned: boolean;
   togglePinned: () => void;
+  closeUnlessPinned: () => void;
   delayDuration: number;
 }
 
@@ -259,7 +259,10 @@ export function Tooltip({
     defaultOpen,
     onOpenChange,
   });
-  const [pinned, setPinned] = useState(false);
+  // A ref, not state. react-native-web's Pressable captures its hover handlers, so a
+  // handler that closed over `pinned` kept reading the value from the render before
+  // the press — the pin was set and then immediately ignored on the way out.
+  const pinnedRef = useRef(false);
 
   const isCompact = useIsCompactFormFactor();
   const enabled = isCompact ? enabledOnMobile : enabledOnDesktop;
@@ -267,7 +270,7 @@ export function Tooltip({
   const setOpen = useCallback(
     (next: boolean) => {
       if (!next) {
-        setPinned(false);
+        pinnedRef.current = false;
       }
       setIsOpen(next);
     },
@@ -275,11 +278,15 @@ export function Tooltip({
   );
 
   const togglePinned = useCallback(() => {
-    setPinned((previous) => {
-      const next = !previous;
-      setIsOpen(next);
-      return next;
-    });
+    const next = !pinnedRef.current;
+    pinnedRef.current = next;
+    setIsOpen(next);
+  }, [setIsOpen]);
+
+  /** Hover-out and blur go through here so a pinned tooltip survives both. */
+  const closeUnlessPinned = useCallback(() => {
+    if (pinnedRef.current) return;
+    setIsOpen(false);
   }, [setIsOpen]);
 
   const value = useMemo<TooltipContextValue>(
@@ -290,8 +297,8 @@ export function Tooltip({
       enabled,
       openOnPress: openOnPress ?? isCompact,
       pinnable,
-      pinned,
       togglePinned,
+      closeUnlessPinned,
       delayDuration,
     }),
     [
@@ -301,8 +308,8 @@ export function Tooltip({
       openOnPress,
       isCompact,
       pinnable,
-      pinned,
       togglePinned,
+      closeUnlessPinned,
       delayDuration,
     ],
   );
@@ -370,10 +377,10 @@ export function TooltipTrigger({
   const handleHoverOut = useCallback(
     (e?: unknown) => {
       if (isCallable(onHoverOut)) onHoverOut(e);
-      if (ctx.pinned) return;
-      close();
+      clearOpenTimer();
+      ctx.closeUnlessPinned();
     },
-    [onHoverOut, close, ctx.pinned],
+    [onHoverOut, clearOpenTimer, ctx],
   );
 
   const handleFocus = useCallback(
@@ -392,10 +399,10 @@ export function TooltipTrigger({
       if (isCallable(onBlur)) onBlur(e);
       // Pressing the trigger moves focus into it and straight back out on some
       // platforms; closing here would undo the pin the press just set.
-      if (ctx.pinned) return;
-      close();
+      clearOpenTimer();
+      ctx.closeUnlessPinned();
     },
-    [close, ctx.pinned, onBlur],
+    [clearOpenTimer, ctx, onBlur],
   );
 
   const handlePress = useCallback(

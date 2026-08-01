@@ -95,6 +95,75 @@ function pressTrigger(): void {
   });
 }
 
+/** The meter drives its tooltip controlled, which is where pinning has to hold. */
+function renderPinnable(): { openStates: boolean[] } {
+  const openStates: boolean[] = [];
+
+  function Harness() {
+    const [open, setOpen] = React.useState(false);
+    const handleOpenChange = React.useCallback((next: boolean) => {
+      openStates.push(next);
+      setOpen(next);
+    }, []);
+    return (
+      <Tooltip open={open} onOpenChange={handleOpenChange} pinnable delayDuration={0}>
+        <TooltipTrigger asChild>
+          <Pressable testID="trigger">
+            <Text>Meter</Text>
+          </Pressable>
+        </TooltipTrigger>
+      </Tooltip>
+    );
+  }
+
+  act(() => {
+    root?.render(<Harness />);
+  });
+  return { openStates };
+}
+
+function dispatchOnTrigger(type: string): void {
+  const trigger = container?.querySelector('[data-testid="trigger"]');
+  expect(trigger).not.toBeNull();
+  act(() => {
+    trigger?.dispatchEvent(new window.MouseEvent(type, { bubbles: true }));
+  });
+}
+
+describe("Tooltip pinning", () => {
+  it("stays open after the pointer leaves a trigger that was pressed", () => {
+    const { openStates } = renderPinnable();
+
+    dispatchOnTrigger("mouseenter");
+    expect(openStates.at(-1)).toBe(true);
+
+    dispatchOnTrigger("click");
+    dispatchOnTrigger("mouseleave");
+
+    expect(openStates.at(-1)).toBe(true);
+  });
+
+  it("closes on the pointer leaving once a second press releases the pin", () => {
+    const { openStates } = renderPinnable();
+
+    dispatchOnTrigger("mouseenter");
+    dispatchOnTrigger("click");
+    dispatchOnTrigger("click");
+    dispatchOnTrigger("mouseleave");
+
+    expect(openStates.at(-1)).toBe(false);
+  });
+
+  it("closes on the pointer leaving when the trigger was never pressed", () => {
+    const { openStates } = renderPinnable();
+
+    dispatchOnTrigger("mouseenter");
+    dispatchOnTrigger("mouseleave");
+
+    expect(openStates.at(-1)).toBe(false);
+  });
+});
+
 describe("TooltipTrigger", () => {
   it("keeps an asChild trigger disabled when the child is disabled", () => {
     const onPress = vi.fn();
