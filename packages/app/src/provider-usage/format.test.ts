@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatAgeDuration, formatCompactUsage } from "./format";
+import { formatCompactUsage } from "./format";
 
 const NOW = new Date("2026-07-31T12:00:00.000Z");
 
@@ -14,25 +14,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
-});
-
-describe("formatAgeDuration", () => {
-  it("reports the age in the largest whole unit, with no 'ago' of its own", () => {
-    expect(formatAgeDuration(inHours(-3))).toBe("3h");
-    expect(formatAgeDuration(inHours(-0.5))).toBe("30m");
-    expect(formatAgeDuration(inHours(-72))).toBe("3d");
-  });
-
-  it("returns null under a minute so callers can say 'just now' themselves", () => {
-    expect(formatAgeDuration(inHours(-0.001))).toBeNull();
-    expect(formatAgeDuration(NOW.toISOString())).toBeNull();
-  });
-
-  it("returns null when there is no usable timestamp", () => {
-    expect(formatAgeDuration(null)).toBeNull();
-    expect(formatAgeDuration(undefined)).toBeNull();
-    expect(formatAgeDuration("not-a-date")).toBeNull();
-  });
 });
 
 describe("formatCompactUsage", () => {

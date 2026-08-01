@@ -12,7 +12,7 @@ import {
   type ActiveAccountUsage,
   type ProviderUsageLimit,
 } from "@/provider-usage/active-account";
-import { formatAgeDuration, formatCompactUsage } from "@/provider-usage/format";
+import { formatCompactUsage } from "@/provider-usage/format";
 import { getProviderBrandColors } from "@/provider-usage/brand-colors";
 import type { ProviderUsageView } from "@/provider-usage/types";
 import { UsageMarquee } from "@/provider-usage/usage-marquee";
@@ -277,11 +277,11 @@ function UsageBarLabel({
 }
 
 /**
- * The popover body: the context-window numbers the meter has always shown, plus the
- * provider-usage story when the account's own numbers are failing or out of date.
+ * The popover body: the context-window numbers the meter has always shown, with the
+ * provider-usage card appended. Deliberately unchanged from the plain context tooltip
+ * otherwise — the usage bar is a new surface, the popover behind it is not.
  */
 function ContextWindowTooltipBody({
-  accountUsage,
   maxTokens,
   percentage,
   provider,
@@ -289,7 +289,6 @@ function ContextWindowTooltipBody({
   usageView,
   usedTokens,
 }: {
-  accountUsage: ActiveAccountUsage;
   maxTokens: number | null;
   percentage: number | null;
   provider: string | null | undefined;
@@ -298,8 +297,6 @@ function ContextWindowTooltipBody({
   usedTokens: number | null;
 }) {
   const { t } = useTranslation();
-  const staleAge =
-    accountUsage.state === "stale" ? formatAgeDuration(accountUsage.lastFetchedAt) : null;
   const hasContextWindow = percentage !== null && maxTokens !== null && usedTokens !== null;
 
   return (
@@ -321,23 +318,6 @@ function ContextWindowTooltipBody({
           {t("contextWindow.sessionCost", { cost: sessionCost })}
         </Text>
       ) : null}
-      {accountUsage.state === "error" ? (
-        <View style={styles.errorRow}>
-          <Text style={styles.errorText}>{accountUsage.message}</Text>
-          <Text style={styles.tooltipDetail}>{t("providerUsage.states.pressToRetry")}</Text>
-        </View>
-      ) : null}
-      {accountUsage.state === "stale" ? (
-        <View style={styles.errorRow}>
-          <Text style={styles.errorText}>{accountUsage.refreshError}</Text>
-          <Text style={styles.tooltipDetail}>
-            {staleAge
-              ? t("providerUsage.states.staleAge", { age: staleAge })
-              : t("providerUsage.states.staleJustNow")}
-          </Text>
-          <Text style={styles.tooltipDetail}>{t("providerUsage.states.pressToRetry")}</Text>
-        </View>
-      ) : null}
       <ProviderUsageTooltipSection view={usageView} activeProviderId={provider} />
     </View>
   );
@@ -356,7 +336,6 @@ export function ContextWindowMeter({
   const { t } = useTranslation();
   const { settings } = useAppSettings();
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
-  const [pinned, setPinned] = useState(false);
   const [rotationIndex, setRotationIndex] = useState(0);
 
   const { view: providerUsageView, refresh: refreshProviderUsage } = useProviderUsage(
@@ -408,23 +387,17 @@ export function ContextWindowMeter({
         void refreshProviderUsage().catch(() => {});
       }
       setIsTooltipOpen(nextOpen);
-      if (!nextOpen) {
-        setPinned(false);
-      }
     },
     [isTooltipOpen, refreshProviderUsage],
   );
 
-  // Pressing the bar toggles the pin. It also retries whenever the numbers on screen
-  // are not current, because the popover itself is not interactive.
+  // Pinning is the Tooltip's own business; the press only has to retry when the
+  // numbers on screen are not current, since tooltip content is not interactive.
   const handlePress = useCallback(() => {
     if (accountUsage.state === "error" || accountUsage.state === "stale") {
       void refreshProviderUsage().catch(() => {});
     }
-    const next = !pinned;
-    setPinned(next);
-    setIsTooltipOpen(next);
-  }, [accountUsage.state, pinned, refreshProviderUsage]);
+  }, [accountUsage.state, refreshProviderUsage]);
 
   const percentage =
     maxTokens !== null && usedTokens !== null ? getUsagePercentage(maxTokens, usedTokens) : null;
@@ -457,8 +430,7 @@ export function ContextWindowMeter({
       delayDuration={0}
       enabledOnDesktop
       enabledOnMobile
-      openOnPress
-      pinned={pinned}
+      pinnable
     >
       <TooltipTrigger asChild triggerRefProp="ref">
         <Pressable
@@ -489,7 +461,6 @@ export function ContextWindowMeter({
       </TooltipTrigger>
       <TooltipContent side="top" align="center" offset={8}>
         <ContextWindowTooltipBody
-          accountUsage={accountUsage}
           maxTokens={maxTokens}
           percentage={roundedPercentage}
           provider={provider}

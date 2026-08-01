@@ -1629,9 +1629,6 @@ export const fr: TranslationResources = {
       loading: "Chargement de l'utilisation…",
       retry: "Réessayer",
       failed: "Impossible de charger l'utilisation",
-      staleAge: "Dernière mise à jour il y a {{age}}",
-      staleJustNow: "Mis à jour à l'instant",
-      pressToRetry: "Appuyez pour réessayer",
       unmetered: "Aucune limite d'utilisation",
       unmeteredExplanation:
         "Ce modèle est servi depuis votre propre machine, il n'y a donc aucun quota à afficher.",

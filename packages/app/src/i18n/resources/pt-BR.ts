@@ -1612,9 +1612,6 @@ export const ptBR: TranslationResources = {
       loading: "Carregando uso…",
       retry: "Tentar novamente",
       failed: "Não foi possível carregar o uso",
-      staleAge: "Última atualização há {{age}}",
-      staleJustNow: "Atualizado agora mesmo",
-      pressToRetry: "Toque para tentar novamente",
       unmetered: "Sem limites de uso",
       unmeteredExplanation:
         "Este modelo é servido pela sua própria máquina, então não há cota a informar.",

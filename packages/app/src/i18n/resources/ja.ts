@@ -1599,9 +1599,6 @@ export const ja: TranslationResources = {
       loading: "使用状況を読み込み中…",
       retry: "再試行",
       failed: "使用状況を読み込めませんでした",
-      staleAge: "{{age}}前に更新",
-      staleJustNow: "たった今更新",
-      pressToRetry: "タップで再試行",
       unmetered: "使用制限なし",
       unmeteredExplanation:
         "このモデルは自分のマシンで動作しているため、報告する割り当てはありません。",

@@ -1626,9 +1626,6 @@ export const es: TranslationResources = {
       loading: "Cargando uso…",
       retry: "Reintentar",
       failed: "No se pudo cargar el uso",
-      staleAge: "Última actualización hace {{age}}",
-      staleJustNow: "Actualizado hace un momento",
-      pressToRetry: "Pulsa para reintentar",
       unmetered: "Sin límites de uso",
       unmeteredExplanation:
         "Este modelo se sirve desde tu propia máquina, así que no hay cuota que informar.",

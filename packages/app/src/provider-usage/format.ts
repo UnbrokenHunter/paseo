@@ -49,23 +49,6 @@ export function formatCompactUsage(parts: CompactUsageParts): {
   };
 }
 
-/**
- * Bare age of a timestamp — `5m`, `2h`, `3d` — for interpolation into a translated
- * "last updated {{age}} ago" sentence. Null under a minute, so callers say
- * "just now" in their own locale instead of rendering "0m ago".
- */
-export function formatAgeDuration(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  const diffMs = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(diffMs) || diffMs < 60_000) return null;
-  const diffMinutes = Math.floor(diffMs / 60_000);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays > 0) return `${diffDays}d`;
-  if (diffHours > 0) return `${diffHours}h`;
-  return `${diffMinutes}m`;
-}
-
 export function formatAgo(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const diffMs = Date.now() - new Date(iso).getTime();

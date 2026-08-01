@@ -1594,9 +1594,6 @@ export const en = {
       loading: "Loading usage…",
       retry: "Retry",
       failed: "Unable to load usage",
-      staleAge: "Last updated {{age}} ago",
-      staleJustNow: "Last updated just now",
-      pressToRetry: "Press to retry",
       unmetered: "No usage limits",
       unmeteredExplanation:
         "This model is served from your own machine, so there is no quota to report.",
