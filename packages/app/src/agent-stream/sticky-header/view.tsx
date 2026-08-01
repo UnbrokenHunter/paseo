@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Pressable,
@@ -8,10 +8,12 @@ import {
   type ViewStyle,
 } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { MAX_CONTENT_WIDTH } from "@/constants/layout";
-import { isWeb } from "@/constants/platform";
+import { MAX_CONTENT_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
+import { isNative, isWeb } from "@/constants/platform";
 import type { StickyConversationHeaderMode } from "@/hooks/use-settings";
 import { formatMessageTimestamp } from "@/utils/time";
+import { MessageCollapseToggle } from "../collapsed-message/view";
+import { toggleMessageCollapsed, useIsMessageCollapsed } from "../collapsed-message/store";
 import type { StickyConversationPreview, StickyConversationPreviews } from "./model";
 
 /**
@@ -19,6 +21,9 @@ import type { StickyConversationPreview, StickyConversationPreviews } from "./mo
  * and the overlay never nudges the messages underneath it.
  */
 export const STICKY_CONVERSATION_HEADER_HEIGHT = 46;
+
+/** Width reserved beside each preview for the collapse/expand toggle. */
+const TOGGLE_SLOT_WIDTH = 28;
 
 // Plain (non-Unistyles) object: `backdropFilter` has no React Native equivalent.
 const backdropBlurStyle = isWeb
@@ -29,12 +34,14 @@ const backdropBlurStyle = isWeb
   : null;
 
 interface StickyConversationHeaderProps {
+  agentId: string;
   mode: StickyConversationHeaderMode;
   previews: StickyConversationPreviews;
   onPressPreview: (itemId: string) => void;
 }
 
 export function StickyConversationHeader({
+  agentId,
   mode,
   previews,
   onPressPreview,
@@ -52,9 +59,21 @@ export function StickyConversationHeader({
       <View style={[styles.backdrop, backdropBlurStyle]} pointerEvents="none" />
       <View style={styles.row} pointerEvents="box-none">
         {showAssistantSide ? (
-          <StickySide align="left" role="assistant" preview={assistant} onPress={onPressPreview} />
+          <StickySide
+            agentId={agentId}
+            align="left"
+            role="assistant"
+            preview={assistant}
+            onPress={onPressPreview}
+          />
         ) : null}
-        <StickySide align="right" role="user" preview={user} onPress={onPressPreview} />
+        <StickySide
+          agentId={agentId}
+          align="right"
+          role="user"
+          preview={user}
+          onPress={onPressPreview}
+        />
       </View>
     </View>
   );
@@ -65,20 +84,31 @@ function sidePressableStyle({ pressed }: PressableStateCallbackType) {
 }
 
 interface StickySideProps {
+  agentId: string;
   align: "left" | "right";
   role: "user" | "assistant";
   preview: StickyConversationPreview | null;
   onPress: (itemId: string) => void;
 }
 
-function StickySide({ align, role, preview, onPress }: StickySideProps) {
+function StickySide({ agentId, align, role, preview, onPress }: StickySideProps) {
   const { t } = useTranslation();
+  const isCompact = useIsCompactFormFactor();
+  const [isHovered, setIsHovered] = useState(false);
   const itemId = preview?.itemId;
+  const collapsed = useIsMessageCollapsed(agentId, itemId ?? "");
   const handlePress = useCallback(() => {
     if (itemId) {
       onPress(itemId);
     }
   }, [itemId, onPress]);
+  const handleToggle = useCallback(() => {
+    if (itemId) {
+      toggleMessageCollapsed({ agentId, itemId });
+    }
+  }, [agentId, itemId]);
+  const handlePointerEnter = useCallback(() => setIsHovered(true), []);
+  const handlePointerLeave = useCallback(() => setIsHovered(false), []);
   const timestamp = useMemo(
     () => (preview ? formatMessageTimestamp(new Date(preview.timestamp)) : ""),
     [preview],
@@ -90,9 +120,14 @@ function StickySide({ align, role, preview, onPress }: StickySideProps) {
 
   const alignmentStyle = align === "left" ? styles.alignStart : styles.alignEnd;
   const textAlignStyle = align === "left" ? styles.textStart : styles.textEnd;
+  const showToggle = isHovered || isNative || isCompact;
 
   return (
-    <View style={styles.side}>
+    <View
+      style={styles.side}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
+    >
       <Pressable
         style={sidePressableStyle}
         onPress={handlePress}
@@ -105,7 +140,7 @@ function StickySide({ align, role, preview, onPress }: StickySideProps) {
         )}
         testID={`sticky-conversation-preview-${role}`}
       >
-        <View style={alignmentStyle}>
+        <View style={[alignmentStyle, align === "left" ? styles.insetEnd : styles.insetStart]}>
           <Text style={[styles.previewText, textAlignStyle]} numberOfLines={1} ellipsizeMode="tail">
             {preview.text}
           </Text>
@@ -114,6 +149,21 @@ function StickySide({ align, role, preview, onPress }: StickySideProps) {
           </Text>
         </View>
       </Pressable>
+      <View
+        style={[
+          styles.toggleSlot,
+          align === "left" ? styles.toggleSlotEnd : styles.toggleSlotStart,
+          showToggle ? styles.toggleVisible : styles.toggleHidden,
+        ]}
+        pointerEvents={showToggle ? "auto" : "none"}
+      >
+        <MessageCollapseToggle
+          collapsed={collapsed}
+          role={role}
+          onPress={handleToggle}
+          testID={`sticky-conversation-collapse-${role}`}
+        />
+      </View>
     </View>
   );
 }
@@ -154,6 +204,32 @@ const styles = StyleSheet.create((theme) => ({
     flex: 1,
     minWidth: 0,
     justifyContent: "center",
+  },
+  // The toggle is absolute and the inset is unconditional, so revealing it on
+  // hover cannot move the preview out from under the cursor.
+  insetStart: {
+    paddingLeft: TOGGLE_SLOT_WIDTH,
+  },
+  insetEnd: {
+    paddingRight: TOGGLE_SLOT_WIDTH,
+  },
+  toggleSlot: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+  },
+  toggleSlotStart: {
+    left: 0,
+  },
+  toggleSlotEnd: {
+    right: 0,
+  },
+  toggleVisible: {
+    opacity: 1,
+  },
+  toggleHidden: {
+    opacity: 0,
   },
   sidePressed: {
     opacity: 0.7,

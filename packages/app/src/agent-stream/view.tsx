@@ -32,6 +32,7 @@ import {
   AssistantMessage,
   SpeakMessage,
   UserMessage,
+  UserMessageBubbleContent,
   ActivityLog,
   ToolCall,
   TodoListCard,
@@ -78,6 +79,8 @@ import {
   trackStickyPreviewGenerationStarts,
 } from "./sticky-header/model";
 import { StickyConversationHeader } from "./sticky-header/view";
+import { CollapsibleStreamMessage, type CollapsibleMessageItem } from "./collapsed-message/view";
+import { clipMarkdownPreviewSource } from "./collapsed-message/preview-source";
 import {
   type BottomAnchorLocalRequest,
   type BottomAnchorRouteRequest,
@@ -661,25 +664,59 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
       });
     }, []);
 
-    const renderUserMessageItem = useCallback(
-      (layoutItem: StreamLayoutItem, item: Extract<StreamItem, { kind: "user_message" }>) => {
+    // Collapsed previews render the real start of the message — markdown,
+    // images, attachments — from a clipped copy of the source, so a streaming
+    // response keeps updating its preview without paying for the whole body.
+    const renderCollapsedPreview = useCallback(
+      (item: CollapsibleMessageItem) => {
+        if (item.kind === "user_message") {
+          return (
+            <UserMessageBubbleContent
+              message={clipMarkdownPreviewSource(item.text)}
+              images={item.images}
+              attachments={item.attachments}
+            />
+          );
+        }
         return (
-          <UserMessage
-            serverId={resolvedServerId}
-            agentId={agentId}
-            messageId={item.id}
-            message={item.text}
-            images={item.images}
-            attachments={item.attachments}
+          <AssistantMessage
+            message={clipMarkdownPreviewSource(item.text)}
             timestamp={item.timestamp.getTime()}
-            capabilities={context.capabilities}
+            workspaceRoot={workspaceRoot}
+            serverId={resolvedServerId}
             client={client}
-            isFirstInGroup={layoutItem.isFirstInUserGroup}
-            isLastInGroup={layoutItem.isLastInUserGroup}
+            spacing="compactBoth"
           />
         );
       },
-      [context.capabilities, agentId, client, resolvedServerId],
+      [client, resolvedServerId, workspaceRoot],
+    );
+
+    const renderUserMessageItem = useCallback(
+      (layoutItem: StreamLayoutItem, item: Extract<StreamItem, { kind: "user_message" }>) => {
+        return (
+          <CollapsibleStreamMessage
+            agentId={agentId}
+            item={item}
+            renderPreview={renderCollapsedPreview}
+          >
+            <UserMessage
+              serverId={resolvedServerId}
+              agentId={agentId}
+              messageId={item.id}
+              message={item.text}
+              images={item.images}
+              attachments={item.attachments}
+              timestamp={item.timestamp.getTime()}
+              capabilities={context.capabilities}
+              client={client}
+              isFirstInGroup={layoutItem.isFirstInUserGroup}
+              isLastInGroup={layoutItem.isLastInUserGroup}
+            />
+          </CollapsibleStreamMessage>
+        );
+      },
+      [context.capabilities, agentId, client, renderCollapsedPreview, resolvedServerId],
     );
 
     const renderAssistantMessageItem = useCallback(
@@ -692,18 +729,32 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             onOpenWorkspaceFile={handleInlinePathPress}
             toast={toast}
           >
-            <AssistantMessage
-              message={item.text}
-              timestamp={item.timestamp.getTime()}
-              workspaceRoot={workspaceRoot}
-              serverId={resolvedServerId}
-              client={client}
-              spacing={layoutItem.assistantSpacing}
-            />
+            <CollapsibleStreamMessage
+              agentId={agentId}
+              item={item}
+              renderPreview={renderCollapsedPreview}
+            >
+              <AssistantMessage
+                message={item.text}
+                timestamp={item.timestamp.getTime()}
+                workspaceRoot={workspaceRoot}
+                serverId={resolvedServerId}
+                client={client}
+                spacing={layoutItem.assistantSpacing}
+              />
+            </CollapsibleStreamMessage>
           </AssistantFileLinkResolverProvider>
         );
       },
-      [client, handleInlinePathPress, resolvedServerId, toast, workspaceRoot],
+      [
+        agentId,
+        client,
+        handleInlinePathPress,
+        renderCollapsedPreview,
+        resolvedServerId,
+        toast,
+        workspaceRoot,
+      ],
     );
 
     const renderThoughtItem = useCallback(
@@ -1079,6 +1130,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             })}
           </MessageOuterSpacingProvider>
           <StickyConversationHeader
+            agentId={agentId}
             mode={stickyHeaderMode}
             previews={stickyPreviews}
             onPressPreview={handleStickyPreviewPress}
