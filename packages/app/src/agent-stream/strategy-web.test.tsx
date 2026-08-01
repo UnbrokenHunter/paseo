@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StreamItem } from "@/types/stream";
 import type { StreamRenderInput, StreamSegmentRenderers, StreamViewportHandle } from "./strategy";
 import { createWebStreamStrategy } from "./strategy-web";
+import { STICKY_CONVERSATION_HEADER_HEIGHT } from "./sticky-header/model";
 
 vi.hoisted(() => {
   Object.defineProperty(window, "matchMedia", {
@@ -34,7 +35,8 @@ function userMessage(index: number): StreamItem {
   };
 }
 
-const VIRTUAL_ROW_STYLE = { height: 24 };
+const ROW_HEIGHT = 24;
+const VIRTUAL_ROW_STYLE = { height: ROW_HEIGHT };
 
 function createRenderers(onRowRender: () => void): StreamSegmentRenderers {
   return {
@@ -913,20 +915,26 @@ describe("createWebStreamStrategy", () => {
       throw new Error("Expected stream content container");
     }
     Array.from(content.children).forEach((child, index) => {
-      Object.defineProperty(child, "offsetTop", { configurable: true, value: index * 24 });
+      Object.defineProperty(child, "offsetTop", { configurable: true, value: index * ROW_HEIGHT });
     });
 
-    Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 0 });
-    act(() => {
-      scrollContainer.dispatchEvent(new Event("scroll"));
-    });
-    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith(null);
+    // The header overlays the top of the scroll container, so a row counts as
+    // gone once it clears the container's top edge *plus* the header's height —
+    // otherwise the header describes the message before the one the reader just
+    // watched disappear behind it.
+    const scrollTopThatHides = (rowCount: number) =>
+      Math.max(0, ROW_HEIGHT * rowCount - STICKY_CONVERSATION_HEADER_HEIGHT);
 
-    Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 50 });
-    act(() => {
-      scrollContainer.dispatchEvent(new Event("scroll"));
-    });
-    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith("message-1");
+    for (const [index, item] of historyMounted.entries()) {
+      Object.defineProperty(scrollContainer, "scrollTop", {
+        configurable: true,
+        value: scrollTopThatHides(index + 1),
+      });
+      act(() => {
+        scrollContainer.dispatchEvent(new Event("scroll"));
+      });
+      expect(onAboveViewportItemChange).toHaveBeenLastCalledWith(item.id);
+    }
 
     Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 300 });
     act(() => {

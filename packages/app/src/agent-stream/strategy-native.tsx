@@ -38,7 +38,10 @@ import {
   evaluateHistoryStartPagination,
   rearmHistoryStartPagination,
 } from "./history-start-pagination";
-import { isStickyPreviewTrackedItem } from "./sticky-header/model";
+import {
+  STICKY_CONVERSATION_HEADER_HEIGHT,
+  isStickyPreviewTrackedItem,
+} from "./sticky-header/model";
 
 const DEFAULT_MAINTAIN_VISIBLE_CONTENT_POSITION = Object.freeze({
   minIndexForVisible: 0,
@@ -213,7 +216,12 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     if (metrics.viewportHeight <= 0) {
       return;
     }
-    const viewportTop = metrics.offsetY + metrics.viewportHeight;
+    // Content coordinates run bottom-up here, so lowering the visible top edge
+    // by the header's height means subtracting it. A row hidden behind the
+    // overlay has to count as gone, or the header describes — and collapses —
+    // the message before the one that just went under it.
+    const viewportTop =
+      metrics.offsetY + metrics.viewportHeight - STICKY_CONVERSATION_HEADER_HEIGHT;
     let boundaryItemId: string | null = null;
 
     const headerHeight = liveHeadHeightRef.current;
@@ -233,6 +241,9 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     }
 
     if (boundaryItemId === null) {
+      // Viewability cannot take the overlay into account — RN has no inset for
+      // it — so a history row is only counted as gone once it clears the
+      // container's own top edge. The live-head path above is exact.
       const maxViewableIndex = maxViewableHistoryIndexRef.current;
       if (maxViewableIndex !== null) {
         for (let index = maxViewableIndex + 1; index < historyItems.length; index += 1) {

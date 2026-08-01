@@ -13,7 +13,11 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import type { Theme } from "@/styles/theme";
 import { estimateStreamItemHeight } from "./web-virtualization";
-import { findLastIndexFullyAbove, isStickyPreviewTrackedItem } from "./sticky-header/model";
+import {
+  STICKY_CONVERSATION_HEADER_HEIGHT,
+  findLastIndexFullyAbove,
+  isStickyPreviewTrackedItem,
+} from "./sticky-header/model";
 import type { StreamRenderInput, StreamStrategy, StreamViewportHandle } from "./strategy";
 import { createStreamStrategy } from "./strategy";
 import {
@@ -280,7 +284,11 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     if (!scrollContainer) {
       return;
     }
-    const viewportTop = scrollContainer.scrollTop;
+    // The header is an overlay, so a row under it is still inside the scroll
+    // container but gone as far as the reader is concerned. Measuring against
+    // the container's own top edge makes the header describe the message before
+    // the one that just disappeared behind it — and act on it too.
+    const viewportTop = scrollContainer.scrollTop + STICKY_CONVERSATION_HEADER_HEIGHT;
     let boundaryItemId: string | null = null;
 
     const virtualRowsContainer = virtualRowsContainerRef.current;

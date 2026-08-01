@@ -14,13 +14,13 @@ import type { StickyConversationHeaderMode } from "@/hooks/use-settings";
 import { formatMessageTimestamp } from "@/utils/time";
 import { MessageCollapseToggle } from "../collapsed-message/view";
 import { toggleMessageCollapsed, useIsMessageCollapsed } from "../collapsed-message/store";
-import type { StickyConversationPreview, StickyConversationPreviews } from "./model";
+import {
+  STICKY_CONVERSATION_HEADER_HEIGHT,
+  type StickyConversationPreview,
+  type StickyConversationPreviews,
+} from "./model";
 
-/**
- * The row never changes height, so an empty side cannot shift the populated one
- * and the overlay never nudges the messages underneath it.
- */
-export const STICKY_CONVERSATION_HEADER_HEIGHT = 46;
+export { STICKY_CONVERSATION_HEADER_HEIGHT };
 
 /** Width reserved beside each preview for the collapse/expand toggle. */
 const TOGGLE_SLOT_WIDTH = 28;

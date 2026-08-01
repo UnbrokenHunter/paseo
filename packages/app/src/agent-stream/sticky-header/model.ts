@@ -1,6 +1,15 @@
 import type { StickyConversationHeaderMode } from "@/hooks/use-settings";
 import type { StreamItem } from "@/types/stream";
 
+/**
+ * The row never changes height, so an empty side cannot shift the populated one
+ * and the overlay never nudges the messages underneath it.
+ *
+ * Viewports need this too: the header is an overlay, so the top of the scroll
+ * container is not the top of what the reader can see.
+ */
+export const STICKY_CONVERSATION_HEADER_HEIGHT = 46;
+
 export interface StickyConversationPreview {
   itemId: string;
   text: string;
