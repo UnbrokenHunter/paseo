@@ -235,8 +235,10 @@ function renderContextWindowMeter(
   pending: boolean,
   glyphSize: number,
 ): ReactElement | null {
-  // The meter decides for itself whether it has anything to render — plan usage keeps
-  // it on screen even before a session has reported any context tokens.
+  const hasData = contextWindowMaxTokens !== null && contextWindowUsedTokens !== null;
+  if (!hasData && !pending) {
+    return null;
+  }
   return (
     <ContextWindowMeter
       maxTokens={contextWindowMaxTokens}

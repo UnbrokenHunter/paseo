@@ -206,6 +206,30 @@ test.describe("provider usage indicator", () => {
     }
   });
 
+  test("keeps the context-window numbers at the top of the popover", async ({ page }) => {
+    test.setTimeout(180_000);
+    await installProviderUsageFixture(page, [
+      {
+        fetchedAt: new Date().toISOString(),
+        providers: [mockProvider({ windows: [{ id: "session", label: "Session", usedPct: 42 }] })],
+      },
+    ]);
+
+    const session = await openMockAgent(page);
+    try {
+      await page.getByTestId("context-window-meter").hover();
+      const card = page.getByTestId("provider-usage-tooltip-card");
+      await expect(card).toBeVisible({ timeout: 30_000 });
+
+      // The popover is the context tooltip with usage appended, not usage alone.
+      await expect(page.getByText("Context window", { exact: true })).toBeVisible();
+      await expect(page.getByText(/% used$/)).toBeVisible();
+      await expect(page.getByText(/tokens$/)).toBeVisible();
+    } finally {
+      await session.cleanup();
+    }
+  });
+
   test("pins the popover open on press and releases it on a second press", async ({ page }) => {
     test.setTimeout(180_000);
     await installProviderUsageFixture(page, [
