@@ -42,6 +42,8 @@ export interface StreamEdgeSlotProps {
 export interface StreamViewportHandle {
   scrollToBottom: (reason?: BottomAnchorLocalRequest["reason"]) => void;
   prepareForViewportChange: () => void;
+  /** Bring a stream item back into view from a sticky preview tap. */
+  scrollToItem: (itemId: string) => void;
 }
 
 export interface StreamSegmentRenderers {
@@ -73,6 +75,13 @@ export interface StreamRenderInput {
   isLoadingOlderHistory: boolean;
   hasOlderHistory: boolean;
   olderHistoryProgressKey: string | null;
+  /** Skip above-viewport bookkeeping entirely when the sticky header is off. */
+  stickyPreviewEnabled: boolean;
+  /**
+   * Latest user/assistant message the viewport has scrolled entirely past, or
+   * null when none has. Viewports track only those two kinds.
+   */
+  onAboveViewportItemChange: (itemId: string | null) => void;
   scrollEnabled: boolean;
   listStyle: StyleProp<ViewStyle>;
   baseListContentContainerStyle: StyleProp<ViewStyle>;

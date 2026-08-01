@@ -73,6 +73,12 @@ import {
 } from "./turn-footer";
 import { layoutStream, type StreamLayoutItem } from "./layout";
 import {
+  selectStickyConversationPreviews,
+  shouldTrackStickyPreviews,
+  trackStickyPreviewGenerationStarts,
+} from "./sticky-header/model";
+import { StickyConversationHeader } from "./sticky-header/view";
+import {
   type BottomAnchorLocalRequest,
   type BottomAnchorRouteRequest,
 } from "./bottom-anchor-controller";
@@ -340,6 +346,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     const router = useRouter();
     const autoExpandReasoning = useSettings((settings) => settings.autoExpandReasoning);
     const toolCallDetailLevel = useSettings((settings) => settings.toolCallDetailLevel);
+    const stickyHeaderMode = useSettings((settings) => settings.stickyConversationHeader);
     const viewportRef = useRef<StreamViewportHandle | null>(null);
     const isMobile = useIsCompactFormFactor();
     const streamRenderStrategy = useMemo(
@@ -351,6 +358,8 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
       [isMobile],
     );
     const [isNearBottom, setIsNearBottom] = useState(true);
+    const [aboveViewportItemId, setAboveViewportItemId] = useState<string | null>(null);
+    const stickyGenerationStartsRef = useRef(new Map<string, number>());
     const [expandedInlineToolCallIds, setExpandedInlineToolCallIds] = useState<Set<string>>(
       new Set(),
     );
@@ -409,6 +418,8 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
 
     useEffect(() => {
       setIsNearBottom(true);
+      setAboveViewportItemId(null);
+      stickyGenerationStartsRef.current.clear();
       setExpandedInlineToolCallIds(new Set());
       setExpandedToolCallGroupIds(new Set());
     }, [agentId]);
@@ -1012,6 +1023,33 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
       [expandedToolCallGroupIds, isMobile, projectedToolCalls.historyGroupUpdatesByHostId],
     );
 
+    const stickyPreviewEnabled = shouldTrackStickyPreviews(stickyHeaderMode);
+    const handleAboveViewportItemChange = useStableEvent((itemId: string | null) => {
+      setAboveViewportItemId((previous) => (previous === itemId ? previous : itemId));
+    });
+    // Recorded during render so a response that starts and finishes streaming
+    // below the fold still carries its generation-start time when it scrolls up.
+    if (stickyPreviewEnabled) {
+      trackStickyPreviewGenerationStarts({
+        items: projectedToolCalls.head,
+        startsByItemId: stickyGenerationStartsRef.current,
+      });
+    }
+    const stickyPreviews = useMemo(
+      () =>
+        selectStickyConversationPreviews({
+          tail: projectedToolCalls.tail,
+          head: projectedToolCalls.head,
+          aboveViewportItemId,
+          mode: stickyHeaderMode,
+          generationStartByItemId: stickyGenerationStartsRef.current,
+        }),
+      [aboveViewportItemId, projectedToolCalls.head, projectedToolCalls.tail, stickyHeaderMode],
+    );
+    const handleStickyPreviewPress = useStableEvent((itemId: string) => {
+      viewportRef.current?.scrollToItem(itemId);
+    });
+
     return (
       <ToolCallSheetProvider>
         <View style={stylesheet.container}>
@@ -1032,12 +1070,19 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
               isLoadingOlderHistory: isLoadingOlder,
               hasOlderHistory: hasOlder,
               olderHistoryProgressKey: progressKey,
+              stickyPreviewEnabled,
+              onAboveViewportItemChange: handleAboveViewportItemChange,
               scrollEnabled: streamScrollEnabled,
               listStyle: stylesheet.list,
               baseListContentContainerStyle: stylesheet.listContentContainer,
               forwardListContentContainerStyle: stylesheet.forwardListContentContainer,
             })}
           </MessageOuterSpacingProvider>
+          <StickyConversationHeader
+            mode={stickyHeaderMode}
+            previews={stickyPreviews}
+            onPressPreview={handleStickyPreviewPress}
+          />
           {!isNearBottom && (
             <View style={stylesheet.scrollToBottomContainer} pointerEvents="box-none">
               <Animated.View entering={scrollIndicatorFadeIn} exiting={scrollIndicatorFadeOut}>

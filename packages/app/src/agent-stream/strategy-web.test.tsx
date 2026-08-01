@@ -134,6 +134,8 @@ describe("createWebStreamStrategy", () => {
             isLoadingOlderHistory: false,
             hasOlderHistory: false,
             olderHistoryProgressKey: null,
+            stickyPreviewEnabled: false,
+            onAboveViewportItemChange: vi.fn(),
             scrollEnabled: true,
             listStyle: null,
             baseListContentContainerStyle: null,
@@ -178,6 +180,8 @@ describe("createWebStreamStrategy", () => {
       isLoadingOlderHistory: false,
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
+      stickyPreviewEnabled: false,
+      onAboveViewportItemChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -234,6 +238,8 @@ describe("createWebStreamStrategy", () => {
           isLoadingOlderHistory: false,
           hasOlderHistory: false,
           olderHistoryProgressKey: null,
+          stickyPreviewEnabled: false,
+          onAboveViewportItemChange: vi.fn(),
           scrollEnabled: true,
           listStyle: null,
           baseListContentContainerStyle: null,
@@ -318,6 +324,8 @@ describe("createWebStreamStrategy", () => {
             isLoadingOlderHistory: false,
             hasOlderHistory: true,
             olderHistoryProgressKey: "epoch-1:20",
+            stickyPreviewEnabled: false,
+            onAboveViewportItemChange: vi.fn(),
             scrollEnabled: true,
             listStyle: null,
             baseListContentContainerStyle: null,
@@ -384,6 +392,8 @@ describe("createWebStreamStrategy", () => {
       isLoadingOlderHistory: false,
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
+      stickyPreviewEnabled: false,
+      onAboveViewportItemChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -477,6 +487,8 @@ describe("createWebStreamStrategy", () => {
       isLoadingOlderHistory: false,
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
+      stickyPreviewEnabled: false,
+      onAboveViewportItemChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -585,6 +597,8 @@ describe("createWebStreamStrategy", () => {
       isLoadingOlderHistory: false,
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
+      stickyPreviewEnabled: false,
+      onAboveViewportItemChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -682,6 +696,8 @@ describe("createWebStreamStrategy", () => {
       isLoadingOlderHistory: false,
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
+      stickyPreviewEnabled: false,
+      onAboveViewportItemChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -781,6 +797,8 @@ describe("createWebStreamStrategy", () => {
       isLoadingOlderHistory: false,
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
+      stickyPreviewEnabled: false,
+      onAboveViewportItemChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -846,5 +864,74 @@ describe("createWebStreamStrategy", () => {
     });
 
     expect(scrollTo).toHaveBeenCalled();
+  });
+  it("reports the newest message that has scrolled above the viewport", () => {
+    const strategy = createWebStreamStrategy({ isMobileBreakpoint: true });
+    const viewportRef = React.createRef<StreamViewportHandle>();
+    const onAboveViewportItemChange = vi.fn();
+    const historyMounted = [userMessage(0), userMessage(1), userMessage(2)];
+    const renderInput: StreamRenderInput = {
+      agentId: "agent-sticky",
+      segments: { historyVirtualized: [], historyMounted, liveHead: [] },
+      boundary: {
+        hasVirtualizedHistory: false,
+        hasMountedHistory: true,
+        hasLiveHead: false,
+      },
+      renderers: createRenderers(vi.fn()),
+      listEmptyComponent: null,
+      viewportRef,
+      routeBottomAnchorRequest: null,
+      isAuthoritativeHistoryReady: true,
+      onNearBottomChange: vi.fn(),
+      onNearHistoryStart: vi.fn(),
+      isLoadingOlderHistory: false,
+      hasOlderHistory: false,
+      olderHistoryProgressKey: null,
+      stickyPreviewEnabled: true,
+      onAboveViewportItemChange,
+      scrollEnabled: true,
+      listStyle: null,
+      baseListContentContainerStyle: null,
+      forwardListContentContainerStyle: null,
+    };
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => {
+      root?.render(strategy.render(renderInput));
+    });
+
+    const scrollContainer = container.querySelector('[data-testid="agent-chat-scroll"]');
+    if (!(scrollContainer instanceof HTMLElement)) {
+      throw new Error("Expected agent chat scroll container");
+    }
+    Object.defineProperty(scrollContainer, "clientHeight", { configurable: true, value: 100 });
+    Object.defineProperty(scrollContainer, "scrollHeight", { configurable: true, value: 400 });
+    const content = scrollContainer.firstElementChild;
+    if (!(content instanceof HTMLElement)) {
+      throw new Error("Expected stream content container");
+    }
+    Array.from(content.children).forEach((child, index) => {
+      Object.defineProperty(child, "offsetTop", { configurable: true, value: index * 24 });
+    });
+
+    Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 0 });
+    act(() => {
+      scrollContainer.dispatchEvent(new Event("scroll"));
+    });
+    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith(null);
+
+    Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 50 });
+    act(() => {
+      scrollContainer.dispatchEvent(new Event("scroll"));
+    });
+    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith("message-1");
+
+    Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 300 });
+    act(() => {
+      scrollContainer.dispatchEvent(new Event("scroll"));
+    });
+    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith("message-2");
   });
 });

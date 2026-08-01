@@ -1,6 +1,7 @@
 import {
   Fragment,
   type ReactElement,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -17,6 +18,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   type ViewStyle,
+  type ViewToken,
 } from "react-native";
 import { withUnistyles } from "react-native-unistyles";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -36,6 +38,7 @@ import {
   evaluateHistoryStartPagination,
   rearmHistoryStartPagination,
 } from "./history-start-pagination";
+import { isStickyPreviewTrackedItem } from "./sticky-header/model";
 
 const DEFAULT_MAINTAIN_VISIBLE_CONTENT_POSITION = Object.freeze({
   minIndexForVisible: 0,
@@ -75,6 +78,32 @@ function keyExtractor(item: { id: string }): string {
   return item.id;
 }
 
+// Any sliver of a row on screen keeps it out of the sticky header.
+const STICKY_VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 0 };
+
+interface LiveHeadRowMetric {
+  itemId: string;
+  top: number;
+  bottom: number;
+}
+
+interface LiveHeadRowSlotProps {
+  itemId: string;
+  onMeasure: (metric: LiveHeadRowMetric) => void;
+  children: ReactNode;
+}
+
+function LiveHeadRowSlot({ itemId, onMeasure, children }: LiveHeadRowSlotProps) {
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const { y, height } = event.nativeEvent.layout;
+      onMeasure({ itemId, top: y, bottom: y + height });
+    },
+    [itemId, onMeasure],
+  );
+  return <View onLayout={handleLayout}>{children}</View>;
+}
+
 function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrategy }) {
   const {
     agentId,
@@ -93,6 +122,8 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     hasOlderHistory,
     olderHistoryProgressKey,
     scrollEnabled,
+    stickyPreviewEnabled,
+    onAboveViewportItemChange,
     listStyle,
     baseListContentContainerStyle,
     strategy,
@@ -117,6 +148,12 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
   const nativeViewportSettlingFrameIdRef = useRef<number | null>(null);
   const historyStartReadyRef = useRef(false);
   const historyStartPaginationStateRef = useRef(createHistoryStartPaginationState());
+  // Highest viewable row index. The list is inverted, so anything above it in
+  // index space has scrolled off the top edge. -1 once the header alone fills
+  // the viewport; null until viewability has reported at least once.
+  const maxViewableHistoryIndexRef = useRef<number | null>(null);
+  const liveHeadHeightRef = useRef(0);
+  const liveHeadRowMetricsRef = useRef(new Map<string, LiveHeadRowMetric>());
 
   const historyItems = useMemo(() => {
     if (segments.historyVirtualized.length === 0) {
@@ -161,6 +198,77 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     if (result.shouldLoad) {
       onNearHistoryStart();
     }
+  });
+
+  // The list is inverted, so the scroll offset measures distance from the bottom
+  // of the content and the live head occupies content range [0, headerHeight].
+  // RN composes the inversion transform onto the header wrapper as well as the
+  // cells, so the header's own children lay out top-down and a child at local
+  // [top, bottom] lands at content range [headerHeight - bottom, headerHeight - top].
+  const updateAboveViewportItem = useStableEvent(() => {
+    if (!stickyPreviewEnabled) {
+      return;
+    }
+    const metrics = streamViewportMetricsRef.current;
+    if (metrics.viewportHeight <= 0) {
+      return;
+    }
+    const viewportTop = metrics.offsetY + metrics.viewportHeight;
+    let boundaryItemId: string | null = null;
+
+    const headerHeight = liveHeadHeightRef.current;
+    if (headerHeight > 0) {
+      // segments.liveHead is newest first, so the first match walking forward is
+      // also the chronologically latest one that cleared the top edge.
+      for (const item of segments.liveHead) {
+        if (!isStickyPreviewTrackedItem(item)) {
+          continue;
+        }
+        const metric = liveHeadRowMetricsRef.current.get(item.id);
+        if (metric && headerHeight - metric.bottom >= viewportTop) {
+          boundaryItemId = item.id;
+          break;
+        }
+      }
+    }
+
+    if (boundaryItemId === null) {
+      const maxViewableIndex = maxViewableHistoryIndexRef.current;
+      if (maxViewableIndex !== null) {
+        for (let index = maxViewableIndex + 1; index < historyItems.length; index += 1) {
+          const item = historyItems[index];
+          if (item && isStickyPreviewTrackedItem(item)) {
+            boundaryItemId = item.id;
+            break;
+          }
+        }
+      }
+    }
+
+    onAboveViewportItemChange(boundaryItemId);
+  });
+
+  const handleViewableItemsChanged = useStableEvent(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      let maxViewableIndex = -1;
+      for (const token of viewableItems) {
+        if (token.index !== null && token.index > maxViewableIndex) {
+          maxViewableIndex = token.index;
+        }
+      }
+      maxViewableHistoryIndexRef.current = maxViewableIndex;
+      updateAboveViewportItem();
+    },
+  );
+
+  const handleLiveHeadLayout = useStableEvent((event: LayoutChangeEvent) => {
+    liveHeadHeightRef.current = event.nativeEvent.layout.height;
+    updateAboveViewportItem();
+  });
+
+  const handleLiveHeadRowMeasure = useStableEvent((metric: LiveHeadRowMetric) => {
+    liveHeadRowMetricsRef.current.set(metric.itemId, metric);
+    updateAboveViewportItem();
   });
 
   const clearNativeViewportSettling = useCallback(() => {
@@ -262,6 +370,9 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     setIsNativeViewportSettling(false);
     historyStartReadyRef.current = false;
     historyStartPaginationStateRef.current = createHistoryStartPaginationState();
+    maxViewableHistoryIndexRef.current = null;
+    liveHeadHeightRef.current = 0;
+    liveHeadRowMetricsRef.current.clear();
     const frame = requestAnimationFrame(() => {
       historyStartReadyRef.current = true;
       evaluateHistoryStart();
@@ -298,6 +409,40 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     bottomAnchorController.prepareForStickyContentChange();
   }, [bottomAnchorController, historyRows, segments.liveHead]);
 
+  // Rows above the viewport are usually outside the render window, so the index
+  // scroll can fail; the retry runs once the list has widened its window.
+  const pendingScrollToIndexRef = useRef<number | null>(null);
+  const scrollToStreamItem = useStableEvent((itemId: string) => {
+    const index = historyItems.findIndex((item) => item.id === itemId);
+    if (index < 0) {
+      // Live-head rows sit at the bottom of the conversation.
+      bottomAnchorController.requestLocalAnchor({ agentId, reason: "jump-to-bottom" });
+      return;
+    }
+    pendingScrollToIndexRef.current = index;
+    flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 1 });
+  });
+
+  const handleScrollToIndexFailed = useStableEvent(
+    (info: { index: number; averageItemLength: number }) => {
+      flatListRef.current?.scrollToOffset({
+        offset: info.index * info.averageItemLength,
+        animated: false,
+      });
+      requestAnimationFrame(() => {
+        if (pendingScrollToIndexRef.current !== info.index) {
+          return;
+        }
+        pendingScrollToIndexRef.current = null;
+        flatListRef.current?.scrollToIndex({
+          index: info.index,
+          animated: true,
+          viewPosition: 1,
+        });
+      });
+    },
+  );
+
   useEffect(() => {
     const handle: StreamViewportHandle = {
       scrollToBottom: (reason = "jump-to-bottom") => {
@@ -310,6 +455,9 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
         bottomAnchorController.prepareForStickyViewportChange();
         markNativeViewportSettling();
       },
+      scrollToItem: (itemId: string) => {
+        scrollToStreamItem(itemId);
+      },
     };
     viewportRef.current = handle;
     return () => {
@@ -317,7 +465,13 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
         viewportRef.current = null;
       }
     };
-  }, [agentId, bottomAnchorController, markNativeViewportSettling, viewportRef]);
+  }, [
+    agentId,
+    bottomAnchorController,
+    markNativeViewportSettling,
+    scrollToStreamItem,
+    viewportRef,
+  ]);
 
   const isScrollEventNearBottom = useStableEvent(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -352,6 +506,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     onNearBottomChange(nearBottom);
 
     evaluateHistoryStart();
+    updateAboveViewportItem();
 
     if (
       !isUserScrollActiveRef.current &&
@@ -438,6 +593,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       viewportHeight,
     });
     evaluateHistoryStart();
+    updateAboveViewportItem();
   });
 
   const handleContentSizeChange = useStableEvent((_width: number, height: number) => {
@@ -460,6 +616,24 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     evaluateHistoryStart();
   }, [evaluateHistoryStart, hasOlderHistory, isLoadingOlderHistory, olderHistoryProgressKey]);
 
+  useEffect(() => {
+    updateAboveViewportItem();
+  }, [stickyPreviewEnabled, updateAboveViewportItem]);
+
+  // Drop measurements for live-head rows that have been committed to history.
+  useEffect(() => {
+    const metrics = liveHeadRowMetricsRef.current;
+    if (metrics.size === 0) {
+      return;
+    }
+    const liveIds = new Set(segments.liveHead.map((item) => item.id));
+    for (const itemId of metrics.keys()) {
+      if (!liveIds.has(itemId)) {
+        metrics.delete(itemId);
+      }
+    }
+  }, [segments.liveHead]);
+
   const renderItem = useStableEvent(
     ({ item, index }: ListRenderItemInfo<StreamItem>): ReactElement | null => {
       const rendered = renderHistoryMountedRow(item, index, historyItems);
@@ -471,9 +645,17 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     // Stable render events read the latest expansion state; this revision makes
     // the memo invoke them again when that state changes.
     void liveHeadRowRevision;
-    const liveHeadRows = segments.liveHead.map((item, index) => (
-      <Fragment key={item.id}>{renderLiveHeadRow(item, index, segments.liveHead)}</Fragment>
-    ));
+    const liveHeadRows = segments.liveHead.map((item, index) => {
+      const row = renderLiveHeadRow(item, index, segments.liveHead);
+      if (!stickyPreviewEnabled || !isStickyPreviewTrackedItem(item)) {
+        return <Fragment key={item.id}>{row}</Fragment>;
+      }
+      return (
+        <LiveHeadRowSlot key={item.id} itemId={item.id} onMeasure={handleLiveHeadRowMeasure}>
+          {row}
+        </LiveHeadRowSlot>
+      );
+    });
     const liveAuxiliary = renderLiveAuxiliary();
     if (
       liveHeadRows.length === 0 &&
@@ -483,19 +665,30 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     ) {
       return (listEmptyComponent ?? null) as ReactElement | null;
     }
+    if (!stickyPreviewEnabled) {
+      return (
+        <Fragment>
+          {liveHeadRows}
+          {liveAuxiliary}
+        </Fragment>
+      );
+    }
     return (
-      <Fragment>
+      <View onLayout={handleLiveHeadLayout}>
         {liveHeadRows}
         {liveAuxiliary}
-      </Fragment>
+      </View>
     );
   }, [
     boundary,
+    handleLiveHeadLayout,
+    handleLiveHeadRowMeasure,
     listEmptyComponent,
     liveHeadRowRevision,
     renderLiveAuxiliary,
     renderLiveHeadRow,
     segments.liveHead,
+    stickyPreviewEnabled,
   ]);
 
   const historyFooterContent = useMemo(() => {
@@ -537,6 +730,9 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       onMomentumScrollEnd={handleMomentumScrollEnd}
       scrollEventThrottle={16}
       onContentSizeChange={handleContentSizeChange}
+      onViewableItemsChanged={handleViewableItemsChanged}
+      viewabilityConfig={STICKY_VIEWABILITY_CONFIG}
+      onScrollToIndexFailed={handleScrollToIndexFailed}
       maintainVisibleContentPosition={maintainVisibleContentPosition}
       initialNumToRender={40}
       maxToRenderPerBatch={40}

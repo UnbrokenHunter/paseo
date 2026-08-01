@@ -279,6 +279,11 @@ Platform-specific stream edges belong on `StreamStrategy`:
 
 If a chat footer looks duplicated or appears above the assistant message on mobile, start with `packages/app/src/agent-stream/layout.test.ts`. Do not add a React Native renderer test for this class of bug; make the pure layout invariant fail first.
 
+The sticky conversation header needs a fourth answer from each strategy: which message has scrolled entirely past the top edge. Both viewports report one item id up to `onAboveViewportItemChange`, and `packages/app/src/agent-stream/sticky-header/model.ts` turns it into previews — but they measure it differently, because the two coordinate systems make different things cheap:
+
+- Web reads `offsetTop`/`offsetHeight` off the row wrappers and the virtualizer's `measurementsCache`, then binary searches. The virtualizer knows the geometry of rows that are no longer in the DOM, which is why the search cannot just walk the DOM.
+- Native uses `onViewableItemsChanged` with `itemVisiblePercentThreshold: 0`, so anything with a single visible pixel stays out of the header. Because the list is inverted, an index _above_ the highest viewable index is a row _above_ the top edge. Live-head rows are not part of viewability at all — they live in `ListHeaderComponent` — so they are measured with `onLayout` and mapped into content space as `headerHeight - bottom`. RN composes the inversion transform onto the header wrapper as well as the cells, so the header's own children lay out top-down.
+
 ## iOS Simulator
 
 ```bash
