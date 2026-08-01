@@ -1572,6 +1572,38 @@ export const en = {
     sessionCost: "Session cost {{cost}}",
     accessibility: "Context window {{percentage}}% used",
   },
+  providerUsage: {
+    title: "Plan usage",
+    refresh: "Refresh",
+    refreshing: "Refreshing...",
+    empty: "No usage data",
+    errorTitle: "Unable to load usage",
+    refreshFailedTitle: "Showing last known usage",
+    hostUnavailable: "Connect to this host to see provider usage",
+    hostUpgradeRequired: "Update the host to see provider usage",
+    clientUnavailable: "Host connection is not ready",
+    retry: "Try again",
+    tooltipLoading: "Loading plan usage…",
+    compact: {
+      remaining: "{{percent}}% remaining",
+      remainingWithReset: "{{percent}}% remaining · resets in {{duration}}",
+    },
+    states: {
+      unavailable: "Usage unavailable",
+      unavailableExplanation: "This provider does not report usage limits.",
+      loading: "Loading usage…",
+      retry: "Retry",
+      failed: "Unable to load usage",
+      unmetered: "No usage limits",
+      unmeteredExplanation:
+        "This model is served from your own machine, so there is no quota to report.",
+    },
+    card: {
+      statusError: "Error",
+      statusUnavailable: "Unavailable",
+      updated: "Updated {{age}}",
+    },
+  },
   review: {
     comment: {
       add: "Add review comment",
@@ -1671,6 +1703,11 @@ export const en = {
         label: "Always expand reasoning",
         description: "Show agent thinking and chain-of-thought blocks fully expanded by default",
       },
+      providerUsageRotation: {
+        label: "Rotate provider usage limits",
+        description:
+          "Cycle through all usage limits in the indicator. When off, only the limit closest to running out is shown.",
+      },
       toolCallDetail: {
         label: "Tool call display",
         description: "How tool calls appear in the timeline",
@@ -1763,6 +1800,9 @@ export const en = {
       },
       detailLevel: {
         title: "Detail level",
+      },
+      providerUsage: {
+        title: "Usage indicator",
       },
       fonts: {
         title: "Fonts",

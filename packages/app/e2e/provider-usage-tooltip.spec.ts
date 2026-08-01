@@ -18,8 +18,11 @@ async function openMockAgent(page: Page) {
   return session;
 }
 
+// Usage fetching is always-on while the composer is mounted, so the first request
+// lands before any hover. Assertions scope to the tooltip card because the composer
+// renders the same numbers in its own usage bar.
 test.describe("provider usage tooltip", () => {
-  test("fetches usage when the context tooltip opens and renders the active provider", async ({
+  test("fetches usage with the composer and renders the active provider in the tooltip", async ({
     page,
   }) => {
     test.setTimeout(180_000);
@@ -47,17 +50,16 @@ test.describe("provider usage tooltip", () => {
     ]);
     const session = await openMockAgent(page);
     try {
-      expect(usageFixture.requestCount()).toBe(0);
-
-      await page.getByTestId("context-window-meter").hover();
       await usageFixture.waitForRequestCount(1);
 
-      await expect(page.getByText("Mock provider", { exact: true })).toBeVisible({
-        timeout: 10_000,
-      });
-      await expect(page.getByText("Test plan")).toBeVisible();
-      await expect(page.getByText("Session", { exact: true })).toBeVisible();
-      await expect(page.getByText("42%")).toBeVisible();
+      await page.getByTestId("context-window-meter").hover();
+      const card = page.getByTestId("provider-usage-tooltip-card");
+      await expect(card).toBeVisible({ timeout: 10_000 });
+
+      await expect(card.getByText("Mock provider", { exact: true })).toBeVisible();
+      await expect(card.getByText("Test plan")).toBeVisible();
+      await expect(card.getByText("Session", { exact: true })).toBeVisible();
+      await expect(card.getByText("42%")).toBeVisible();
     } finally {
       await session.cleanup();
     }
@@ -90,22 +92,37 @@ test.describe("provider usage tooltip", () => {
           },
         ],
       },
+      {
+        fetchedAt: "2026-06-19T00:02:00.000Z",
+        providers: [
+          {
+            providerId: "mock",
+            displayName: "Mock provider",
+            status: "available",
+            planLabel: "Test plan",
+            windows: [{ id: "session", label: "Session", usedPct: 77 }],
+          },
+        ],
+      },
     ]);
     const session = await openMockAgent(page);
     try {
       const meter = page.getByTestId("context-window-meter");
+      const card = page.getByTestId("provider-usage-tooltip-card");
 
-      await meter.hover();
       await usageFixture.waitForRequestCount(1);
-      await expect(page.getByText("41%")).toBeVisible({ timeout: 10_000 });
-
-      await page.mouse.move(0, 0);
-      await expect(page.getByText("Mock provider", { exact: true })).toHaveCount(0);
 
       await meter.hover();
       await usageFixture.waitForRequestCount(2);
-      expect(usageFixture.requestCount()).toBe(2);
-      await expect(page.getByText("64%")).toBeVisible();
+      await expect(card.getByText("64%")).toBeVisible({ timeout: 10_000 });
+
+      await page.mouse.move(0, 0);
+      await expect(card).toHaveCount(0);
+
+      await meter.hover();
+      await usageFixture.waitForRequestCount(3);
+      expect(usageFixture.requestCount()).toBe(3);
+      await expect(card.getByText("77%")).toBeVisible();
     } finally {
       await session.cleanup();
     }

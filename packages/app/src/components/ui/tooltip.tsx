@@ -47,6 +47,9 @@ interface TooltipContextValue {
   triggerRef: React.RefObject<View | null>;
   enabled: boolean;
   openOnPress: boolean;
+  pinnable: boolean;
+  togglePinned: () => void;
+  closeUnlessPinned: () => void;
   delayDuration: number;
 }
 
@@ -231,6 +234,8 @@ export function Tooltip({
   delayDuration = 0,
   enabledOnDesktop = true,
   enabledOnMobile = false,
+  openOnPress,
+  pinnable = false,
   children,
 }: PropsWithChildren<{
   open?: boolean;
@@ -239,6 +244,14 @@ export function Tooltip({
   delayDuration?: number;
   enabledOnDesktop?: boolean;
   enabledOnMobile?: boolean;
+  openOnPress?: boolean;
+  /**
+   * Let a press pin the tooltip open so it survives the pointer leaving. Pinning is
+   * owned here rather than by the caller: a caller tracking its own pinned flag
+   * alongside the open state has two sources of truth for one thing, and they drift
+   * the moment a press and a hover-out land in the same tick.
+   */
+  pinnable?: boolean;
 }>): ReactElement {
   const triggerRef = useRef<View>(null);
   const [isOpen, setIsOpen] = useControllableOpenState({
@@ -246,20 +259,59 @@ export function Tooltip({
     defaultOpen,
     onOpenChange,
   });
+  // A ref, not state. react-native-web's Pressable captures its hover handlers, so a
+  // handler that closed over `pinned` kept reading the value from the render before
+  // the press — the pin was set and then immediately ignored on the way out.
+  const pinnedRef = useRef(false);
 
   const isCompact = useIsCompactFormFactor();
   const enabled = isCompact ? enabledOnMobile : enabledOnDesktop;
 
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (!next) {
+        pinnedRef.current = false;
+      }
+      setIsOpen(next);
+    },
+    [setIsOpen],
+  );
+
+  const togglePinned = useCallback(() => {
+    const next = !pinnedRef.current;
+    pinnedRef.current = next;
+    setIsOpen(next);
+  }, [setIsOpen]);
+
+  /** Hover-out and blur go through here so a pinned tooltip survives both. */
+  const closeUnlessPinned = useCallback(() => {
+    if (pinnedRef.current) return;
+    setIsOpen(false);
+  }, [setIsOpen]);
+
   const value = useMemo<TooltipContextValue>(
     () => ({
       open: isOpen,
-      setOpen: setIsOpen,
+      setOpen,
       triggerRef,
       enabled,
-      openOnPress: isCompact,
+      openOnPress: openOnPress ?? isCompact,
+      pinnable,
+      togglePinned,
+      closeUnlessPinned,
       delayDuration,
     }),
-    [isOpen, setIsOpen, enabled, isCompact, delayDuration],
+    [
+      isOpen,
+      setOpen,
+      enabled,
+      openOnPress,
+      isCompact,
+      pinnable,
+      togglePinned,
+      closeUnlessPinned,
+      delayDuration,
+    ],
   );
 
   return <TooltipContext.Provider value={value}>{children}</TooltipContext.Provider>;
@@ -325,9 +377,10 @@ export function TooltipTrigger({
   const handleHoverOut = useCallback(
     (e?: unknown) => {
       if (isCallable(onHoverOut)) onHoverOut(e);
-      close();
+      clearOpenTimer();
+      ctx.closeUnlessPinned();
     },
-    [onHoverOut, close],
+    [onHoverOut, clearOpenTimer, ctx],
   );
 
   const handleFocus = useCallback(
@@ -344,15 +397,23 @@ export function TooltipTrigger({
   const handleBlur = useCallback(
     (e: unknown) => {
       if (isCallable(onBlur)) onBlur(e);
-      close();
+      // Pressing the trigger moves focus into it and straight back out on some
+      // platforms; closing here would undo the pin the press just set.
+      clearOpenTimer();
+      ctx.closeUnlessPinned();
     },
-    [close, onBlur],
+    [clearOpenTimer, ctx, onBlur],
   );
 
   const handlePress = useCallback(
     (e: unknown) => {
       if (isCallable(onPress)) onPress(e);
       if (!ctx.enabled || disabled) {
+        return;
+      }
+      if (ctx.pinnable) {
+        clearOpenTimer();
+        ctx.togglePinned();
         return;
       }
       if (ctx.openOnPress) {
@@ -446,6 +507,7 @@ export function TooltipContent({
   maxWidth?: number;
 }>): ReactElement | null {
   const ctx = useTooltipContext("TooltipContent");
+  const contentRef = useRef<View>(null);
   const [triggerRect, setTriggerRect] = useState<Rect | null>(null);
   const [contentSize, setContentSize] = useState<{ width: number; height: number } | null>(null);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
@@ -494,6 +556,36 @@ export function TooltipContent({
     [],
   );
 
+  useEffect(() => {
+    if (!isWeb || !ctx.open || !ctx.enabled) return;
+
+    const contentNode = contentRef.current as unknown as Node | null;
+    const triggerNode = ctx.triggerRef.current as unknown as Node | null;
+
+    function containsNode(node: Node | null, target: EventTarget | null): boolean {
+      return node != null && target instanceof Node && node.contains(target);
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!containsNode(contentNode, event.target) && !containsNode(triggerNode, event.target)) {
+        ctx.setOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        ctx.setOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [ctx]);
+
   const frameStyle = useMemo(
     () => [
       {
@@ -518,6 +610,7 @@ export function TooltipContent({
     return createPortal(
       <View pointerEvents="none" style={styles.portalOverlay}>
         <FloatingSurface
+          ref={contentRef}
           pointerEvents="none"
           entering={FadeIn.duration(80)}
           exiting={FadeOut.duration(80)}
@@ -544,6 +637,7 @@ export function TooltipContent({
     >
       <Pressable style={styles.overlay} onPress={handleDismiss}>
         <FloatingSurface
+          ref={contentRef}
           pointerEvents="none"
           entering={FadeIn.duration(80)}
           exiting={FadeOut.duration(80)}

@@ -2201,10 +2201,13 @@ const styles = StyleSheet.create((theme: Theme) => ({
     alignItems: "center",
     gap: theme.spacing[1],
   },
+  // Reserves the ring's footprint but grows with the usage pill, which is wider than a
+  // glyph. A fixed width here let the pill paint over the voice controls next to it.
   contextWindowMeterSlot: {
-    width: 28,
+    minWidth: 28,
     height: 28,
-    flexShrink: 0,
+    flexShrink: 1,
+    minHeight: 28,
     alignItems: "center",
     justifyContent: "center",
   },

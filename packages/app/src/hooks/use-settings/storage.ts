@@ -44,6 +44,7 @@ export interface AppSettings {
   autoExpandReasoning: boolean;
   toolCallDetailLevel: ToolCallDetailLevel;
   vimKeybindings: boolean;
+  providerUsageRotation: boolean;
 }
 
 export interface Settings extends AppSettings {
@@ -68,6 +69,7 @@ export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
   autoExpandReasoning: false,
   toolCallDetailLevel: "detailed",
   vimKeybindings: false,
+  providerUsageRotation: true,
 };
 
 export const DEFAULT_APP_SETTINGS: Settings = {
@@ -235,23 +237,30 @@ function pickAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
   if (typeof stored.syntaxTheme === "string" && isSyntaxThemeId(stored.syntaxTheme)) {
     result.syntaxTheme = stored.syntaxTheme;
   }
-  if (typeof stored.vimKeybindings === "boolean") {
-    result.vimKeybindings = stored.vimKeybindings;
-  }
   if (
     typeof stored.workspaceTitleSource === "string" &&
     VALID_WORKSPACE_TITLE_SOURCES.has(stored.workspaceTitleSource)
   ) {
     result.workspaceTitleSource = stored.workspaceTitleSource;
   }
-  if (typeof stored.autoExpandReasoning === "boolean") {
-    result.autoExpandReasoning = stored.autoExpandReasoning;
-  }
+  assignBooleanAppSettings(result, stored);
   const toolCallDetailLevel = parseToolCallDetailLevel(stored);
   if (toolCallDetailLevel !== null) {
     result.toolCallDetailLevel = toolCallDetailLevel;
   }
   return result;
+}
+
+function assignBooleanAppSettings(result: Partial<AppSettings>, stored: StoredAppSettings): void {
+  if (typeof stored.vimKeybindings === "boolean") {
+    result.vimKeybindings = stored.vimKeybindings;
+  }
+  if (typeof stored.autoExpandReasoning === "boolean") {
+    result.autoExpandReasoning = stored.autoExpandReasoning;
+  }
+  if (typeof stored.providerUsageRotation === "boolean") {
+    result.providerUsageRotation = stored.providerUsageRotation;
+  }
 }
 
 function pickAppSettingsFromLegacy(legacy: Record<string, unknown>): Partial<AppSettings> {

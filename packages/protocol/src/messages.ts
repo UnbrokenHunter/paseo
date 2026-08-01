@@ -4914,6 +4914,13 @@ export const ProviderUsageSchema = z.object({
   providerId: z.string(),
   displayName: z.string(),
   status: ProviderUsageStatusSchema,
+  /**
+   * True when the provider has no quota to report because nothing is being metered —
+   * a model served from localhost or a private network. Distinct from `unavailable`,
+   * which means limits exist but could not be read. Optional so an older client sees
+   * these rows as plain `unavailable` rather than failing to parse them.
+   */
+  unmetered: z.boolean().optional(),
   planLabel: z.string().nullable(),
   sourceLabel: z.string().nullable().optional(),
   fetchedAt: z.string().nullable().optional(),

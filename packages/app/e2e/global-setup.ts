@@ -13,6 +13,11 @@ import { forkPaseoHomeMetadata, resolvePaseoHomePath } from "./helpers/paseo-hom
 import { withDisabledE2ESpeechEnv } from "./helpers/speech-env";
 
 const wranglerCliPath = path.resolve(__dirname, "../node_modules/wrangler/bin/wrangler.js");
+// Both CLIs run under this Node rather than through their bin shims: `npx` and the
+// .bin entries are .cmd files on Windows, which spawn cannot launch without a shell,
+// and `which` there returns an MSYS path that Windows cannot execute either.
+const expoCliPath = require.resolve("@expo/cli/build/bin/cli");
+const tsxCliPath = require.resolve("tsx/cli");
 
 export interface WaitForServerOptions {
   host?: string;
@@ -719,21 +724,27 @@ function startMetro(input: {
   buffer: ReturnType<typeof createLineBuffer>;
 }): ChildProcess {
   const appDir = path.resolve(__dirname, "..");
-  const child = spawn("npx", ["expo", "start", "--web", "--port", String(input.metroPort)], {
-    cwd: appDir,
-    env: {
-      ...process.env,
-      BROWSER: "none",
-      ...(process.env.E2E_DESKTOP_RUNTIME === "1"
-        ? {
-            PASEO_WEB_PLATFORM: "electron",
-            EXPO_PUBLIC_LOCAL_DAEMON: `127.0.0.1:${input.daemonPort}`,
-          }
-        : {}),
+  // Run the Expo CLI entry under this Node rather than shelling out to `npx`, which
+  // is a .cmd shim on Windows and so is not spawnable without a shell.
+  const child = spawn(
+    process.execPath,
+    [expoCliPath, "start", "--web", "--port", String(input.metroPort)],
+    {
+      cwd: appDir,
+      env: {
+        ...process.env,
+        BROWSER: "none",
+        ...(process.env.E2E_DESKTOP_RUNTIME === "1"
+          ? {
+              PASEO_WEB_PLATFORM: "electron",
+              EXPO_PUBLIC_LOCAL_DAEMON: `127.0.0.1:${input.daemonPort}`,
+            }
+          : {}),
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+      detached: false,
     },
-    stdio: ["ignore", "pipe", "pipe"],
-    detached: false,
-  });
+  );
 
   child.stdout?.on("data", (data: Buffer) => {
     const lines = data
@@ -772,7 +783,6 @@ interface DaemonSpawnArgs {
 
 function startDaemon(args: DaemonSpawnArgs): ChildProcess {
   const serverDir = path.resolve(__dirname, "../../..", "packages/server");
-  const tsxBin = execSync("which tsx").toString().trim();
   const env = withDisabledE2ESpeechEnv({
     ...process.env,
     PATH: `${args.fakeEditorBinDir}${path.delimiter}${process.env.PATH ?? ""}`,
@@ -786,7 +796,7 @@ function startDaemon(args: DaemonSpawnArgs): ChildProcess {
     NODE_ENV: "development",
   });
 
-  const child = spawn(tsxBin, ["scripts/supervisor-entrypoint.ts", "--dev"], {
+  const child = spawn(process.execPath, [tsxCliPath, "scripts/supervisor-entrypoint.ts", "--dev"], {
     cwd: serverDir,
     env,
     stdio: ["ignore", "pipe", "pipe"],

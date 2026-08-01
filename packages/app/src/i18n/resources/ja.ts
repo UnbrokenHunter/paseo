@@ -1577,6 +1577,38 @@ export const ja: TranslationResources = {
     sessionCost: "セッションコスト: {{cost}}",
     accessibility: "コンテキストウィンドウ{{percentage}}%使用",
   },
+  providerUsage: {
+    title: "プラン使用状況",
+    refresh: "更新",
+    refreshing: "更新中...",
+    empty: "使用状況データがありません",
+    errorTitle: "使用状況を読み込めません",
+    refreshFailedTitle: "最後に取得した使用状況を表示中",
+    hostUnavailable: "プロバイダーの使用状況を見るにはこのホストに接続してください",
+    hostUpgradeRequired: "プロバイダーの使用状況を見るにはホストを更新してください",
+    clientUnavailable: "ホスト接続の準備ができていません",
+    retry: "再試行",
+    tooltipLoading: "プラン使用状況を読み込み中…",
+    compact: {
+      remaining: "残り{{percent}}%",
+      remainingWithReset: "残り{{percent}}%・{{duration}}後にリセット",
+    },
+    states: {
+      unavailable: "使用状況を利用できません",
+      unavailableExplanation: "このプロバイダーは使用制限を報告しません。",
+      loading: "使用状況を読み込み中…",
+      retry: "再試行",
+      failed: "使用状況を読み込めませんでした",
+      unmetered: "使用制限なし",
+      unmeteredExplanation:
+        "このモデルは自分のマシンで動作しているため、報告する割り当てはありません。",
+    },
+    card: {
+      statusError: "エラー",
+      statusUnavailable: "利用不可",
+      updated: "{{age}}に更新",
+    },
+  },
   review: {
     comment: {
       add: "レビューコメントを追加",
@@ -1676,6 +1708,11 @@ export const ja: TranslationResources = {
         label: "常に思考プロセスを展開",
         description: "デフォルトでAIのエージェント思考・推論ブロックを完全に展開して表示します",
       },
+      providerUsageRotation: {
+        label: "プロバイダー使用制限をローテーション表示",
+        description:
+          "インジケーターですべての使用制限を順に表示します。オフにすると、上限に最も近い制限のみが表示されます。",
+      },
       toolCallDetail: {
         label: "ツール呼び出しの表示",
         description: "タイムラインでのツール呼び出しの表示方法",
@@ -1768,6 +1805,9 @@ export const ja: TranslationResources = {
       },
       detailLevel: {
         title: "詳細レベル",
+      },
+      providerUsage: {
+        title: "使用状況インジケーター",
       },
       fonts: {
         title: "フォント",

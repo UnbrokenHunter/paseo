@@ -28,6 +28,27 @@ export function formatResetLabel(iso: string | null | undefined): string | null 
   return rel === "now" ? "resetting now" : `resets ${rel}`;
 }
 
+export interface CompactUsageParts {
+  remainingPct: number;
+  resetsAt: string | null;
+}
+
+/**
+ * Values needed by the compact bar's translated sentence:
+ * `{{percent}}% remaining · resets in {{duration}}`.
+ * `duration` is omitted when the limit has no known reset time.
+ */
+export function formatCompactUsage(parts: CompactUsageParts): {
+  percent: number;
+  duration: string | null;
+} {
+  const duration = parts.resetsAt ? relativeDuration(parts.resetsAt) : null;
+  return {
+    percent: Math.round(clampPct(parts.remainingPct)),
+    duration: duration === "now" ? null : duration,
+  };
+}
+
 export function formatAgo(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const diffMs = Date.now() - new Date(iso).getTime();

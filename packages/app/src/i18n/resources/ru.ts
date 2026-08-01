@@ -1595,6 +1595,37 @@ export const ru: TranslationResources = {
     sessionCost: "Стоимость сеанса{{cost}}",
     accessibility: "Контекстное окно{{percentage}}% использовано",
   },
+  providerUsage: {
+    title: "Использование плана",
+    refresh: "Обновить",
+    refreshing: "Обновление...",
+    empty: "Нет данных об использовании",
+    errorTitle: "Не удалось загрузить данные об использовании",
+    refreshFailedTitle: "Показаны последние известные данные",
+    hostUnavailable: "Подключитесь к этому хосту, чтобы увидеть использование провайдера",
+    hostUpgradeRequired: "Обновите хост, чтобы увидеть использование провайдера",
+    clientUnavailable: "Подключение к хосту не готово",
+    retry: "Повторить",
+    tooltipLoading: "Загрузка использования плана…",
+    compact: {
+      remaining: "Осталось {{percent}}%",
+      remainingWithReset: "Осталось {{percent}}% · сброс через {{duration}}",
+    },
+    states: {
+      unavailable: "Использование недоступно",
+      unavailableExplanation: "Этот провайдер не сообщает лимиты использования.",
+      loading: "Загрузка использования…",
+      retry: "Повторить",
+      failed: "Не удалось загрузить данные об использовании",
+      unmetered: "Без лимитов использования",
+      unmeteredExplanation: "Эта модель работает на вашей машине, поэтому сообщать о квоте нечего.",
+    },
+    card: {
+      statusError: "Ошибка",
+      statusUnavailable: "Недоступно",
+      updated: "Обновлено {{age}}",
+    },
+  },
   review: {
     comment: {
       add: "Добавить комментарий к обзору",
@@ -1696,6 +1727,11 @@ export const ru: TranslationResources = {
         description:
           "По умолчанию показывать блоки размышлений и логики агента полностью развернутыми",
       },
+      providerUsageRotation: {
+        label: "Прокручивать лимиты использования провайдера",
+        description:
+          "Циклически показывает все лимиты использования в индикаторе. Если выключено, отображается только лимит, ближайший к исчерпанию.",
+      },
       toolCallDetail: {
         label: "Отображение вызовов инструментов",
         description: "Как вызовы инструментов отображаются на временной шкале",
@@ -1789,6 +1825,9 @@ export const ru: TranslationResources = {
       },
       detailLevel: {
         title: "Уровень детализации",
+      },
+      providerUsage: {
+        title: "Индикатор использования",
       },
       fonts: {
         title: "Шрифты",

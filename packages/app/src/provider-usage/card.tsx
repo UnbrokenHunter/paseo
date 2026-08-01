@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { getProviderIcon } from "@/components/provider-icons";
@@ -24,28 +25,37 @@ const ThemedProviderUsageIcon = withUnistyles(ProviderUsageIcon);
 
 const mutedIconColor = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
-function statusText(usage: ProviderUsage): string | null {
+function useStatusText(usage: ProviderUsage): string | null {
+  const { t } = useTranslation();
   if (usage.status === "available") return null;
-  return usage.status === "error" ? "Error" : "Unavailable";
+  if (usage.unmetered) return t("providerUsage.states.unmetered");
+  return usage.status === "error"
+    ? t("providerUsage.card.statusError")
+    : t("providerUsage.card.statusUnavailable");
 }
 
-function footerText(usage: ProviderUsage): string | null {
+function useFooterText(usage: ProviderUsage): string | null {
+  const { t } = useTranslation();
   const updated = formatAgo(usage.fetchedAt);
-  const parts = [usage.sourceLabel, updated ? `Updated ${updated}` : null].filter(
-    (part): part is string => typeof part === "string" && part.length > 0,
-  );
+  const parts = [
+    usage.sourceLabel,
+    updated ? t("providerUsage.card.updated", { age: updated }) : null,
+  ].filter((part): part is string => typeof part === "string" && part.length > 0);
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 export function ProviderUsageCard({
   usage,
   compact = false,
+  testID,
 }: {
   usage: ProviderUsage;
   compact?: boolean;
+  testID?: string;
 }) {
-  const status = statusText(usage);
-  const footer = footerText(usage);
+  const { t } = useTranslation();
+  const status = useStatusText(usage);
+  const footer = useFooterText(usage);
   const balances = usage.balances ?? [];
   const details = usage.details ?? [];
 
@@ -63,7 +73,7 @@ export function ProviderUsageCard({
   );
 
   return (
-    <View style={containerStyle}>
+    <View style={containerStyle} testID={testID}>
       <View style={styles.header}>
         <ThemedProviderUsageIcon iconKey={usage.providerId} size={14} uniProps={mutedIconColor} />
         <Text style={styles.name} numberOfLines={1}>
@@ -83,6 +93,10 @@ export function ProviderUsageCard({
         <Text style={styles.error} numberOfLines={3}>
           {usage.error}
         </Text>
+      ) : null}
+
+      {usage.unmetered ? (
+        <Text style={styles.hint}>{t("providerUsage.states.unmeteredExplanation")}</Text>
       ) : null}
 
       {usage.windows.length > 0 || balances.length > 0 ? (
@@ -188,6 +202,11 @@ const styles = StyleSheet.create((theme) => ({
   },
   error: {
     color: theme.colors.palette.red[300],
+    fontSize: theme.fontSize.xs,
+    lineHeight: theme.fontSize.xs * 1.4,
+  },
+  hint: {
+    color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.xs,
     lineHeight: theme.fontSize.xs * 1.4,
   },

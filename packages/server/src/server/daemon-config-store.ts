@@ -12,6 +12,7 @@ import {
   BUILTIN_PROVIDER_IDS,
   findAgentProviderDefinition,
 } from "@getpaseo/protocol/provider-manifest";
+import { isLocalEndpointUrl } from "../services/quota-fetcher/local-endpoints.js";
 
 export type { MutableDaemonConfig, MutableDaemonConfigPatch } from "@getpaseo/protocol/messages";
 
@@ -102,6 +103,58 @@ export function listProviderAccountProfiles(config: MutableDaemonConfig): Provid
     });
   }
   return profiles;
+}
+
+/** A configured provider serving models from a machine you control. */
+export interface LocalProviderProfile {
+  providerId: string;
+  displayName: string;
+  /** Host and port of the local endpoint, for the "served from" line in the UI. */
+  endpointLabel: string;
+}
+
+/**
+ * Providers pointed at a locally hosted model. They have no quota to fetch, so usage
+ * reports them as unmetered rather than leaving them looking like a failed lookup.
+ */
+export function listLocalProviderProfiles(config: MutableDaemonConfig): LocalProviderProfile[] {
+  const profiles: LocalProviderProfile[] = [];
+  for (const [providerId, provider] of Object.entries(config.providers)) {
+    if (provider.enabled === false) {
+      continue;
+    }
+    const parsed = ProviderOverrideSchema.safeParse(provider);
+    if (!parsed.success) {
+      continue;
+    }
+    const endpointLabel = findLocalEndpointLabel(parsed.data.env);
+    if (!endpointLabel) {
+      continue;
+    }
+    profiles.push({
+      providerId,
+      displayName: parsed.data.label ?? providerId,
+      endpointLabel,
+    });
+  }
+  return profiles;
+}
+
+function findLocalEndpointLabel(env: Record<string, string> | undefined): string | undefined {
+  if (!env) {
+    return undefined;
+  }
+  for (const value of Object.values(env)) {
+    if (typeof value !== "string" || !isLocalEndpointUrl(value)) {
+      continue;
+    }
+    try {
+      return new URL(value.trim()).host;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
 }
 
 export function toClientMutableDaemonConfig(config: MutableDaemonConfig): MutableDaemonConfig {

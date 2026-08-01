@@ -1604,6 +1604,38 @@ export const es: TranslationResources = {
     sessionCost: "Costo de la sesión{{cost}}",
     accessibility: "Ventana de contexto{{percentage}}% utilizada",
   },
+  providerUsage: {
+    title: "Uso del plan",
+    refresh: "Actualizar",
+    refreshing: "Actualizando...",
+    empty: "Sin datos de uso",
+    errorTitle: "No se pudo cargar el uso",
+    refreshFailedTitle: "Mostrando el último uso conocido",
+    hostUnavailable: "Conéctate a este host para ver el uso del proveedor",
+    hostUpgradeRequired: "Actualiza el host para ver el uso del proveedor",
+    clientUnavailable: "La conexión con el host no está lista",
+    retry: "Intentar de nuevo",
+    tooltipLoading: "Cargando uso del plan…",
+    compact: {
+      remaining: "{{percent}}% restante",
+      remainingWithReset: "{{percent}}% restante · se reinicia en {{duration}}",
+    },
+    states: {
+      unavailable: "Uso no disponible",
+      unavailableExplanation: "Este proveedor no informa límites de uso.",
+      loading: "Cargando uso…",
+      retry: "Reintentar",
+      failed: "No se pudo cargar el uso",
+      unmetered: "Sin límites de uso",
+      unmeteredExplanation:
+        "Este modelo se sirve desde tu propia máquina, así que no hay cuota que informar.",
+    },
+    card: {
+      statusError: "Error",
+      statusUnavailable: "No disponible",
+      updated: "Actualizado {{age}}",
+    },
+  },
   review: {
     comment: {
       add: "Agregar comentario de revisión",
@@ -1708,6 +1740,11 @@ export const es: TranslationResources = {
         description:
           "Mostrar los bloques de pensamiento y razonamiento del agente totalmente expandidos de forma predeterminada",
       },
+      providerUsageRotation: {
+        label: "Rotar límites de uso del proveedor",
+        description:
+          "Recorre todos los límites de uso en el indicador. Si está desactivado, solo se muestra el límite más próximo a agotarse.",
+      },
       toolCallDetail: {
         label: "Visualización de llamadas a herramientas",
         description: "Cómo aparecen las llamadas a herramientas en la cronología",
@@ -1800,6 +1837,9 @@ export const es: TranslationResources = {
       },
       detailLevel: {
         title: "Nivel de detalle",
+      },
+      providerUsage: {
+        title: "Indicador de uso",
       },
       fonts: {
         title: "Fuentes",

@@ -21,7 +21,12 @@ import type { AgentProvider } from "@getpaseo/protocol/agent-types";
 import type { SheetHeader } from "@/components/adaptive-modal-sheet";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getProviderIcon } from "@/components/provider-icons";
+import { selectActiveAccountUsage } from "@/provider-usage/active-account";
+import { formatCompactUsage } from "@/provider-usage/format";
+import type { ProviderUsageView } from "@/provider-usage/types";
+import { useProviderUsage } from "@/provider-usage/use-provider-usage";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isNative, isWeb } from "@/constants/platform";
 import {
@@ -53,6 +58,92 @@ const ThemedLoadingSpinner = withUnistyles(LoadingSpinner);
 const ThemedSearch = withUnistyles(Search);
 const ThemedSettings = withUnistyles(Settings);
 const ThemedStar = withUnistyles(Star);
+
+interface ModelProviderUsageSummaryProps {
+  view: ProviderUsageView;
+  providerId: string;
+  onRefresh: () => Promise<void>;
+  testID?: string;
+}
+
+function ModelProviderUsageSummary({
+  view,
+  providerId,
+  onRefresh,
+  testID,
+}: ModelProviderUsageSummaryProps) {
+  const { t } = useTranslation();
+  const account = useMemo(() => selectActiveAccountUsage({ view, providerId }), [view, providerId]);
+
+  const handleRetry = useCallback(() => {
+    void onRefresh().catch(() => {});
+  }, [onRefresh]);
+
+  if (account.state === "loading") {
+    return (
+      <View style={styles.usageSummaryRow} testID={testID}>
+        <View style={styles.rowSpinner}>
+          <ThemedLoadingSpinner size={ICON_SIZE.sm} uniProps={foregroundMutedMapping} />
+        </View>
+        <Text style={styles.usageSummaryText}>{t("providerUsage.states.loading")}</Text>
+      </View>
+    );
+  }
+
+  if (account.state === "error") {
+    return (
+      <View style={styles.usageSummaryRow} testID={testID}>
+        <ThemedAlertTriangle size={ICON_SIZE.sm} uniProps={foregroundMutedMapping} />
+        <Text style={styles.usageSummaryText}>{t("providerUsage.states.failed")}</Text>
+        <Button variant="ghost" size="xs" onPress={handleRetry}>
+          {t("providerUsage.states.retry")}
+        </Button>
+      </View>
+    );
+  }
+
+  // A host that cannot report usage is not this row's business to explain.
+  if (account.state === "unsupported") return null;
+
+  if (account.state === "unmetered") {
+    return (
+      <View style={styles.usageSummaryRow} testID={testID}>
+        <Text style={styles.usageSummaryText}>{t("providerUsage.states.unmetered")}</Text>
+      </View>
+    );
+  }
+
+  if (account.state === "unavailable") {
+    return (
+      <Tooltip enabledOnDesktop enabledOnMobile delayDuration={0}>
+        <TooltipTrigger asChild>
+          <Pressable style={styles.usageSummaryRow} testID={testID}>
+            <Text style={styles.usageSummaryText}>{t("providerUsage.states.unavailable")}</Text>
+          </Pressable>
+        </TooltipTrigger>
+        <TooltipContent side="top" align="center">
+          <Text style={styles.usageSummaryTooltipText}>
+            {account.reason ?? t("providerUsage.states.unavailableExplanation")}
+          </Text>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  const { percent, duration } = formatCompactUsage({
+    remainingPct: account.primary.remainingPct,
+    resetsAt: account.primary.resetsAt,
+  });
+  return (
+    <View style={styles.usageSummaryRow} testID={testID}>
+      <Text style={styles.usageSummaryText}>
+        {duration
+          ? t("providerUsage.compact.remainingWithReset", { percent, duration })
+          : t("providerUsage.compact.remaining", { percent })}
+      </Text>
+    </View>
+  );
+}
 
 function ProviderSettingsAction({
   accessibilityLabel,
@@ -130,6 +221,9 @@ export interface ModelBrowserState {
   triggerLabel: string;
   desktopFixedHeight: number | undefined;
   isProviderView: boolean;
+  serverId: string | null;
+  providerUsageView: ProviderUsageView;
+  refreshProviderUsage: () => Promise<void>;
   prepareToOpen: () => void;
   reset: () => void;
   drillDown: (providerId: string, providerLabel: string) => void;
@@ -234,6 +328,9 @@ export function useModelBrowser({
   const [view, setView] = useState<ModelBrowserView>({ kind: "all" });
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResetKey, bumpSearchResetKey] = useReducer((key: number) => key + 1, 0);
+  const { view: providerUsageView, refresh: refreshProviderUsage } = useProviderUsage(serverId, {
+    persistent: true,
+  });
 
   const initialView = useMemo(
     () =>
@@ -275,6 +372,14 @@ export function useModelBrowser({
     }
     return {
       title: view.providerLabel,
+      subtitle: (
+        <ModelProviderUsageSummary
+          view={providerUsageView}
+          providerId={view.providerId}
+          onRefresh={refreshProviderUsage}
+          testID="provider-usage-header-summary"
+        />
+      ),
       leading: (
         <ModelProviderGlyph provider={view.providerId} size={ICON_SIZE.md} tone="foreground" />
       ),
@@ -299,6 +404,8 @@ export function useModelBrowser({
   }, [
     handleBackToAll,
     handleSearchQueryChange,
+    providerUsageView,
+    refreshProviderUsage,
     searchResetKey,
     serverId,
     singleProviderView,
@@ -341,6 +448,9 @@ export function useModelBrowser({
     triggerLabel,
     desktopFixedHeight,
     isProviderView: view.kind === "provider",
+    serverId,
+    providerUsageView,
+    refreshProviderUsage,
     prepareToOpen,
     reset,
     drillDown,
@@ -664,6 +774,8 @@ function GroupProviderButton({
     onDrillDown(provider.id, provider.label);
   }, [onDrillDown, provider.id, provider.label]);
 
+  // The row keeps reporting how the provider's model list is doing; usage belongs to
+  // the provider header the row drills into, so it is not repeated per row.
   const stateNode = useMemo(() => {
     if (selection.kind === "models") {
       const count = selection.rows.length;
@@ -692,6 +804,7 @@ function GroupProviderButton({
       </View>
     );
   }, [selection, t]);
+
   const leadingSlot = useMemo(
     () => <ModelProviderGlyph provider={provider.id} size={ICON_SIZE.sm} />,
     [provider.id],
@@ -1120,17 +1233,6 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: theme.spacing[1],
   },
-  drillDownCount: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.foregroundMuted,
-  },
-  rowStateInline: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[1],
-    flexShrink: 1,
-    minWidth: 0,
-  },
   rowIconButton: {
     width: 24,
     height: 24,
@@ -1183,6 +1285,32 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.foregroundMuted,
   },
   providerIconForeground: {
+    color: theme.colors.foreground,
+  },
+  drillDownCount: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.foregroundMuted,
+  },
+  rowStateInline: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  usageSummaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  usageSummaryText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.foregroundMuted,
+  },
+  usageSummaryTooltipText: {
+    fontSize: theme.fontSize.sm,
     color: theme.colors.foreground,
   },
 }));
