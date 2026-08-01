@@ -327,8 +327,8 @@ const positionStyles = RNStyleSheet.create({
     left: -1,
   },
   toggleSlotUser: {
-    top: 1,
-    right: 3,
+    top: 6,
+    right: 8,
   },
   toggleSlotCollapsedAssistant: {
     top: 4,
