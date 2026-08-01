@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { StreamItem } from "@/types/stream";
 import {
-  findLastIndexFullyAbove,
+  findLastIndexStartedAbove,
   isStickyPreviewTrackedItem,
   selectStickyConversationPreviews,
   shouldTrackStickyPreviews,
@@ -181,27 +181,31 @@ describe("shouldTrackStickyPreviews", () => {
   });
 });
 
-describe("findLastIndexFullyAbove", () => {
-  const bottoms = [10, 40, 90, 150, 220];
-  const getBottom = (index: number) => bottoms[index];
+describe("findLastIndexStartedAbove", () => {
+  const tops = [0, 10, 40, 90, 150];
+  const getTop = (index: number) => tops[index];
 
-  it("returns -1 when nothing has scrolled past", () => {
-    expect(findLastIndexFullyAbove({ count: bottoms.length, getBottom, viewportTop: 0 })).toBe(-1);
+  it("returns -1 at the very top, where nothing has started above", () => {
+    expect(findLastIndexStartedAbove({ count: tops.length, getTop, viewportTop: -1 })).toBe(-1);
   });
 
-  it("finds the last row whose bottom edge cleared the top", () => {
-    expect(findLastIndexFullyAbove({ count: bottoms.length, getBottom, viewportTop: 95 })).toBe(2);
+  it("names the row the reader is inside, not the one they finished", () => {
+    // Row 3 spans [90, 150) and the top edge sits at 100: the reader is inside
+    // row 3, so row 3 is the answer even though row 2 is the last one they
+    // scrolled fully past.
+    expect(findLastIndexStartedAbove({ count: tops.length, getTop, viewportTop: 100 })).toBe(3);
   });
 
-  it("includes a row whose bottom edge is exactly at the top", () => {
-    expect(findLastIndexFullyAbove({ count: bottoms.length, getBottom, viewportTop: 90 })).toBe(2);
+  it("switches to a row the moment its top edge reaches the viewport top", () => {
+    expect(findLastIndexStartedAbove({ count: tops.length, getTop, viewportTop: 89 })).toBe(2);
+    expect(findLastIndexStartedAbove({ count: tops.length, getTop, viewportTop: 90 })).toBe(3);
   });
 
   it("returns the last row once everything is above", () => {
-    expect(findLastIndexFullyAbove({ count: bottoms.length, getBottom, viewportTop: 999 })).toBe(4);
+    expect(findLastIndexStartedAbove({ count: tops.length, getTop, viewportTop: 999 })).toBe(4);
   });
 
   it("handles an empty list", () => {
-    expect(findLastIndexFullyAbove({ count: 0, getBottom, viewportTop: 10 })).toBe(-1);
+    expect(findLastIndexStartedAbove({ count: 0, getTop, viewportTop: 10 })).toBe(-1);
   });
 });

@@ -13,11 +13,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import type { Theme } from "@/styles/theme";
 import { estimateStreamItemHeight } from "./web-virtualization";
-import {
-  STICKY_CONVERSATION_HEADER_HEIGHT,
-  findLastIndexFullyAbove,
-  isStickyPreviewTrackedItem,
-} from "./sticky-header/model";
+import { findLastIndexStartedAbove, isStickyPreviewTrackedItem } from "./sticky-header/model";
 import type { StreamRenderInput, StreamStrategy, StreamViewportHandle } from "./strategy";
 import { createStreamStrategy } from "./strategy";
 import {
@@ -284,11 +280,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     if (!scrollContainer) {
       return;
     }
-    // The header is an overlay, so a row under it is still inside the scroll
-    // container but gone as far as the reader is concerned. Measuring against
-    // the container's own top edge makes the header describe the message before
-    // the one that just disappeared behind it — and act on it too.
-    const viewportTop = scrollContainer.scrollTop + STICKY_CONVERSATION_HEADER_HEIGHT;
+    const viewportTop = scrollContainer.scrollTop;
     let boundaryItemId: string | null = null;
 
     const virtualRowsContainer = virtualRowsContainerRef.current;
@@ -297,9 +289,9 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       // Public mirror of the virtualizer's internal measurements, including rows
       // that have scrolled out of the DOM. Refreshed whenever it renders.
       const measurements = rowVirtualizer.measurementsCache;
-      const lastAbove = findLastIndexFullyAbove({
+      const lastAbove = findLastIndexStartedAbove({
         count: Math.min(measurements.length, segments.historyVirtualized.length),
-        getBottom: (index) => virtualBase + measurements[index].end,
+        getTop: (index) => virtualBase + measurements[index].start,
         viewportTop,
       });
       for (let index = lastAbove; index >= 0; index -= 1) {
@@ -312,12 +304,12 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     }
 
     const registry = streamRowRegistryRef.current;
-    const lastDomAbove = findLastIndexFullyAbove({
+    const lastDomAbove = findLastIndexStartedAbove({
       count: trackedDomRowIds.length,
-      getBottom: (index) => {
+      getTop: (index) => {
         const element = registry.get(trackedDomRowIds[index]);
         // An unmounted row cannot be proven above; treat it as still below.
-        return element ? element.offsetTop + element.offsetHeight : Number.POSITIVE_INFINITY;
+        return element ? element.offsetTop : Number.POSITIVE_INFINITY;
       },
       viewportTop,
     });

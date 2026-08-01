@@ -4,9 +4,6 @@ import type { StreamItem } from "@/types/stream";
 /**
  * The row never changes height, so an empty side cannot shift the populated one
  * and the overlay never nudges the messages underneath it.
- *
- * Viewports need this too: the header is an overlay, so the top of the scroll
- * container is not the top of what the reader can see.
  */
 export const STICKY_CONVERSATION_HEADER_HEIGHT = 46;
 
@@ -142,26 +139,34 @@ function toPreview(
   return { itemId, text, timestamp };
 }
 
-interface FindLastIndexFullyAboveInput {
+interface FindLastIndexStartedAboveInput {
   count: number;
-  /** Bottom edge of row `index` in scroll-content coordinates. Must not decrease. */
-  getBottom: (index: number) => number;
+  /** Top edge of row `index` in scroll-content coordinates. Must not decrease. */
+  getTop: (index: number) => number;
   /** Scroll-content coordinate of the viewport's top edge. */
   viewportTop: number;
 }
 
 /**
- * Index of the last row whose bottom edge sits at or above the viewport top, or
- * -1 when none do. Binary search keeps a scroll handler O(log n) even when the
- * whole conversation is above the fold.
+ * Index of the last row that *starts* above the viewport top, or -1 when none
+ * do — the message the reader is currently inside.
+ *
+ * Waiting for a row's bottom edge instead is what made the header feel a
+ * message behind: a response tall enough to fill the screen has not finished
+ * scrolling past, so the header went on describing the previous turn for as
+ * long as you were reading the current one, and the collapse control on it
+ * acted on that previous turn too.
+ *
+ * Binary search keeps a scroll handler O(log n) even when the whole
+ * conversation is above the fold.
  */
-export function findLastIndexFullyAbove(input: FindLastIndexFullyAboveInput): number {
+export function findLastIndexStartedAbove(input: FindLastIndexStartedAboveInput): number {
   let low = 0;
   let high = input.count - 1;
   let result = -1;
   while (low <= high) {
     const middle = (low + high) >>> 1;
-    if (input.getBottom(middle) <= input.viewportTop) {
+    if (input.getTop(middle) <= input.viewportTop) {
       result = middle;
       low = middle + 1;
     } else {

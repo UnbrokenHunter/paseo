@@ -8,7 +8,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StreamItem } from "@/types/stream";
 import type { StreamRenderInput, StreamSegmentRenderers, StreamViewportHandle } from "./strategy";
 import { createWebStreamStrategy } from "./strategy-web";
-import { STICKY_CONVERSATION_HEADER_HEIGHT } from "./sticky-header/model";
 
 vi.hoisted(() => {
   Object.defineProperty(window, "matchMedia", {
@@ -918,17 +917,14 @@ describe("createWebStreamStrategy", () => {
       Object.defineProperty(child, "offsetTop", { configurable: true, value: index * ROW_HEIGHT });
     });
 
-    // The header overlays the top of the scroll container, so a row counts as
-    // gone once it clears the container's top edge *plus* the header's height —
-    // otherwise the header describes the message before the one the reader just
-    // watched disappear behind it.
-    const scrollTopThatHides = (rowCount: number) =>
-      Math.max(0, ROW_HEIGHT * rowCount - STICKY_CONVERSATION_HEADER_HEIGHT);
-
+    // A row is reported the moment its top edge passes the viewport top — the
+    // message the reader is inside — not once its bottom edge has gone by.
+    // Landing mid-row is the case that matters: it is where a tall message
+    // would otherwise leave the header describing the previous one.
     for (const [index, item] of historyMounted.entries()) {
       Object.defineProperty(scrollContainer, "scrollTop", {
         configurable: true,
-        value: scrollTopThatHides(index + 1),
+        value: ROW_HEIGHT * index + ROW_HEIGHT / 2,
       });
       act(() => {
         scrollContainer.dispatchEvent(new Event("scroll"));

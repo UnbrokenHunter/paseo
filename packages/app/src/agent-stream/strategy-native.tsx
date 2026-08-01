@@ -38,10 +38,7 @@ import {
   evaluateHistoryStartPagination,
   rearmHistoryStartPagination,
 } from "./history-start-pagination";
-import {
-  STICKY_CONVERSATION_HEADER_HEIGHT,
-  isStickyPreviewTrackedItem,
-} from "./sticky-header/model";
+import { isStickyPreviewTrackedItem } from "./sticky-header/model";
 
 const DEFAULT_MAINTAIN_VISIBLE_CONTENT_POSITION = Object.freeze({
   minIndexForVisible: 0,
@@ -216,24 +213,19 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     if (metrics.viewportHeight <= 0) {
       return;
     }
-    // Content coordinates run bottom-up here, so lowering the visible top edge
-    // by the header's height means subtracting it. A row hidden behind the
-    // overlay has to count as gone, or the header describes — and collapses —
-    // the message before the one that just went under it.
-    const viewportTop =
-      metrics.offsetY + metrics.viewportHeight - STICKY_CONVERSATION_HEADER_HEIGHT;
+    const viewportTop = metrics.offsetY + metrics.viewportHeight;
     let boundaryItemId: string | null = null;
 
     const headerHeight = liveHeadHeightRef.current;
     if (headerHeight > 0) {
       // segments.liveHead is newest first, so the first match walking forward is
-      // also the chronologically latest one that cleared the top edge.
+      // also the chronologically latest one that has started above the top edge.
       for (const item of segments.liveHead) {
         if (!isStickyPreviewTrackedItem(item)) {
           continue;
         }
         const metric = liveHeadRowMetricsRef.current.get(item.id);
-        if (metric && headerHeight - metric.bottom >= viewportTop) {
+        if (metric && headerHeight - metric.top >= viewportTop) {
           boundaryItemId = item.id;
           break;
         }
@@ -241,12 +233,12 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     }
 
     if (boundaryItemId === null) {
-      // Viewability cannot take the overlay into account — RN has no inset for
-      // it — so a history row is only counted as gone once it clears the
-      // container's own top edge. The live-head path above is exact.
+      // The list is inverted, so the highest viewable index is the row nearest
+      // the top edge — the one the reader is inside. Taking the row after it
+      // would name the message they have already finished.
       const maxViewableIndex = maxViewableHistoryIndexRef.current;
       if (maxViewableIndex !== null) {
-        for (let index = maxViewableIndex + 1; index < historyItems.length; index += 1) {
+        for (let index = maxViewableIndex; index < historyItems.length; index += 1) {
           const item = historyItems[index];
           if (item && isStickyPreviewTrackedItem(item)) {
             boundaryItemId = item.id;
