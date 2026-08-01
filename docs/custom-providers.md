@@ -27,6 +27,7 @@ Provider IDs must be lowercase alphanumeric with hyphens (`/^[a-z][a-z0-9-]*$/`)
 - [Codex with a custom OpenAI-compatible endpoint](#codex-with-a-custom-openai-compatible-endpoint)
 - [Multiple profiles for the same provider](#multiple-profiles-for-the-same-provider)
 - [Custom binary for a provider](#custom-binary-for-a-provider)
+- [Locally hosted models and plan usage](#locally-hosted-models-and-plan-usage)
 - [Disabling a provider](#disabling-a-provider)
 - [ACP providers](#acp-providers)
 - [Provider override reference](#provider-override-reference)
@@ -409,6 +410,41 @@ For other providers that keep Pi's `--mode rpc` API but write sessions somewhere
 ```
 
 This session directory is also import-only. Launching and resuming still go through the configured command, so this example resumes with `my-pi-fork --mode rpc --session <session-file>`.
+
+---
+
+## Locally hosted models and plan usage
+
+A provider whose `env` points at a local endpoint has no quota behind it, so Paseo
+reports it as unmetered: the usage indicator reads "No usage limits" instead of the
+"Usage unavailable" it shows when a real limit could not be read.
+
+Detection is by endpoint, not by runtime, so Ollama, LM Studio, vLLM, llama.cpp and
+anything else you host are all covered by the configuration you already write:
+
+```json
+{
+  "agents": {
+    "providers": {
+      "local-qwen": {
+        "extends": "claude",
+        "label": "Local Qwen",
+        "env": {
+          "ANTHROPIC_BASE_URL": "http://localhost:11434",
+          "ANTHROPIC_API_KEY": "unused"
+        }
+      }
+    }
+  }
+}
+```
+
+Any `env` value that parses as an HTTP URL counts, and a host is local when it is
+loopback, an RFC 1918 address, an mDNS `.local` name, or `host.docker.internal`.
+
+A provider that does have a quota API still reports it even when its base URL is
+local — put a proxy in front of Claude on `localhost` and you still get your real
+Claude limits, because a fetched row always wins over the unmetered one.
 
 ---
 
