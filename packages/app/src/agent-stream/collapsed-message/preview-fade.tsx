@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { StyleSheet as RNStyleSheet, type StyleProp, type ViewStyle } from "react-native";
+
 import MaskedView from "@react-native-masked-view/masked-view";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
@@ -24,7 +25,9 @@ export function CollapsedPreviewFade({
 }) {
   return (
     <MaskedView style={style} maskElement={RIGHT_MASK_ELEMENT}>
-      <MaskedView style={RNStyleSheet.absoluteFill} maskElement={BOTTOM_MASK_ELEMENT}>
+      {/* Normal flow, not absoluteFill: the preview's own height sizes the
+          bubble, and an absolute child would leave it with none. */}
+      <MaskedView style={fadeStyles.inner} maskElement={BOTTOM_MASK_ELEMENT}>
         {children}
       </MaskedView>
     </MaskedView>
@@ -63,3 +66,9 @@ function BottomFadeMask() {
 
 const RIGHT_MASK_ELEMENT = <RightFadeMask />;
 const BOTTOM_MASK_ELEMENT = <BottomFadeMask />;
+
+const fadeStyles = RNStyleSheet.create({
+  inner: {
+    width: "100%",
+  },
+});

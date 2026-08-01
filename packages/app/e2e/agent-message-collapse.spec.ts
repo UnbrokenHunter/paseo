@@ -36,24 +36,27 @@ test.describe("Message collapse", () => {
       await page.getByTestId("expand-message-user").first().click();
       await expect(page.getByTestId("user-message").filter({ hasText: PROMPT })).toHaveCount(1);
       await expect(page.getByTestId("collapsed-message-user")).toHaveCount(0);
+
+      // The stub itself opens too, not only its arrow.
+      await userMessage.hover();
+      await page.getByTestId("collapse-message-user").first().click();
+      await expect(page.getByTestId("collapsed-message-user").first()).toBeVisible();
+      await page.getByTestId("collapsed-message-body-user").first().click();
+      await expect(page.getByTestId("collapsed-message-user")).toHaveCount(0);
     } finally {
       await agent.cleanup();
     }
   });
 
-  test("withholds the control from a prompt that barely beats its own stub", async ({ page }) => {
+  test("withholds the control from a prompt that cannot get shorter", async ({ page }) => {
     test.setTimeout(120_000);
-    const shortPrompt = ["Two lines here.", "And a second line."].join("\n");
     const agent = await startRunningMockAgent(page, {
       prefix: "collapse-short-",
       model: "one-minute-stream",
-      prompt: shortPrompt,
+      prompt: "One line.",
     });
     try {
-      const userMessage = page
-        .getByTestId("user-message")
-        .filter({ hasText: "Two lines here." })
-        .first();
+      const userMessage = page.getByTestId("user-message").filter({ hasText: "One line." }).first();
       await expect(userMessage).toBeVisible({ timeout: 30_000 });
       await userMessage.hover();
       await expect(page.getByTestId("collapse-message-user")).toHaveCount(0);

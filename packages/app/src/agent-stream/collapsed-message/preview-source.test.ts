@@ -36,4 +36,28 @@ describe("clipMarkdownPreviewSource", () => {
     const clipped = clipMarkdownPreviewSource("````\ncode\n```\ntail");
     expect(clipped.endsWith("\n````")).toBe(true);
   });
+
+  it("drops the gap between two paragraphs", () => {
+    expect(clipMarkdownPreviewSource("First line.\n\nSecond line.")).toBe(
+      "First line.\nSecond line.",
+    );
+  });
+
+  it("keeps a blank line a following construct needs to parse", () => {
+    for (const next of ["- item", "1. item", "> quote", "## heading", "| a | b |"]) {
+      expect(clipMarkdownPreviewSource(`Intro.\n\n${next}`)).toBe(`Intro.\n\n${next}`);
+    }
+    expect(clipMarkdownPreviewSource("Intro.\n\n```ts\ncode\n```")).toBe(
+      "Intro.\n\n```ts\ncode\n```",
+    );
+  });
+
+  it("leaves blank lines inside a fence alone", () => {
+    const text = "```ts\nconst a = 1;\n\nconst b = 2;\n```";
+    expect(clipMarkdownPreviewSource(text)).toBe(text);
+  });
+
+  it("collapses a run of blank lines between paragraphs", () => {
+    expect(clipMarkdownPreviewSource("One.\n\n\n\nTwo.")).toBe("One.\nTwo.");
+  });
 });

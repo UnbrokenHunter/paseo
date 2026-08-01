@@ -21,19 +21,22 @@ import { setMessageCollapsed, useIsMessageCollapsed } from "./store";
 export type CollapsibleMessageRole = "user" | "assistant";
 export type CollapsibleMessageItem = UserMessageItem | AssistantMessageItem;
 
-const COLLAPSED_BUBBLE_HEIGHT = 64;
+/**
+ * The stub caps here rather than sitting at a fixed height: a preview shorter
+ * than the cap shrinks to what it actually shows, so a one-line message does
+ * not collapse into a box padded out with empty space. Anything taller clips at
+ * the cap and fades, which is what says there is more underneath.
+ */
+const COLLAPSED_BUBBLE_MAX_HEIGHT = 64;
 const COLLAPSED_BUBBLE_MARGIN = 8;
+/** The most a collapsed message can cost in the stream. */
+const COLLAPSED_MAX_FOOTPRINT = COLLAPSED_BUBBLE_MAX_HEIGHT + COLLAPSED_BUBBLE_MARGIN;
 /**
- * What a collapsed message costs in the stream: the stub plus its margins.
- * Collapsing has to beat this by enough to be worth the swap.
+ * Collapsing must never make a message taller, and saving less than most of a
+ * line is not worth a control. Measuring against the cap is the conservative
+ * side of that: the stub can only come out shorter than the cap, never taller.
  */
-const COLLAPSED_FOOTPRINT = COLLAPSED_BUBBLE_HEIGHT + COLLAPSED_BUBBLE_MARGIN;
-/**
- * A message has to give back about a stub's worth of height again before the
- * control appears. Trading a four-line message for a three-line stub is churn,
- * not a collapse — so the offer starts where the saving is obvious.
- */
-const COLLAPSE_MIN_SAVED_HEIGHT = COLLAPSED_FOOTPRINT;
+const COLLAPSE_MIN_SAVED_HEIGHT = 16;
 /**
  * The preview lays its content out at the width the message actually had and
  * then clips to the narrower bubble. Re-wrapping at the bubble width would
@@ -166,6 +169,7 @@ export function CollapsibleStreamMessage({
   renderPreview,
   children,
 }: CollapsibleStreamMessageProps) {
+  const { t } = useTranslation();
   const role: CollapsibleMessageRole = item.kind === "user_message" ? "user" : "assistant";
   const collapsed = useIsMessageCollapsed(agentId, item.id);
   const isCompact = useIsCompactFormFactor();
@@ -185,7 +189,7 @@ export function CollapsibleStreamMessage({
   );
   const handleBodyLayout = useCallback((event: LayoutChangeEvent) => {
     const worthCollapsing =
-      event.nativeEvent.layout.height >= COLLAPSED_FOOTPRINT + COLLAPSE_MIN_SAVED_HEIGHT;
+      event.nativeEvent.layout.height >= COLLAPSED_MAX_FOOTPRINT + COLLAPSE_MIN_SAVED_HEIGHT;
     setCanCollapse((previous) => (previous === worthCollapsing ? previous : worthCollapsing));
   }, []);
 
@@ -223,7 +227,15 @@ export function CollapsibleStreamMessage({
         onPointerLeave={handlePointerLeave}
         testID={`collapsed-message-${role}`}
       >
-        <View style={[styles.bubble, role === "user" ? styles.bubbleUser : styles.bubbleAssistant]}>
+        {/* The whole stub expands, not just the arrow: a collapsed message is
+            a closed thing, and closed things open when you click them. */}
+        <Pressable
+          style={[styles.bubble, role === "user" ? styles.bubbleUser : styles.bubbleAssistant]}
+          onPress={handleExpand}
+          accessibilityRole="button"
+          accessibilityLabel={t(TOGGLE_LABEL_KEYS.expand[role])}
+          testID={`collapsed-message-body-${role}`}
+        >
           <CollapsedPreviewFade style={styles.clip}>
             <View
               style={[
@@ -246,7 +258,7 @@ export function CollapsibleStreamMessage({
               testID={`expand-message-${role}`}
             />
           </FadingSlot>
-        </View>
+        </Pressable>
       </Animated.View>
     );
   }
@@ -334,7 +346,7 @@ const positionStyles = RNStyleSheet.create({
 const styles = StyleSheet.create((theme) => ({
   bubble: {
     width: COLLAPSED_BUBBLE_WIDTH,
-    height: COLLAPSED_BUBBLE_HEIGHT,
+    maxHeight: COLLAPSED_BUBBLE_MAX_HEIGHT,
     marginVertical: COLLAPSED_BUBBLE_MARGIN / 2,
     borderRadius: theme.borderRadius["2xl"],
     overflow: "hidden",
@@ -351,8 +363,9 @@ const styles = StyleSheet.create((theme) => ({
     borderColor: theme.colors.border,
     borderTopLeftRadius: theme.borderRadius.sm,
   },
+  // No flex: the clip takes its height from the preview so the bubble can
+  // shrink below the cap, and the bubble's own maxHeight does the clipping.
   clip: {
-    flex: 1,
     overflow: "hidden",
   },
   previewContent: {
