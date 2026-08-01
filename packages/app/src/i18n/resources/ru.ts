@@ -187,6 +187,10 @@ export const ru: TranslationResources = {
   agentStream: {
     empty: "Начните общаться с этим агентом...",
     scrollToBottom: "Прокрутить вниз",
+    stickyHeader: {
+      userAccessibilityLabel: "Перейти к последнему запросу пользователя: {{preview}}",
+      assistantAccessibilityLabel: "Перейти к последнему ответу ИИ: {{preview}}",
+    },
     permission: {
       plan: "План",
       required: "Требуется разрешение",
@@ -1763,6 +1767,16 @@ export const ru: TranslationResources = {
         options: {
           overview: "Сводка",
           detailed: "Полная детализация",
+        },
+      },
+      stickyConversationHeader: {
+        label: "Закреплённый заголовок беседы",
+        description: "Показывать последний запрос и ответ при прокрутке",
+        accessibilityLabel: "Выбрать закреплённый заголовок беседы ({{value}})",
+        options: {
+          off: "Выключено",
+          user: "Только запросы пользователя",
+          userAndAi: "Пользователь + ИИ",
         },
       },
       language: {

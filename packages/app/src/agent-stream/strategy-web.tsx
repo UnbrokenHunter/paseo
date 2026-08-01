@@ -1,5 +1,4 @@
 import React, {
-  Fragment,
   type CSSProperties,
   useCallback,
   useEffect,
@@ -14,6 +13,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import type { Theme } from "@/styles/theme";
 import { estimateStreamItemHeight } from "./web-virtualization";
+import { findLastIndexFullyAbove, isStickyPreviewTrackedItem } from "./sticky-header/model";
 import type { StreamRenderInput, StreamStrategy, StreamViewportHandle } from "./strategy";
 import { createStreamStrategy } from "./strategy";
 import {
@@ -38,6 +38,43 @@ const ThemedLoadingSpinner = withUnistyles(LoadingSpinner);
 const foregroundMutedColorMapping = (theme: Theme) => ({
   color: theme.colors.foregroundMuted,
 });
+
+// Mounted and live rows share the virtualized row's flex column so a row's own
+// `alignSelf: center` still centers inside the wrapper we measure.
+const streamRowStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  width: "100%",
+};
+
+const SCROLL_TO_ITEM_MARGIN_PX = 8;
+
+type StreamRowRegistry = Map<string, HTMLElement>;
+
+interface WebStreamRowProps {
+  itemId: string;
+  tracked: boolean;
+  registry: StreamRowRegistry;
+  children: React.ReactNode;
+}
+
+function WebStreamRow({ itemId, tracked, registry, children }: WebStreamRowProps) {
+  const handleRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node) {
+        registry.set(itemId, node);
+      } else {
+        registry.delete(itemId);
+      }
+    },
+    [itemId, registry],
+  );
+  return (
+    <div ref={tracked ? handleRef : undefined} style={streamRowStyle}>
+      {children}
+    </div>
+  );
+}
 
 const historyStartSlotStyle: CSSProperties = {
   display: "flex",
@@ -121,15 +158,22 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     hasOlderHistory,
     olderHistoryProgressKey,
     scrollEnabled,
+    stickyPreviewEnabled,
+    onAboveViewportItemChange,
     isMobileBreakpoint,
   } = props;
   const scrollContainerRef = useRef<HTMLElement | null>(null);
   const contentRef = useRef<HTMLElement | null>(null);
+  const virtualRowsContainerRef = useRef<HTMLElement | null>(null);
+  const streamRowRegistryRef = useRef<StreamRowRegistry>(new Map());
   const handleScrollContainerRef = useCallback((node: HTMLElement | null) => {
     scrollContainerRef.current = node;
   }, []);
   const handleContentRef = useCallback((node: HTMLElement | null) => {
     contentRef.current = node;
+  }, []);
+  const handleVirtualRowsContainerRef = useCallback((node: HTMLElement | null) => {
+    virtualRowsContainerRef.current = node;
   }, []);
   const [followOutput, setFollowOutputr] = useState(true);
   const followOutputRef = useRef(followOutput);
@@ -205,6 +249,75 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     if (result.shouldLoad) {
       onNearHistoryStart();
     }
+  });
+
+  // Mounted history and the live head render as real DOM rows, so their ids are
+  // enough to look the elements up; virtualized rows are read off the
+  // virtualizer's own measurements because most of them are not in the DOM.
+  const trackedDomRowIds = useMemo(() => {
+    if (!stickyPreviewEnabled) {
+      return [];
+    }
+    const ids: string[] = [];
+    for (const item of segments.historyMounted) {
+      if (isStickyPreviewTrackedItem(item)) {
+        ids.push(item.id);
+      }
+    }
+    for (const item of segments.liveHead) {
+      if (isStickyPreviewTrackedItem(item)) {
+        ids.push(item.id);
+      }
+    }
+    return ids;
+  }, [segments.historyMounted, segments.liveHead, stickyPreviewEnabled]);
+
+  const updateAboveViewportItem = useStableEvent(() => {
+    if (!stickyPreviewEnabled) {
+      return;
+    }
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+    const viewportTop = scrollContainer.scrollTop;
+    let boundaryItemId: string | null = null;
+
+    const virtualRowsContainer = virtualRowsContainerRef.current;
+    if (shouldUseVirtualizer && virtualRowsContainer) {
+      const virtualBase = virtualRowsContainer.offsetTop;
+      // Public mirror of the virtualizer's internal measurements, including rows
+      // that have scrolled out of the DOM. Refreshed whenever it renders.
+      const measurements = rowVirtualizer.measurementsCache;
+      const lastAbove = findLastIndexFullyAbove({
+        count: Math.min(measurements.length, segments.historyVirtualized.length),
+        getBottom: (index) => virtualBase + measurements[index].end,
+        viewportTop,
+      });
+      for (let index = lastAbove; index >= 0; index -= 1) {
+        const item = segments.historyVirtualized[index];
+        if (item && isStickyPreviewTrackedItem(item)) {
+          boundaryItemId = item.id;
+          break;
+        }
+      }
+    }
+
+    const registry = streamRowRegistryRef.current;
+    const lastDomAbove = findLastIndexFullyAbove({
+      count: trackedDomRowIds.length,
+      getBottom: (index) => {
+        const element = registry.get(trackedDomRowIds[index]);
+        // An unmounted row cannot be proven above; treat it as still below.
+        return element ? element.offsetTop + element.offsetHeight : Number.POSITIVE_INFINITY;
+      },
+      viewportTop,
+    });
+    if (lastDomAbove >= 0) {
+      boundaryItemId = trackedDomRowIds[lastDomAbove];
+    }
+
+    onAboveViewportItemChange(boundaryItemId);
   });
 
   const measureVirtualizedRowElement = useCallback(
@@ -332,7 +445,13 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     lastKnownScrollTopRef.current = currentScrollTop;
     updateScrollMetrics();
     evaluateHistoryStart();
-  }, [cancelPendingStickToBottom, evaluateHistoryStart, updateScrollMetrics]);
+    updateAboveViewportItem();
+  }, [
+    cancelPendingStickToBottom,
+    evaluateHistoryStart,
+    updateAboveViewportItem,
+    updateScrollMetrics,
+  ]);
 
   useEffect(() => {
     historyStartPaginationStateRef.current = createHistoryStartPaginationState();
@@ -401,6 +520,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
   useEffect(() => {
     updateScrollMetrics();
     evaluateHistoryStart();
+    updateAboveViewportItem();
   }, [
     evaluateHistoryStart,
     hasOlderHistory,
@@ -409,6 +529,8 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     segments.historyMounted.length,
     segments.historyVirtualized.length,
     segments.liveHead.length,
+    stickyPreviewEnabled,
+    updateAboveViewportItem,
     updateScrollMetrics,
     virtualTotalSize,
   ]);
@@ -425,6 +547,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     const observer = new ResizeObserver(() => {
       updateScrollMetrics();
       evaluateHistoryStart();
+      updateAboveViewportItem();
       if (!followOutputRef.current) {
         return;
       }
@@ -437,7 +560,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     return () => {
       observer.disconnect();
     };
-  }, [evaluateHistoryStart, scheduleStickToBottom, updateScrollMetrics]);
+  }, [evaluateHistoryStart, scheduleStickToBottom, updateAboveViewportItem, updateScrollMetrics]);
 
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -515,6 +638,31 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     };
   }, [cancelPendingStickToBottom, evaluateHistoryStart, handleDomScroll, isLoadingOlderHistory]);
 
+  // A sticky preview tap leaves follow-output behind: the point is to stay where
+  // the tapped message is, not to snap back to the live tail.
+  const scrollToStreamItem = useStableEvent((itemId: string) => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+    cancelPendingStickToBottom();
+    setFollowOutput(false);
+
+    const element = streamRowRegistryRef.current.get(itemId);
+    if (element) {
+      scrollContainer.scrollTo({
+        top: Math.max(0, element.offsetTop - SCROLL_TO_ITEM_MARGIN_PX),
+        behavior: "smooth",
+      });
+      return;
+    }
+
+    const virtualIndex = segments.historyVirtualized.findIndex((item) => item.id === itemId);
+    if (virtualIndex >= 0) {
+      rowVirtualizer.scrollToIndex(virtualIndex, { align: "start", behavior: "smooth" });
+    }
+  });
+
   useEffect(() => {
     const handle: StreamViewportHandle = {
       scrollToBottom: () => {
@@ -528,6 +676,9 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
         }
         scheduleStickToBottom();
       },
+      scrollToItem: (itemId: string) => {
+        scrollToStreamItem(itemId);
+      },
     };
     viewportRef.current = handle;
     return () => {
@@ -536,12 +687,21 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       }
       cancelPendingStickToBottom();
     };
-  }, [cancelPendingStickToBottom, forceStickToBottom, scheduleStickToBottom, viewportRef]);
+  }, [
+    cancelPendingStickToBottom,
+    forceStickToBottom,
+    scheduleStickToBottom,
+    scrollToStreamItem,
+    viewportRef,
+  ]);
 
   const contentContainerStyle = useMemo((): CSSProperties => {
     return {
       display: "flex",
       flexDirection: "column",
+      // Anchors row `offsetTop` to this box so above-viewport checks can compare
+      // against the scroll container's `scrollTop` directly.
+      position: "relative",
       minHeight: "100%",
       paddingTop: 16,
       paddingBottom: 16,
@@ -580,17 +740,29 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
   );
   const mountedHistoryRows = useMemo(() => {
     return segments.historyMounted.map((item, index) => (
-      <Fragment key={item.id}>
+      <WebStreamRow
+        key={item.id}
+        itemId={item.id}
+        tracked={stickyPreviewEnabled && isStickyPreviewTrackedItem(item)}
+        registry={streamRowRegistryRef.current}
+      >
         {renderHistoryMountedRow(item, index, segments.historyMounted)}
-      </Fragment>
+      </WebStreamRow>
     ));
-  }, [renderHistoryMountedRow, segments.historyMounted]);
+  }, [renderHistoryMountedRow, segments.historyMounted, stickyPreviewEnabled]);
   const liveHeadRows = useMemo(() => {
     void liveHeadRowRevision;
     return segments.liveHead.map((item, index) => (
-      <Fragment key={item.id}>{renderLiveHeadRow(item, index, segments.liveHead)}</Fragment>
+      <WebStreamRow
+        key={item.id}
+        itemId={item.id}
+        tracked={stickyPreviewEnabled && isStickyPreviewTrackedItem(item)}
+        registry={streamRowRegistryRef.current}
+      >
+        {renderLiveHeadRow(item, index, segments.liveHead)}
+      </WebStreamRow>
     ));
-  }, [liveHeadRowRevision, renderLiveHeadRow, segments.liveHead]);
+  }, [liveHeadRowRevision, renderLiveHeadRow, segments.liveHead, stickyPreviewEnabled]);
   const liveAuxiliary = useMemo(() => {
     return renderLiveAuxiliary();
   }, [renderLiveAuxiliary]);
@@ -625,7 +797,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       <div ref={handleContentRef} style={contentContainerStyle}>
         {historyStartSlot}
         {shouldUseVirtualizer ? (
-          <div style={virtualRowsContainerStyle}>
+          <div ref={handleVirtualRowsContainerRef} style={virtualRowsContainerStyle}>
             {virtualRows.map((virtualRow) => {
               const item = segments.historyVirtualized[virtualRow.index];
               if (!item) {

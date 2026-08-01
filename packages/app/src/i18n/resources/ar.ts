@@ -187,6 +187,10 @@ export const ar: TranslationResources = {
   agentStream: {
     empty: "ابدأ الدردشة مع هذا الوكيل...",
     scrollToBottom: "قم بالتمرير إلى الأسفل",
+    stickyHeader: {
+      userAccessibilityLabel: "الانتقال إلى آخر رسالة للمستخدم: {{preview}}",
+      assistantAccessibilityLabel: "الانتقال إلى آخر رد للذكاء الاصطناعي: {{preview}}",
+    },
     permission: {
       plan: "يخطط",
       required: "الإذن مطلوب",
@@ -1728,6 +1732,16 @@ export const ar: TranslationResources = {
         options: {
           overview: "ملخص",
           detailed: "التفاصيل الكاملة",
+        },
+      },
+      stickyConversationHeader: {
+        label: "رأس محادثة ثابت",
+        description: "أبقِ آخر رسالة وآخر رد ظاهرين أثناء التمرير",
+        accessibilityLabel: "حدد رأس المحادثة الثابت ({{value}})",
+        options: {
+          off: "إيقاف",
+          user: "رسائل المستخدم فقط",
+          userAndAi: "المستخدم + الذكاء الاصطناعي",
         },
       },
       language: {

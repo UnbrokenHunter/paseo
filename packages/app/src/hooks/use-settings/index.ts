@@ -39,6 +39,7 @@ import {
   type ServiceUrlBehavior,
   type Settings,
   type SettingsDeps,
+  type StickyConversationHeaderMode,
   type WorkspaceTitleSource,
 } from "./storage";
 
@@ -69,6 +70,7 @@ export type {
   ServiceUrlBehavior,
   Settings,
   SettingsDeps,
+  StickyConversationHeaderMode,
   WorkspaceTitleSource,
 };
 

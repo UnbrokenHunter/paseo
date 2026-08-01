@@ -185,6 +185,10 @@ export const en = {
   agentStream: {
     empty: "Start chatting with this agent...",
     scrollToBottom: "Scroll to bottom",
+    stickyHeader: {
+      userAccessibilityLabel: "Jump to the last user prompt: {{preview}}",
+      assistantAccessibilityLabel: "Jump to the last AI response: {{preview}}",
+    },
     permission: {
       plan: "Plan",
       required: "Permission Required",
@@ -1739,6 +1743,16 @@ export const en = {
         options: {
           overview: "Summary",
           detailed: "Full detail",
+        },
+      },
+      stickyConversationHeader: {
+        label: "Sticky conversation header",
+        description: "Keep the last prompt and response visible while scrolling",
+        accessibilityLabel: "Select sticky conversation header ({{value}})",
+        options: {
+          off: "Off",
+          user: "User prompts only",
+          userAndAi: "User + AI",
         },
       },
       language: {

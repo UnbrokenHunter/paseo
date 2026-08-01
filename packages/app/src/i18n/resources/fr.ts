@@ -189,6 +189,10 @@ export const fr: TranslationResources = {
   agentStream: {
     empty: "Commencez à discuter avec cet agent...",
     scrollToBottom: "Faire défiler vers le bas",
+    stickyHeader: {
+      userAccessibilityLabel: "Aller à la dernière invite de l’utilisateur : {{preview}}",
+      assistantAccessibilityLabel: "Aller à la dernière réponse de l’IA : {{preview}}",
+    },
     permission: {
       plan: "Plan",
       required: "Autorisation requise",
@@ -1778,6 +1782,17 @@ export const fr: TranslationResources = {
         options: {
           overview: "Résumé",
           detailed: "Détails complets",
+        },
+      },
+      stickyConversationHeader: {
+        label: "En-tête de conversation épinglé",
+        description:
+          "Garder la dernière invite et la dernière réponse visibles pendant le défilement",
+        accessibilityLabel: "Sélectionner l’en-tête de conversation épinglé ({{value}})",
+        options: {
+          off: "Désactivé",
+          user: "Invites de l’utilisateur uniquement",
+          userAndAi: "Utilisateur + IA",
         },
       },
       language: {
