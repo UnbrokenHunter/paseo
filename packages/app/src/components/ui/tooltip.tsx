@@ -47,7 +47,9 @@ interface TooltipContextValue {
   triggerRef: React.RefObject<View | null>;
   enabled: boolean;
   openOnPress: boolean;
+  pinnable: boolean;
   pinned: boolean;
+  togglePinned: () => void;
   delayDuration: number;
 }
 
@@ -233,7 +235,7 @@ export function Tooltip({
   enabledOnDesktop = true,
   enabledOnMobile = false,
   openOnPress,
-  pinned = false,
+  pinnable = false,
   children,
 }: PropsWithChildren<{
   open?: boolean;
@@ -243,7 +245,13 @@ export function Tooltip({
   enabledOnDesktop?: boolean;
   enabledOnMobile?: boolean;
   openOnPress?: boolean;
-  pinned?: boolean;
+  /**
+   * Let a press pin the tooltip open so it survives the pointer leaving. Pinning is
+   * owned here rather than by the caller: a caller tracking its own pinned flag
+   * alongside the open state has two sources of truth for one thing, and they drift
+   * the moment a press and a hover-out land in the same tick.
+   */
+  pinnable?: boolean;
 }>): ReactElement {
   const triggerRef = useRef<View>(null);
   const [isOpen, setIsOpen] = useControllableOpenState({
@@ -251,21 +259,52 @@ export function Tooltip({
     defaultOpen,
     onOpenChange,
   });
+  const [pinned, setPinned] = useState(false);
 
   const isCompact = useIsCompactFormFactor();
   const enabled = isCompact ? enabledOnMobile : enabledOnDesktop;
 
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (!next) {
+        setPinned(false);
+      }
+      setIsOpen(next);
+    },
+    [setIsOpen],
+  );
+
+  const togglePinned = useCallback(() => {
+    setPinned((previous) => {
+      const next = !previous;
+      setIsOpen(next);
+      return next;
+    });
+  }, [setIsOpen]);
+
   const value = useMemo<TooltipContextValue>(
     () => ({
       open: isOpen,
-      setOpen: setIsOpen,
+      setOpen,
       triggerRef,
       enabled,
       openOnPress: openOnPress ?? isCompact,
+      pinnable,
       pinned,
+      togglePinned,
       delayDuration,
     }),
-    [isOpen, setIsOpen, enabled, openOnPress, isCompact, pinned, delayDuration],
+    [
+      isOpen,
+      setOpen,
+      enabled,
+      openOnPress,
+      isCompact,
+      pinnable,
+      pinned,
+      togglePinned,
+      delayDuration,
+    ],
   );
 
   return <TooltipContext.Provider value={value}>{children}</TooltipContext.Provider>;
@@ -351,9 +390,12 @@ export function TooltipTrigger({
   const handleBlur = useCallback(
     (e: unknown) => {
       if (isCallable(onBlur)) onBlur(e);
+      // Pressing the trigger moves focus into it and straight back out on some
+      // platforms; closing here would undo the pin the press just set.
+      if (ctx.pinned) return;
       close();
     },
-    [close, onBlur],
+    [close, ctx.pinned, onBlur],
   );
 
   const handlePress = useCallback(
@@ -362,11 +404,14 @@ export function TooltipTrigger({
       if (!ctx.enabled || disabled) {
         return;
       }
+      if (ctx.pinnable) {
+        clearOpenTimer();
+        ctx.togglePinned();
+        return;
+      }
       if (ctx.openOnPress) {
         clearOpenTimer();
-        // A pinned tooltip is already open, so this press is the one that unpins it.
-        // Forcing it back open here would make the pin impossible to release.
-        ctx.setOpen(!ctx.pinned);
+        ctx.setOpen(true);
         return;
       }
       close();
