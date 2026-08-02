@@ -7,32 +7,67 @@ import type { StreamItem } from "@/types/stream";
  */
 export const STICKY_CONVERSATION_ROW_HEIGHT = 34;
 
-/** How much of the message column a pinned line may take before it fades out. */
-export const STICKY_PIN_MAX_WIDTH_RATIO = 0.75;
+/**
+ * Where a pinned line has run out entirely, as a fraction of its own width. The
+ * line is fully readable up to `STICKY_PIN_FADE_START` and gone by here, so it
+ * reaches about three quarters across and dissolves rather than being cut.
+ *
+ * The pin itself takes the same width its message takes, which is what lets the
+ * text stay put across the handoff — capping the box instead would move a long
+ * prompt's line sideways the moment it pinned, since a prompt's bubble is
+ * anchored to the right rail and grows leftwards.
+ */
+export const STICKY_PIN_FADE_END = 0.75;
+export const STICKY_PIN_FADE_START = 0.5;
+
+/** Line height of a pinned line. Matches the message text it stands in for. */
+export const STICKY_PIN_LINE_HEIGHT = 22;
+/** Gap between a pinned line and the rule under it. */
+export const STICKY_PIN_RULE_GAP = 4;
+/**
+ * Where a pinned line's text sits inside its row. The pin is anchored to the
+ * row's bottom edge so its rule lands on the row boundary, which leaves the
+ * text this far down from the top of the row.
+ */
+export const STICKY_PIN_TEXT_INSET =
+  STICKY_CONVERSATION_ROW_HEIGHT - (STICKY_PIN_LINE_HEIGHT + STICKY_PIN_RULE_GAP + 1);
 
 /**
- * How far below the viewport's top edge a message has to start before it counts
- * as gone. The block covers the top of the conversation, so the swap belongs at
- * the bottom of the block: a message hands off to its pin exactly as the real
- * one slides under it, and the rule under the last pinned line is the boundary
- * the swap fires at.
+ * Where the handoff happens, measured down from the viewport's top edge.
  *
- * Sized for a full block rather than the rows that currently have something to
- * pin. The boundary this offset picks is what decides which rows fill, so a
- * height that follows the filled rows would feed back into itself and oscillate
- * across the row that is entering.
+ * This is the y a pinned line's text occupies, so a message swaps into its pin
+ * at the moment its own first line is already sitting there — the text does not
+ * move, it just stops scrolling. VS Code's sticky scroll takes a line into a
+ * slot on the same test (`topOfElement > topOfBeginningLine`, where
+ * `topOfElement` is the slot's own position), which is what makes a sticky line
+ * read as the line itself held in place rather than a copy of it.
+ *
+ * The incoming message always lands in the block's last row, so the offset is
+ * that row's top plus the inset. Sized for a full block rather than the rows
+ * that currently have something to pin: the boundary this offset picks is what
+ * decides which rows fill, so a height that followed the filled rows would feed
+ * back into itself and oscillate across the row that is entering.
  */
 export function stickyConversationFoldOffset(mode: StickyConversationHeaderMode): number {
   if (mode === "off") {
     return 0;
   }
-  return STICKY_CONVERSATION_ROW_HEIGHT * (mode === "user-and-ai" ? 2 : 1);
+  const lastRowTop = mode === "user-and-ai" ? STICKY_CONVERSATION_ROW_HEIGHT : 0;
+  return lastRowTop + STICKY_PIN_TEXT_INSET;
 }
 
 export interface StickyConversationPreview {
   itemId: string;
   text: string;
   timestamp: number;
+  /**
+   * Position in the stream. The block stacks in conversation order, so the
+   * message that comes second takes the lower row — the one the fold sits on,
+   * and so the only row a message ever swaps into. The pair is not always in
+   * the same order: reading a response, the prompt above it came first; reading
+   * a long prompt, the response pinned with it is the previous turn's, above.
+   */
+  sequence: number;
 }
 
 export interface StickyConversationPreviews {
@@ -133,7 +168,7 @@ export function selectStickyConversationPreviews(
       continue;
     }
     if (item.kind === "user_message" && !user) {
-      user = toPreview(item.id, item.text, item.timestamp.getTime());
+      user = toPreview(item.id, item.text, item.timestamp.getTime(), index);
     } else if (wantsAssistant && item.kind === "assistant_message" && !assistant) {
       const generationStart = generationStartByItemId?.get(item.id);
       assistant = toPreview(
@@ -142,6 +177,7 @@ export function selectStickyConversationPreviews(
         generationStart === undefined
           ? item.timestamp.getTime()
           : Math.min(generationStart, item.timestamp.getTime()),
+        index,
       );
     }
   }
@@ -153,12 +189,13 @@ function toPreview(
   itemId: string,
   rawText: string,
   timestamp: number,
+  sequence: number,
 ): StickyConversationPreview | null {
   const text = toStickyPreviewText(rawText);
   if (!text) {
     return null;
   }
-  return { itemId, text, timestamp };
+  return { itemId, text, timestamp, sequence };
 }
 
 interface FindLastIndexStartedAboveInput {

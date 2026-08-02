@@ -19,18 +19,16 @@ import {
   useIsMessageCollapsed,
   useIsMessageCollapsible,
 } from "../collapsed-message/store";
-import { StickyPinFade } from "./pin-fade";
+import { StickyBlockFade, StickyPinFade } from "./pin-fade";
 import {
   STICKY_CONVERSATION_ROW_HEIGHT,
-  STICKY_PIN_MAX_WIDTH_RATIO,
+  STICKY_PIN_LINE_HEIGHT,
+  STICKY_PIN_RULE_GAP,
   type StickyConversationPreview,
   type StickyConversationPreviews,
 } from "./model";
 
 export { STICKY_CONVERSATION_ROW_HEIGHT };
-
-/** Percent form of the ratio, for the style that has to express it as one. */
-const STICKY_PIN_MAX_WIDTH = `${STICKY_PIN_MAX_WIDTH_RATIO * 100}%` as const;
 
 interface StickyConversationHeaderProps {
   agentId: string;
@@ -88,6 +86,15 @@ export function StickyConversationHeader({
     return null;
   }
 
+  // Conversation order, so the message that comes second takes the lower row.
+  // That row's top is where the fold sits, so it is the only row a message ever
+  // swaps into — the one above it was pinned earlier, from the row it is still
+  // in, and does not move as the block grows under it.
+  const slots: Array<{ role: "user" | "assistant"; preview: StickyConversationPreview | null }> = [
+    { role: "assistant" as const, preview: assistant },
+    { role: "user" as const, preview: user },
+  ].sort((a, b) => (a.preview?.sequence ?? -1) - (b.preview?.sequence ?? -1));
+
   return (
     <View style={styles.overlay} pointerEvents="box-none" testID="sticky-conversation-header">
       <View
@@ -97,31 +104,24 @@ export function StickyConversationHeader({
         onPointerLeave={handlePointerLeave}
       >
         {/* Both rows are always laid out, even with nothing to pin on that side,
-            so the rule under the block stays on the fold the strategies offset
-            to. A row that pins nothing paints nothing. */}
-        {showAssistantSide ? (
-          <StickyLine>
-            <StickyRow
-              agentId={agentId}
-              align="left"
-              role="assistant"
-              preview={assistant}
-              arrowsVisible={isHovered}
-              onPress={onPressPreview}
-            />
-          </StickyLine>
-        ) : null}
-        <StickyLine>
-          <StickyRow
-            agentId={agentId}
-            align="right"
-            role="user"
-            preview={user}
-            arrowsVisible={isHovered}
-            onPress={onPressPreview}
-          />
-        </StickyLine>
+            so the fold stays where the strategies put it. A row that pins
+            nothing paints nothing. */}
+        {slots.map(({ role, preview }) =>
+          role === "assistant" && !showAssistantSide ? null : (
+            <StickyLine key={role}>
+              <StickyRow
+                agentId={agentId}
+                align={role === "user" ? "right" : "left"}
+                role={role}
+                preview={preview}
+                arrowsVisible={isHovered}
+                onPress={onPressPreview}
+              />
+            </StickyLine>
+          ),
+        )}
       </View>
+      <StickyBlockFade color={styles.fade.color} />
     </View>
   );
 }
@@ -160,15 +160,15 @@ function StickyRow({ agentId, align, role, preview, arrowsVisible, onPress }: St
   // A message too short to be worth collapsing gets no control here either.
   const collapsible = useIsMessageCollapsible(agentId, itemId ?? "");
   /**
-   * A pin hugs its text up to the cap, so a pin sitting exactly on the cap is
-   * one whose message did not fit — the only thing that should fade. Measuring
-   * the two boxes is what makes that knowable: a short message must not fade,
-   * and nothing else reports whether the line was cut.
+   * A pin takes its message's width up to the column, so a pin filling the
+   * column is one whose message did not fit on a line — the only thing that
+   * should fade. Measuring the two boxes is what makes that knowable: a short
+   * message must not fade, and nothing else reports whether the line was cut.
    */
   const [capWidth, setCapWidth] = useState(0);
   const [pinWidth, setPinWidth] = useState(0);
   const handleRowLayout = useCallback((event: LayoutChangeEvent) => {
-    setCapWidth(event.nativeEvent.layout.width * STICKY_PIN_MAX_WIDTH_RATIO);
+    setCapWidth(event.nativeEvent.layout.width);
   }, []);
   const handlePinLayout = useCallback((event: LayoutChangeEvent) => {
     setPinWidth(event.nativeEvent.layout.width);
@@ -215,7 +215,7 @@ function StickyRow({ agentId, align, role, preview, arrowsVisible, onPress }: St
       onLayout={handleRowLayout}
     >
       <Pressable
-        style={pinStyle}
+        style={align === "right" ? userPinStyle : assistantPinStyle}
         onLayout={handlePinLayout}
         onPress={handlePress}
         accessibilityRole="button"
@@ -247,8 +247,13 @@ type PinStyleState = PressableStateCallbackType & { hovered?: boolean };
 
 // Hoisted out of the JSX (react-perf) and typed for the web's `hovered` state,
 // the same pattern as `PressableStyleFn` in git/diff-pane.tsx.
-const pinStyle = ({ hovered }: PinStyleState): StyleProp<ViewStyle> => [
+const assistantPinStyle = ({ hovered }: PinStyleState): StyleProp<ViewStyle> => [
   styles.pin,
+  hovered ? styles.pinHovered : null,
+];
+const userPinStyle = ({ hovered }: PinStyleState): StyleProp<ViewStyle> => [
+  styles.pin,
+  styles.pinUser,
   hovered ? styles.pinHovered : null,
 ];
 
@@ -299,16 +304,27 @@ const styles = StyleSheet.create((theme) => ({
   },
   /**
    * A pinned message is the message's own text — no bubble, no surface of its
-   * own, either side. It hugs that text up to the cap, so the rule under it is
-   * as long as the line it belongs to.
+   * own, either side. It takes the box that message takes, up to the column, so
+   * the text lands in the same place and the rule comes out the length of the
+   * message rather than of some box drawn around it.
    */
   pin: {
-    maxWidth: STICKY_PIN_MAX_WIDTH,
+    maxWidth: "100%",
     flexShrink: 1,
     minWidth: 0,
-    paddingBottom: theme.spacing[1],
+    paddingBottom: STICKY_PIN_RULE_GAP,
     borderBottomWidth: theme.borderWidth[1],
     borderBottomColor: theme.colors.border,
+  },
+  /**
+   * The prompt's own bubble padding, kept even though the bubble is gone. What
+   * has to line up across the handoff is the text, not the box: a prompt's text
+   * stops a bubble's padding short of the rail on both sides, so without this
+   * the line would step sideways as it pinned. The response has no padding to
+   * match — its text starts on the rail already.
+   */
+  pinUser: {
+    paddingHorizontal: theme.spacing[4],
   },
   pinHovered: {
     opacity: 0.7,
@@ -346,8 +362,11 @@ const styles = StyleSheet.create((theme) => ({
   toggleHidden: {
     opacity: 0,
   },
+  // The message's own type. A different size or leading would move the line as
+  // it pinned, which is the whole thing the handoff is trying to avoid.
   previewText: {
     color: theme.colors.foreground,
     fontSize: theme.fontSize.base,
+    lineHeight: STICKY_PIN_LINE_HEIGHT,
   },
 }));

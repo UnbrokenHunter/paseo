@@ -80,8 +80,26 @@ describe("selectStickyConversationPreviews", () => {
       itemId: "live",
       text: "streaming so far",
       timestamp: 6,
+      sequence: 5,
     });
     expect(previews.user?.itemId).toBe("u2");
+    // The block stacks in conversation order, so which of the pair came first
+    // has to survive selection: here the prompt is above the response.
+    expect(previews.user!.sequence).toBeLessThan(previews.assistant!.sequence);
+  });
+
+  it("orders the pair by the conversation when the prompt is the newer one", () => {
+    const previews = selectStickyConversationPreviews({
+      tail: conversation,
+      head: [],
+      // Reading a long prompt: the response pinned with it is the previous
+      // turn's, which sits above the prompt on screen.
+      aboveViewportItemId: "u2",
+      mode: "user-and-ai",
+    });
+    expect(previews.user?.itemId).toBe("u2");
+    expect(previews.assistant?.itemId).toBe("a1");
+    expect(previews.assistant!.sequence).toBeLessThan(previews.user!.sequence);
   });
 
   it("drops the assistant side in user-only mode", () => {
@@ -155,6 +173,7 @@ describe("trackStickyPreviewGenerationStarts", () => {
       itemId: "live",
       text: "Refactoring the parser",
       timestamp: 1000,
+      sequence: 1,
     });
   });
 });

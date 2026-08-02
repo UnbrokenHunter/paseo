@@ -49,6 +49,41 @@ const streamRowStyle: CSSProperties = {
 
 const SCROLL_TO_ITEM_MARGIN_PX = 8;
 
+/** Reused across probes: a scroll handler measures several rows per event. */
+let firstTextLineRange: Range | null = null;
+
+/**
+ * How far a row's first line of text sits below the row's own top.
+ *
+ * The fold is a text position — a message hands off to its pin when its first
+ * line reaches the line the pin occupies — so the rows have to be compared on
+ * their text rather than their boxes. Between the two sits everything the row
+ * puts above its first line: the gap to the previous message, and, on a prompt,
+ * the bubble's padding. Those differ per message, so this is measured rather
+ * than assumed.
+ *
+ * A range over the first text node gives that line's own box. Environments
+ * without layout (jsdom) have no range geometry at all; there the inset comes
+ * out 0 and the comparison falls back to the row's top.
+ */
+function measureFirstTextLineInset(row: HTMLElement): number {
+  const range = (firstTextLineRange ??= document.createRange());
+  if (typeof range.getBoundingClientRect !== "function") {
+    return 0;
+  }
+  const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node && !node.nodeValue?.trim()) {
+    node = walker.nextNode();
+  }
+  if (!node) {
+    return 0;
+  }
+  range.selectNodeContents(node);
+  const inset = range.getBoundingClientRect().top - row.getBoundingClientRect().top;
+  return Number.isFinite(inset) && inset > 0 ? inset : 0;
+}
+
 type StreamRowRegistry = Map<string, HTMLElement>;
 
 interface WebStreamRowProps {
@@ -317,7 +352,9 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       getTop: (index) => {
         const element = registry.get(trackedDomRowIds[index]);
         // An unmounted row cannot be proven above; treat it as still below.
-        return element ? element.offsetTop : Number.POSITIVE_INFINITY;
+        return element
+          ? element.offsetTop + measureFirstTextLineInset(element)
+          : Number.POSITIVE_INFINITY;
       },
       viewportTop,
     });
