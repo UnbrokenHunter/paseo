@@ -533,7 +533,6 @@ export class ProviderSnapshotManager {
         label: definition.label,
         description: definition.description,
         defaultModeId: definition.defaultModeId,
-        accounts: definition.accounts,
         error: toErrorMessage(error),
       };
     }
@@ -581,7 +580,6 @@ export class ProviderSnapshotManager {
         label: definition?.label,
         description: definition?.description,
         defaultModeId: definition?.defaultModeId ?? null,
-        accounts: definition?.accounts,
       });
     }
     return entries;
@@ -601,25 +599,13 @@ export class ProviderSnapshotManager {
         label: definition?.label,
         description: definition?.description,
         defaultModeId: definition?.defaultModeId ?? null,
-        accounts: definition?.accounts,
       };
 
-      if (!definition?.enabled) {
+      if (!definition?.enabled || !current || current.status === "loading") {
         entries.set(provider, {
           ...metadata,
           status: "unavailable",
-          enabled: false,
-        });
-        continue;
-      }
-
-      // A provider the old snapshot never loaded — typically one just added by
-      // a config change, like a new account — must come back as "loading" so
-      // the warm-up path picks it up; "unavailable" entries are never warmed.
-      if (!current || current.status === "loading") {
-        entries.set(provider, {
-          ...metadata,
-          status: "loading",
+          enabled: definition?.enabled ?? true,
         });
         continue;
       }
@@ -777,7 +763,6 @@ export class ProviderSnapshotManager {
       label: definition.label,
       description: definition.description,
       defaultModeId: definition.defaultModeId,
-      accounts: definition.accounts,
     };
     const setEntry = (entry: ProviderSnapshotEntry) => {
       if (!this.isCurrentProviderLoad(snapshotCwd, provider, load)) {

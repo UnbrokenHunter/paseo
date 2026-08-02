@@ -17,8 +17,6 @@ import type { ScheduleService } from "./schedule/service.js";
 import type { CheckoutDiffManager, CheckoutDiffMetrics } from "./checkout-diff-manager.js";
 import {
   listLocalProviderProfiles,
-  listProviderAccountProfiles,
-  toClientMutableDaemonConfig,
   type DaemonConfigStore,
   type MutableDaemonConfig,
 } from "./daemon-config-store.js";
@@ -673,8 +671,6 @@ export class VoiceAssistantWebSocketServer {
         { removeProviders: details.removedProviders },
       );
       this.agentManager.updateProviderRegistry(nextAgentManagerState);
-      // Accounts can appear or disappear here, and each one has its own quota.
-      this.providerUsageService.invalidate();
       this.broadcastDaemonConfigChanged(config);
     });
 
@@ -691,7 +687,6 @@ export class VoiceAssistantWebSocketServer {
 
     this.providerUsageService = new ProviderUsageService({
       logger: this.logger,
-      listAccountProfiles: () => listProviderAccountProfiles(this.daemonConfigStore.get()),
       listLocalProviders: () => listLocalProviderProfiles(this.daemonConfigStore.get()),
     });
 
@@ -1626,7 +1621,7 @@ export class VoiceAssistantWebSocketServer {
       type: "status",
       payload: {
         status: "daemon_config_changed",
-        config: toClientMutableDaemonConfig(config),
+        config,
       },
     });
   }

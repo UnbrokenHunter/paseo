@@ -1,9 +1,7 @@
-import type { ProviderAccountProfile } from "../../server/daemon-config-store.js";
-import {
-  withProviderUsageIdentity,
-  type ProviderUsageFetcher,
-  type ProviderUsageFetcherFactoryOptions,
-  type ProviderUsageFetcherManifestEntry,
+import type {
+  ProviderUsageFetcher,
+  ProviderUsageFetcherFactoryOptions,
+  ProviderUsageFetcherManifestEntry,
 } from "./provider.js";
 import { ClaudeQuotaProvider } from "./providers/claude.js";
 import { CodexQuotaProvider } from "./providers/codex.js";
@@ -21,7 +19,6 @@ export const PROVIDER_USAGE_FETCHERS: readonly ProviderUsageFetcherManifestEntry
       new ClaudeQuotaProvider({
         logger: options.logger,
         fetch: options.fetch,
-        accountConfigDir: options.accountConfigDir,
       }),
   },
   {
@@ -30,7 +27,6 @@ export const PROVIDER_USAGE_FETCHERS: readonly ProviderUsageFetcherManifestEntry
       new CodexQuotaProvider({
         logger: options.logger,
         fetch: options.fetch,
-        accountConfigDir: options.accountConfigDir,
       }),
   },
   {
@@ -63,28 +59,4 @@ export function createProviderUsageFetchers(
   options: ProviderUsageFetcherFactoryOptions,
 ): ProviderUsageFetcher[] {
   return PROVIDER_USAGE_FETCHERS.map((entry) => entry.create(options));
-}
-
-/**
- * Accounts get their own usage row. Providers with no usage fetcher simply
- * report nothing, same as they do without accounts.
- */
-export function createProviderUsageAccountFetchers(
-  profiles: readonly ProviderAccountProfile[],
-  options: ProviderUsageFetcherFactoryOptions,
-): ProviderUsageFetcher[] {
-  return profiles.flatMap((profile) => {
-    const entry = PROVIDER_USAGE_FETCHERS.find(
-      (candidate) => candidate.providerId === profile.baseProviderId,
-    );
-    if (!entry) {
-      return [];
-    }
-    return [
-      withProviderUsageIdentity(
-        entry.create({ ...options, accountConfigDir: profile.configDir }),
-        profile,
-      ),
-    ];
-  });
 }

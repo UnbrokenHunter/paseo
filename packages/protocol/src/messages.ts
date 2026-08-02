@@ -103,19 +103,9 @@ const MutableDaemonProviderModelSchema = z
 
 const MutableDaemonProviderConfigSchema = z
   .object({
-    extends: z.string().optional(),
-    label: z.string().optional(),
-    description: z.string().optional(),
-    accountConfigDir: z.string().optional(),
     enabled: z.boolean().optional(),
     additionalModels: z.array(MutableDaemonProviderModelSchema).optional(),
   })
-  .passthrough();
-
-const MutableDaemonProviderConfigPatchSchema = MutableDaemonProviderConfigSchema.extend({
-  env: z.record(z.string(), z.string()).optional(),
-})
-  .partial()
   .passthrough();
 
 const MutableStructuredGenerationProviderSchema = z
@@ -178,7 +168,9 @@ export const MutableDaemonConfigPatchSchema = z
     relay: MutableRelayConfigSchema.partial().optional(),
     mcp: MutableDaemonConfigSchema.shape.mcp.partial().optional(),
     browserTools: MutableBrowserToolsConfigSchema.partial().optional(),
-    providers: z.record(z.string(), MutableDaemonProviderConfigPatchSchema).optional(),
+    providers: z
+      .record(z.string(), MutableDaemonProviderConfigSchema.partial().passthrough())
+      .optional(),
     removeProviders: z.array(z.string().min(1)).optional(),
     metadataGeneration: MutableMetadataGenerationConfigSchema.partial().optional(),
     autoArchiveAfterMerge: z.boolean().optional(),
@@ -276,11 +268,6 @@ const AgentModelDefinitionSchema: z.ZodType<AgentModelDefinition> = z.object({
   defaultThinkingOptionId: z.string().optional(),
 });
 
-const AgentProviderAccountsSchema = z.object({
-  envVar: z.string(),
-  directoryExample: z.string(),
-});
-
 export const ProviderSnapshotEntrySchema = z.object({
   provider: AgentProviderSchema,
   status: ProviderStatusSchema,
@@ -293,8 +280,6 @@ export const ProviderSnapshotEntrySchema = z.object({
   label: z.string().optional(),
   description: z.string().optional(),
   defaultModeId: z.string().nullable().optional(),
-  // COMPAT(providerAccounts): added in v0.2.4, remove after 2027-01-28 once daemon floor >= v0.2.4.
-  accounts: AgentProviderAccountsSchema.optional(),
 });
 
 const AgentCapabilityFlagsSchema: z.ZodType<AgentCapabilityFlags> = z

@@ -990,52 +990,6 @@ describe("ProviderSnapshotManager applyMutableProviderConfig", () => {
     }
   });
 
-  test("a provider added at runtime stays lazy in already-primed snapshots", async () => {
-    const isAvailable = vi.fn(async () => true);
-    const fetchCatalog = vi.fn(async () => ({
-      models: [] as AgentModelDefinition[],
-      modes: [] as AgentMode[],
-    }));
-    const manager = new ProviderSnapshotManager({
-      logger: createTestLogger(),
-      providerOverrides: {
-        claude: { enabled: false },
-        codex: { enabled: false },
-        copilot: { enabled: false },
-        opencode: { enabled: false },
-        pi: { enabled: false },
-      },
-      extraClients: {
-        "zai-claude": createExtraClient("zai-claude", {
-          isAvailable,
-          fetchCatalog,
-        }),
-      },
-    });
-    try {
-      const cwd = resolve("/tmp/project-a");
-      manager.getSnapshot(cwd);
-
-      manager.applyMutableProviderConfig({
-        "zai-claude": { extends: "claude", label: "ZAI", enabled: true },
-      });
-
-      // The new provider must not be stamped "unavailable" — that state is
-      // never warmed, which left runtime-added accounts without models.
-      const reconciled = manager.getSnapshot(cwd).find((entry) => entry.provider === "zai-claude");
-      expect(reconciled?.status).not.toBe("unavailable");
-      expect(isAvailable).not.toHaveBeenCalled();
-      expect(fetchCatalog).not.toHaveBeenCalled();
-
-      const listed = await manager.listProviders({ cwd, providers: ["zai-claude"], wait: true });
-      expect(listed[0]).toMatchObject({ provider: "zai-claude", status: "ready" });
-      expect(isAvailable).toHaveBeenCalledTimes(1);
-      expect(fetchCatalog).toHaveBeenCalledTimes(1);
-    } finally {
-      manager.destroy();
-    }
-  });
-
   test("removes startup provider overrides from the live registry", () => {
     const manager = new ProviderSnapshotManager({
       logger: createTestLogger(),

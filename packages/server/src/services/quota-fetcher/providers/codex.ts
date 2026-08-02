@@ -76,12 +76,6 @@ interface CodexAuthRecord {
 interface CodexQuotaProviderOptions {
   logger: Logger;
   codexHome?: string;
-  /**
-   * Scope this fetcher to exactly one account directory. Unlike `codexHome`, it
-   * also suppresses the shared auth.json locations below — an account that
-   * isn't signed in must read as unavailable, never as somebody else's quota.
-   */
-  accountConfigDir?: string;
   fetch?: ProviderApiFetch;
 }
 
@@ -100,16 +94,10 @@ export class CodexQuotaProvider implements ProviderUsageFetcher {
   readonly displayName = "Codex";
 
   private readonly codexHome: string;
-  private readonly isAccountScoped: boolean;
   private readonly fetchApi: ProviderApiFetch;
 
   constructor(options: CodexQuotaProviderOptions) {
-    this.isAccountScoped = Boolean(options.accountConfigDir?.trim());
-    this.codexHome =
-      options.accountConfigDir?.trim() ||
-      options.codexHome ||
-      process.env["CODEX_HOME"] ||
-      join(homedir(), ".codex");
+    this.codexHome = options.codexHome || process.env["CODEX_HOME"] || join(homedir(), ".codex");
     this.fetchApi = options.fetch ?? fetch;
   }
 
@@ -207,13 +195,11 @@ export class CodexQuotaProvider implements ProviderUsageFetcher {
   }
 
   private async readCodexAuth(): Promise<CodexAuthRecord | null> {
-    const candidates = this.isAccountScoped
-      ? [join(this.codexHome, "auth.json")]
-      : [
-          ...(process.env["CODEX_HOME"] ? [join(process.env["CODEX_HOME"], "auth.json")] : []),
-          join(homedir(), ".config", "codex", "auth.json"),
-          join(this.codexHome, "auth.json"),
-        ];
+    const candidates = [
+      ...(process.env["CODEX_HOME"] ? [join(process.env["CODEX_HOME"], "auth.json")] : []),
+      join(homedir(), ".config", "codex", "auth.json"),
+      join(this.codexHome, "auth.json"),
+    ];
     for (const path of candidates) {
       if (!existsSync(path)) continue;
       try {
