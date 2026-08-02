@@ -124,7 +124,7 @@ function formatBarText(
     case "loading":
       return { label: null, skeleton: true };
     case "unsupported":
-      return { label: null, skeleton: false };
+      return { label: accountUsage.message, skeleton: false };
     case "unmetered":
       return { label: t("providerUsage.states.unmetered"), skeleton: false };
     case "unavailable":
