@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Pressable,
@@ -37,11 +37,12 @@ interface StickyConversationHeaderProps {
  * The last prompt and response, pinned where they left the screen.
  *
  * Modelled on VS Code's sticky scroll (editor/contrib/stickyScroll): the bar
- * is painted in the surface's own colours, and a bottom border and shadow
- * alone say "held above". Each pin keeps the shape its message has — the
- * prompt as its own bubble on the right rail, the response as plain text on
- * the left — and the arrows hang in the margins outside the text, so a pinned
- * line sits exactly on the rail the message itself uses.
+ * is painted in the surface's own colours, one full-width line per pinned
+ * message, with a hairline between the lines and a shadow under the stack to
+ * say "held above". Each pin keeps the shape its message has — the prompt as
+ * its own bubble on the right rail, the response as plain text on the left —
+ * and the arrows hang in the margins outside the text, so a pinned line sits
+ * exactly on the rail the message itself uses.
  */
 export function StickyConversationHeader({
   agentId,
@@ -84,24 +85,26 @@ export function StickyConversationHeader({
 
   return (
     <View style={styles.overlay} pointerEvents="box-none" testID="sticky-conversation-header">
-      <View style={styles.bar} pointerEvents="box-none">
-        <View style={styles.content} pointerEvents="box-none">
-          <View
-            style={styles.column}
-            pointerEvents="box-none"
-            onPointerEnter={handlePointerEnter}
-            onPointerLeave={handlePointerLeave}
-          >
-            {showAssistantSide ? (
-              <StickyRow
-                agentId={agentId}
-                align="left"
-                role="assistant"
-                preview={assistant}
-                arrowsVisible={isHovered}
-                onPress={onPressPreview}
-              />
-            ) : null}
+      <View
+        style={styles.bar}
+        pointerEvents="box-none"
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+      >
+        {assistant ? (
+          <StickyLine>
+            <StickyRow
+              agentId={agentId}
+              align="left"
+              role="assistant"
+              preview={assistant}
+              arrowsVisible={isHovered}
+              onPress={onPressPreview}
+            />
+          </StickyLine>
+        ) : null}
+        {user ? (
+          <StickyLine>
             <StickyRow
               agentId={agentId}
               align="right"
@@ -110,7 +113,26 @@ export function StickyConversationHeader({
               arrowsVisible={isHovered}
               onPress={onPressPreview}
             />
-          </View>
+          </StickyLine>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+/**
+ * One pinned line: full width in the conversation's own surface, with the
+ * message column reproduced inside it. The column is what puts a pin on its
+ * message's rail — the list's content padding, then the same inset every stream
+ * row gets from `streamItemWrapper` in agent-stream/view.tsx. Rows laid out
+ * against the bar instead of this column land a step outside the text.
+ */
+function StickyLine({ children }: { children: ReactNode }) {
+  return (
+    <View style={styles.line} pointerEvents="box-none">
+      <View style={styles.content} pointerEvents="box-none">
+        <View style={styles.column} pointerEvents="box-none">
+          {children}
         </View>
       </View>
     </View>
@@ -121,7 +143,7 @@ interface StickyRowProps {
   agentId: string;
   align: "left" | "right";
   role: "user" | "assistant";
-  preview: StickyConversationPreview | null;
+  preview: StickyConversationPreview;
   arrowsVisible: boolean;
   onPress: (itemId: string) => void;
 }
@@ -144,12 +166,6 @@ function StickyRow({ agentId, align, role, preview, arrowsVisible, onPress }: St
     }
   }, [agentId, itemId]);
   const pinStyle = useMemo(() => buildPinStyle(align), [align]);
-
-  // The row holds its height even when empty, so the side that is pinned never
-  // moves as the other one comes and goes.
-  if (!preview) {
-    return <View style={styles.row} pointerEvents="none" />;
-  }
 
   const showToggle = arrowsVisible || isNative || isCompact;
   const toggle = collapsible ? (
@@ -218,14 +234,18 @@ const styles = StyleSheet.create((theme) => ({
   },
   /**
    * Painted in the conversation's own surface, the way VS Code's widget is
-   * painted in the editor's colours — the bottom border and shadow alone mark
-   * it as held above the content scrolling underneath.
+   * painted in the editor's colours — the shadow under the stack and the
+   * hairline under each line alone mark it as held above the content scrolling
+   * underneath.
    */
   bar: {
     backgroundColor: theme.colors.surface0,
+    ...theme.shadow.sm,
+  },
+  line: {
+    backgroundColor: theme.colors.surface0,
     borderBottomWidth: theme.borderWidth[1],
     borderBottomColor: theme.colors.border,
-    ...theme.shadow.sm,
   },
   // Matches the list's own content padding.
   content: {
@@ -257,10 +277,10 @@ const styles = StyleSheet.create((theme) => ({
   rowRight: {
     justifyContent: "flex-end",
   },
-  // Only as wide as the text, up to most of the column — a pinned message keeps
-  // its own width rather than stretching into a bar.
+  // Only as wide as the text, up to the column — the same cap the real bubble
+  // takes, so a pinned message keeps the footprint its message had.
   pin: {
-    maxWidth: "88%",
+    maxWidth: "100%",
     flexShrink: 1,
     minWidth: 0,
     paddingVertical: theme.spacing[1],
