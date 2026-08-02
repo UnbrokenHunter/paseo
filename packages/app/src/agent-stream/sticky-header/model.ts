@@ -2,10 +2,10 @@ import type { StickyConversationHeaderMode } from "@/hooks/use-settings";
 import type { StreamItem } from "@/types/stream";
 
 /**
- * The row never changes height, so an empty side cannot shift the populated one
- * and the overlay never nudges the messages underneath it.
+ * Height of one pinned row. A row keeps it even when that side has nothing to
+ * pin, so the side that does never moves as the other comes and goes.
  */
-export const STICKY_CONVERSATION_HEADER_HEIGHT = 46;
+export const STICKY_CONVERSATION_ROW_HEIGHT = 30;
 
 export interface StickyConversationPreview {
   itemId: string;

@@ -1,17 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Pressable,
-  Text,
-  View,
-  type PressableStateCallbackType,
-  type ViewStyle,
-} from "react-native";
+import { Pressable, Text, View, type ViewStyle } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { MAX_CONTENT_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
 import { isNative, isWeb } from "@/constants/platform";
 import type { StickyConversationHeaderMode } from "@/hooks/use-settings";
-import { formatMessageTimestamp } from "@/utils/time";
 import { MessageCollapseToggle } from "../collapsed-message/view";
 import {
   toggleMessageCollapsed,
@@ -19,15 +12,12 @@ import {
   useIsMessageCollapsible,
 } from "../collapsed-message/store";
 import {
-  STICKY_CONVERSATION_HEADER_HEIGHT,
+  STICKY_CONVERSATION_ROW_HEIGHT,
   type StickyConversationPreview,
   type StickyConversationPreviews,
 } from "./model";
 
-export { STICKY_CONVERSATION_HEADER_HEIGHT };
-
-/** Width reserved beside each preview for the collapse/expand toggle. */
-const TOGGLE_SLOT_WIDTH = 28;
+export { STICKY_CONVERSATION_ROW_HEIGHT };
 
 // Plain (non-Unistyles) object: `backdropFilter` has no React Native equivalent.
 const backdropBlurStyle = isWeb
@@ -44,6 +34,17 @@ interface StickyConversationHeaderProps {
   onPressPreview: (itemId: string) => void;
 }
 
+/**
+ * The last prompt and response, pinned where they left the screen.
+ *
+ * Each one keeps the shape it has in the conversation — the prompt as its own
+ * bubble on the right, the response as text on the left rail — and only as much
+ * width as its text needs. A full-width bar across the top read as a separate
+ * piece of chrome instead of as the messages themselves holding on.
+ *
+ * The two stack rather than share a row, in the order they sit on their sides,
+ * so a pinned pair reads the way the conversation does.
+ */
 export function StickyConversationHeader({
   agentId,
   mode,
@@ -60,10 +61,9 @@ export function StickyConversationHeader({
 
   return (
     <View style={styles.overlay} pointerEvents="box-none" testID="sticky-conversation-header">
-      <View style={[styles.backdrop, backdropBlurStyle]} pointerEvents="none" />
-      <View style={styles.row} pointerEvents="box-none">
+      <View style={styles.column} pointerEvents="box-none">
         {showAssistantSide ? (
-          <StickySide
+          <StickyRow
             agentId={agentId}
             align="left"
             role="assistant"
@@ -71,7 +71,7 @@ export function StickyConversationHeader({
             onPress={onPressPreview}
           />
         ) : null}
-        <StickySide
+        <StickyRow
           agentId={agentId}
           align="right"
           role="user"
@@ -83,11 +83,7 @@ export function StickyConversationHeader({
   );
 }
 
-function sidePressableStyle({ pressed }: PressableStateCallbackType) {
-  return pressed ? styles.sidePressed : null;
-}
-
-interface StickySideProps {
+interface StickyRowProps {
   agentId: string;
   align: "left" | "right";
   role: "user" | "assistant";
@@ -95,7 +91,7 @@ interface StickySideProps {
   onPress: (itemId: string) => void;
 }
 
-function StickySide({ agentId, align, role, preview, onPress }: StickySideProps) {
+function StickyRow({ agentId, align, role, preview, onPress }: StickyRowProps) {
   const { t } = useTranslation();
   const isCompact = useIsCompactFormFactor();
   const [isHovered, setIsHovered] = useState(false);
@@ -115,27 +111,44 @@ function StickySide({ agentId, align, role, preview, onPress }: StickySideProps)
   }, [agentId, itemId]);
   const handlePointerEnter = useCallback(() => setIsHovered(true), []);
   const handlePointerLeave = useCallback(() => setIsHovered(false), []);
-  const timestamp = useMemo(
-    () => (preview ? formatMessageTimestamp(new Date(preview.timestamp)) : ""),
-    [preview],
-  );
 
+  // The row holds its height even when empty, so the side that is pinned never
+  // moves as the other one comes and goes.
   if (!preview) {
-    return <View style={styles.side} />;
+    return <View style={styles.row} pointerEvents="none" />;
   }
 
-  const alignmentStyle = align === "left" ? styles.alignStart : styles.alignEnd;
-  const textAlignStyle = align === "left" ? styles.textStart : styles.textEnd;
   const showToggle = isHovered || isNative || isCompact;
+  const toggle = collapsible ? (
+    <View
+      style={showToggle ? styles.toggleVisible : styles.toggleHidden}
+      pointerEvents={showToggle ? "auto" : "none"}
+    >
+      <MessageCollapseToggle
+        collapsed={collapsed}
+        role={role}
+        onPress={handleToggle}
+        testID={`sticky-conversation-collapse-${role}`}
+      />
+    </View>
+  ) : null;
 
   return (
     <View
-      style={styles.side}
+      style={[styles.row, align === "left" ? styles.rowLeft : styles.rowRight]}
+      pointerEvents="box-none"
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
     >
+      {/* Outer side first on the AI row, last on the user row: the arrow takes
+          the same corner it does on the message itself. */}
+      {align === "left" ? toggle : null}
       <Pressable
-        style={sidePressableStyle}
+        style={[
+          styles.pin,
+          backdropBlurStyle,
+          align === "left" ? styles.pinAssistant : styles.pinUser,
+        ]}
         onPress={handlePress}
         accessibilityRole="button"
         accessibilityLabel={t(
@@ -146,32 +159,11 @@ function StickySide({ agentId, align, role, preview, onPress }: StickySideProps)
         )}
         testID={`sticky-conversation-preview-${role}`}
       >
-        <View style={[alignmentStyle, align === "left" ? styles.insetStart : styles.insetEnd]}>
-          <Text style={[styles.previewText, textAlignStyle]} numberOfLines={1} ellipsizeMode="tail">
-            {preview.text}
-          </Text>
-          <Text style={[styles.timestamp, textAlignStyle]} numberOfLines={1}>
-            {timestamp}
-          </Text>
-        </View>
+        <Text style={styles.previewText} numberOfLines={1} ellipsizeMode="tail">
+          {preview.text}
+        </Text>
       </Pressable>
-      {collapsible ? (
-        <View
-          style={[
-            styles.toggleSlot,
-            align === "left" ? styles.toggleSlotStart : styles.toggleSlotEnd,
-            showToggle ? styles.toggleVisible : styles.toggleHidden,
-          ]}
-          pointerEvents={showToggle ? "auto" : "none"}
-        >
-          <MessageCollapseToggle
-            collapsed={collapsed}
-            role={role}
-            onPress={handleToggle}
-            testID={`sticky-conversation-collapse-${role}`}
-          />
-        </View>
-      ) : null}
+      {align === "right" ? toggle : null}
     </View>
   );
 }
@@ -182,58 +174,53 @@ const styles = StyleSheet.create((theme) => ({
     top: 0,
     left: 0,
     right: 0,
-    height: STICKY_CONVERSATION_HEADER_HEIGHT,
   },
-  backdrop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: theme.colors.surface0,
-    opacity: 0.82,
-    borderBottomWidth: theme.borderWidth[1],
-    borderBottomColor: theme.colors.border,
-  },
-  row: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[3],
+  column: {
     width: "100%",
     maxWidth: MAX_CONTENT_WIDTH,
     alignSelf: "center",
+    // A little air at the top so a pin reads as floating over the conversation
+    // rather than welded to the edge of the panel.
+    paddingTop: theme.spacing[2],
     paddingHorizontal: {
       xs: theme.spacing[3],
       md: theme.spacing[4],
     },
   },
-  side: {
-    flex: 1,
+  row: {
+    height: STICKY_CONVERSATION_ROW_HEIGHT,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+  },
+  rowLeft: {
+    justifyContent: "flex-start",
+  },
+  rowRight: {
+    justifyContent: "flex-end",
+  },
+  // Only as wide as the text, up to most of the column — a pinned message keeps
+  // its own width rather than stretching into a bar.
+  pin: {
+    maxWidth: "88%",
+    flexShrink: 1,
     minWidth: 0,
-    justifyContent: "center",
+    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing[1],
+    borderRadius: theme.borderRadius["2xl"],
+    ...theme.shadow.sm,
   },
-  // Each side's toggle sits on its own outer edge — AI left, user right — the
-  // same corner the arrow takes on the message itself. The toggle is absolute
-  // and the inset is unconditional, so revealing it on hover cannot move the
-  // preview out from under the cursor.
-  insetStart: {
-    paddingLeft: TOGGLE_SLOT_WIDTH,
+  // Each side squares the corner that faces its author, the same way its
+  // message does, and carries its message's own surface.
+  pinAssistant: {
+    backgroundColor: theme.colors.surface1,
+    borderTopLeftRadius: theme.borderRadius.sm,
+    borderWidth: theme.borderWidth[1],
+    borderColor: theme.colors.border,
   },
-  insetEnd: {
-    paddingRight: TOGGLE_SLOT_WIDTH,
-  },
-  toggleSlot: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    justifyContent: "center",
-  },
-  toggleSlotStart: {
-    left: 0,
-  },
-  toggleSlotEnd: {
-    right: 0,
+  pinUser: {
+    backgroundColor: theme.colors.surface3,
+    borderTopRightRadius: theme.borderRadius.sm,
   },
   toggleVisible: {
     opacity: 1,
@@ -241,30 +228,8 @@ const styles = StyleSheet.create((theme) => ({
   toggleHidden: {
     opacity: 0,
   },
-  sidePressed: {
-    opacity: 0.7,
-  },
-  alignStart: {
-    alignItems: "flex-start",
-  },
-  alignEnd: {
-    alignItems: "flex-end",
-  },
-  textStart: {
-    textAlign: "left",
-  },
-  textEnd: {
-    textAlign: "right",
-  },
   previewText: {
-    width: "100%",
     color: theme.colors.foreground,
     fontSize: theme.fontSize.sm,
-  },
-  timestamp: {
-    width: "100%",
-    marginTop: 1,
-    color: theme.colors.foregroundExtraMuted,
-    fontSize: theme.fontSize.xs,
   },
 }));
