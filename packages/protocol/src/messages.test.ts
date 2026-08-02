@@ -159,6 +159,16 @@ describe("provider usage list message contract", () => {
     });
   });
 
+  test("accepts a forced provider usage refresh", () => {
+    const parsed = SessionInboundMessageSchema.parse({
+      type: "provider.usage.list.request",
+      forceRefresh: true,
+      requestId: "usage-force",
+    });
+
+    expect(parsed.forceRefresh).toBe(true);
+  });
+
   test("accepts new providers and new usage windows as normalized data", () => {
     const parsed = SessionOutboundMessageSchema.parse({
       type: "provider.usage.list.response",

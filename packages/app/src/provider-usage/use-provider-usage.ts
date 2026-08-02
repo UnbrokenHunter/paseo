@@ -14,8 +14,11 @@ export function providerUsageQueryKey(serverId: string | null | undefined) {
   return ["providerUsage", serverId ?? ""] as const;
 }
 
-async function fetchProviderUsage(client: ProviderUsageClient): Promise<ProviderUsageListPayload> {
-  return client.listProviderUsage();
+async function fetchProviderUsage(
+  client: ProviderUsageClient,
+  forceRefresh = false,
+): Promise<ProviderUsageListPayload> {
+  return client.listProviderUsage({ forceRefresh });
 }
 
 function errorMessage(error: unknown): string {
@@ -67,20 +70,21 @@ export function useProviderUsage(
     queryFn,
     enabled,
     staleTime: PROVIDER_USAGE_STALE_TIME_MS,
-    refetchOnMount: true,
-    refetchOnReconnect: false,
+    refetchInterval: PROVIDER_USAGE_STALE_TIME_MS,
+    refetchIntervalInBackground: true,
+    refetchOnMount: "always",
+    refetchOnReconnect: "always",
     refetchOnWindowFocus: false,
   });
 
   const refresh = useCallback(async () => {
     if (!canFetch) return;
-    await queryClient.invalidateQueries({ queryKey });
     await queryClient.fetchQuery({
       queryKey,
-      queryFn,
-      staleTime: PROVIDER_USAGE_STALE_TIME_MS,
+      queryFn: () => fetchProviderUsage(client!, true),
+      staleTime: 0,
     });
-  }, [canFetch, queryClient, queryFn, queryKey]);
+  }, [canFetch, client, queryClient, queryKey]);
 
   const view = useMemo<ProviderUsageView>(() => {
     if (!serverId || !client || !isConnected) {
@@ -94,7 +98,7 @@ export function useProviderUsage(
       return {
         kind: "ready",
         payload: query.data,
-        lastFetchedAt: new Date(query.dataUpdatedAt).toISOString(),
+        lastFetchedAt: query.data.fetchedAt,
         isRefreshing: query.isFetching,
         refreshError: failure,
       };
@@ -107,7 +111,7 @@ export function useProviderUsage(
     client,
     isConnected,
     query.data,
-    query.dataUpdatedAt,
+
     query.error,
     query.isError,
     query.isFetching,
