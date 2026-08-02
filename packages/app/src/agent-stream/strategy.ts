@@ -44,6 +44,7 @@ export interface StreamViewportHandle {
   prepareForViewportChange: () => void;
   /** Bring a stream item back into view from a sticky preview tap. */
   scrollToItem: (itemId: string) => void;
+  scrollToMessage?: (itemId: string) => void;
 }
 
 export interface StreamSegmentRenderers {
@@ -71,7 +72,10 @@ export interface StreamRenderInput {
   routeBottomAnchorRequest: BottomAnchorRouteRequest | null;
   isAuthoritativeHistoryReady: boolean;
   onNearBottomChange: (value: boolean) => void;
-  onNearHistoryStart: () => void;
+  // The history row under the top of the viewport, for surfaces that mark where the reader
+  // is in the transcript. Only the web viewport measures it today.
+  onReadingPositionChange?: (rowId: string | null) => void;
+  onNearHistoryStart: () => boolean | Promise<boolean>;
   isLoadingOlderHistory: boolean;
   hasOlderHistory: boolean;
   olderHistoryProgressKey: string | null;

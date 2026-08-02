@@ -50,6 +50,7 @@ export interface AppSettings {
   autoExpandReasoning: boolean;
   toolCallDetailLevel: ToolCallDetailLevel;
   stickyConversationHeader: StickyConversationHeaderMode;
+  chatOutlineEnabled: boolean;
   vimKeybindings: boolean;
   providerUsageRotation: boolean;
 }
@@ -76,6 +77,7 @@ export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
   autoExpandReasoning: false,
   toolCallDetailLevel: "detailed",
   stickyConversationHeader: "user-and-ai",
+  chatOutlineEnabled: true,
   vimKeybindings: false,
   providerUsageRotation: true,
 };
@@ -198,6 +200,17 @@ function parseToolCallDetailLevel(stored: StoredAppSettings): ToolCallDetailLeve
   return null;
 }
 
+function pickBooleanAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
+  const result: Partial<AppSettings> = {};
+  if (typeof stored.vimKeybindings === "boolean") {
+    result.vimKeybindings = stored.vimKeybindings;
+  }
+  if (typeof stored.chatOutlineEnabled === "boolean") {
+    result.chatOutlineEnabled = stored.chatOutlineEnabled;
+  }
+  return result;
+}
+
 function pickAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
   const result: Partial<AppSettings> = {};
   if (typeof stored.theme === "string" && VALID_THEMES.has(stored.theme)) {
@@ -245,6 +258,7 @@ function pickAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
   if (typeof stored.syntaxTheme === "string" && isSyntaxThemeId(stored.syntaxTheme)) {
     result.syntaxTheme = stored.syntaxTheme;
   }
+  Object.assign(result, pickBooleanAppSettings(stored));
   if (
     typeof stored.workspaceTitleSource === "string" &&
     VALID_WORKSPACE_TITLE_SOURCES.has(stored.workspaceTitleSource)

@@ -131,7 +131,7 @@ describe("createWebStreamStrategy", () => {
             routeBottomAnchorRequest: null,
             isAuthoritativeHistoryReady: true,
             onNearBottomChange: vi.fn(),
-            onNearHistoryStart: vi.fn(),
+            onNearHistoryStart: vi.fn().mockReturnValue(true),
             isLoadingOlderHistory: false,
             hasOlderHistory: false,
             olderHistoryProgressKey: null,
@@ -179,7 +179,7 @@ describe("createWebStreamStrategy", () => {
       routeBottomAnchorRequest: null,
       isAuthoritativeHistoryReady: true,
       onNearBottomChange: vi.fn(),
-      onNearHistoryStart: vi.fn(),
+      onNearHistoryStart: vi.fn().mockReturnValue(true),
       isLoadingOlderHistory: false,
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
@@ -208,6 +208,54 @@ describe("createWebStreamStrategy", () => {
 
     expect(container.textContent).toContain("expanded");
     expect(renderLiveHeadRow).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports the live-head row as the reading position", () => {
+    const strategy = createWebStreamStrategy({ isMobileBreakpoint: false });
+    const viewportRef = React.createRef<StreamViewportHandle>();
+    const onReadingPositionChange = vi.fn();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        strategy.render({
+          agentId: "agent",
+          segments: {
+            historyVirtualized: [],
+            historyMounted: [userMessage(1)],
+            liveHead: [userMessage(2)],
+          },
+          boundary: {
+            hasVirtualizedHistory: false,
+            hasMountedHistory: true,
+            hasLiveHead: true,
+          },
+          renderers: createRenderers(vi.fn()),
+          listEmptyComponent: null,
+          viewportRef,
+          routeBottomAnchorRequest: null,
+          isAuthoritativeHistoryReady: true,
+          onNearBottomChange: vi.fn(),
+          onReadingPositionChange,
+          onNearHistoryStart: vi.fn().mockReturnValue(true),
+          isLoadingOlderHistory: false,
+          hasOlderHistory: false,
+          olderHistoryProgressKey: null,
+          stickyPreviewEnabled: false,
+          stickyFoldOffset: 0,
+          onAboveViewportItemChange: vi.fn(),
+          onContentGutterChange: vi.fn(),
+          scrollEnabled: true,
+          listStyle: null,
+          baseListContentContainerStyle: null,
+          forwardListContentContainerStyle: null,
+        }),
+      );
+    });
+
+    expect(onReadingPositionChange).toHaveBeenLastCalledWith("message-2");
   });
 
   it("keeps bottom anchoring through subpixel browser rounding", () => {
@@ -239,7 +287,7 @@ describe("createWebStreamStrategy", () => {
           routeBottomAnchorRequest: null,
           isAuthoritativeHistoryReady: true,
           onNearBottomChange: vi.fn(),
-          onNearHistoryStart: vi.fn(),
+          onNearHistoryStart: vi.fn().mockReturnValue(true),
           isLoadingOlderHistory: false,
           hasOlderHistory: false,
           olderHistoryProgressKey: null,
@@ -358,14 +406,17 @@ describe("createWebStreamStrategy", () => {
 
     expect(onNearHistoryStart).not.toHaveBeenCalled();
 
-    act(() => {
+    // onNearHistoryStart is async: a non-truthy result abandons the request in a
+    // microtask, returning the state to latched so a later scroll-up can retry.
+    // Await each interaction so that abandon settles before the next wheel.
+    await act(async () => {
       scrollContainer.dispatchEvent(new WheelEvent("wheel", { deltaY: -1 }));
       scrollContainer?.dispatchEvent(new Event("scroll"));
     });
 
     expect(onNearHistoryStart).toHaveBeenCalledTimes(1);
 
-    act(() => {
+    await act(async () => {
       scrollContainer.dispatchEvent(new WheelEvent("wheel", { deltaY: -1 }));
     });
 
@@ -383,7 +434,7 @@ describe("createWebStreamStrategy", () => {
     });
     const strategy = createWebStreamStrategy({ isMobileBreakpoint: true });
     const viewportRef = React.createRef<StreamViewportHandle>();
-    const onNearHistoryStart = vi.fn();
+    const onNearHistoryStart = vi.fn().mockReturnValue(true);
     const renderInput = {
       agentId: "agent",
       boundary: {
@@ -494,7 +545,7 @@ describe("createWebStreamStrategy", () => {
       viewportRef,
       routeBottomAnchorRequest,
       onNearBottomChange: vi.fn(),
-      onNearHistoryStart: vi.fn(),
+      onNearHistoryStart: vi.fn().mockReturnValue(true),
       isLoadingOlderHistory: false,
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
@@ -606,7 +657,7 @@ describe("createWebStreamStrategy", () => {
       viewportRef,
       routeBottomAnchorRequest,
       onNearBottomChange: vi.fn(),
-      onNearHistoryStart: vi.fn(),
+      onNearHistoryStart: vi.fn().mockReturnValue(true),
       isLoadingOlderHistory: false,
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
@@ -707,7 +758,7 @@ describe("createWebStreamStrategy", () => {
       viewportRef,
       routeBottomAnchorRequest,
       onNearBottomChange: vi.fn(),
-      onNearHistoryStart: vi.fn(),
+      onNearHistoryStart: vi.fn().mockReturnValue(true),
       isLoadingOlderHistory: false,
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
@@ -810,7 +861,7 @@ describe("createWebStreamStrategy", () => {
       viewportRef,
       routeBottomAnchorRequest: null,
       onNearBottomChange: vi.fn(),
-      onNearHistoryStart: vi.fn(),
+      onNearHistoryStart: vi.fn().mockReturnValue(true),
       isLoadingOlderHistory: false,
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
@@ -933,7 +984,9 @@ describe("createWebStreamStrategy", () => {
     if (!(content instanceof HTMLElement)) {
       throw new Error("Expected stream content container");
     }
-    Array.from(content.children).forEach((child, index) => {
+    // The history-start slot always renders as the first child, so measure the
+    // tracked message rows directly rather than by raw child index.
+    Array.from(content.querySelectorAll("[data-history-row-id]")).forEach((child, index) => {
       Object.defineProperty(child, "offsetTop", { configurable: true, value: index * ROW_HEIGHT });
     });
 
@@ -1009,7 +1062,9 @@ describe("createWebStreamStrategy", () => {
     if (!(content instanceof HTMLElement)) {
       throw new Error("Expected stream content container");
     }
-    Array.from(content.children).forEach((child, index) => {
+    // The history-start slot always renders as the first child, so measure the
+    // tracked message rows directly rather than by raw child index.
+    Array.from(content.querySelectorAll("[data-history-row-id]")).forEach((child, index) => {
       Object.defineProperty(child, "offsetTop", { configurable: true, value: index * ROW_HEIGHT });
     });
 

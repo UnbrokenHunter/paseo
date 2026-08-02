@@ -110,6 +110,7 @@ export const en = {
     },
     attachments: {
       addImage: "Add image",
+      pasteImage: "Paste image",
       addFile: "Upload file",
       addIssueOrPr: "Add issue or PR",
       addIssueOrPr_mr: "Add issue or MR",
@@ -135,6 +136,8 @@ export const en = {
       initialPromptRequired: "Initial prompt is required",
       alreadyLoading: "Already loading",
       uploadFailed: "Failed to upload file",
+      noClipboardImage: "No image in clipboard",
+      pasteImageFailed: "Failed to paste image",
       fileTooLarge: "{{fileName}} is too large (max {{size}})",
     },
     clientCommands: {
@@ -195,6 +198,7 @@ export const en = {
       expandUser: "Expand this prompt",
       expandAssistant: "Expand this response",
     },
+    historyLoadFailed: "Couldn't load agent history",
     permission: {
       plan: "Plan",
       required: "Permission Required",
@@ -271,7 +275,7 @@ export const en = {
       copyCode: "Copy code",
       copyTurn: "Copy turn",
       copyMessage: "Copy message",
-      forkMenu: "Fork chat",
+      forkMenu: "Fork chat from here",
       forkInNewTab: "Fork in a new tab",
       forkInNewWorkspace: "Fork in a new workspace",
       forkUnavailable: "Update the host to use this.",
@@ -1848,6 +1852,10 @@ export const en = {
       providerUsage: {
         title: "Usage indicator",
       },
+      chatOutline: {
+        title: "Chat outline",
+        description: "Show an outline for jumping between prompts",
+      },
       fonts: {
         title: "Fonts",
         systemDefault: "System default",
@@ -2004,6 +2012,41 @@ export const en = {
       },
     },
     host: {
+      appearance: {
+        title: "Appearance",
+        name: {
+          label: "Name",
+        },
+        color: {
+          label: "Color",
+          accessibilityLabel: "Color, {{value}}",
+          options: {
+            none: "Default",
+            violet: "Violet",
+            sky: "Sky",
+            emerald: "Emerald",
+            orange: "Orange",
+            pink: "Pink",
+            indigo: "Indigo",
+            teal: "Teal",
+            red: "Red",
+            amber: "Amber",
+            blue: "Blue",
+          },
+        },
+        badge: {
+          label: "Sidebar badge",
+          accessibilityLabel: "Sidebar badge, {{value}}",
+          options: {
+            name: "Name",
+            icon: "Icon only",
+            hidden: "Hidden",
+          },
+        },
+        preview: {
+          workspaceName: "my-workspace",
+        },
+      },
       notFound: "Host not found",
       badges: {
         relay: "Relay",

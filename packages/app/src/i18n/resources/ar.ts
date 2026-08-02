@@ -112,6 +112,7 @@ export const ar: TranslationResources = {
     },
     attachments: {
       addImage: "أضف صورة",
+      pasteImage: "لصق صورة",
       addFile: "Upload file",
       addIssueOrPr: "أضف مشكلة أو PR",
       addIssueOrPr_mr: "أضف مشكلة أو MR",
@@ -137,6 +138,8 @@ export const ar: TranslationResources = {
       initialPromptRequired: "مطلوب موجه الأولي",
       alreadyLoading: "جارٍ التحميل بالفعل",
       uploadFailed: "Failed to upload file",
+      noClipboardImage: "لا توجد صورة في الحافظة",
+      pasteImageFailed: "تعذر لصق الصورة",
       fileTooLarge: "{{fileName}} is too large (max {{size}})",
     },
     clientCommands: {
@@ -197,6 +200,7 @@ export const ar: TranslationResources = {
       expandUser: "توسيع هذه الرسالة",
       expandAssistant: "توسيع هذا الرد",
     },
+    historyLoadFailed: "تعذر تحميل سجل الوكيل",
     permission: {
       plan: "يخطط",
       required: "الإذن مطلوب",
@@ -1837,6 +1841,10 @@ export const ar: TranslationResources = {
       providerUsage: {
         title: "مؤشر الاستخدام",
       },
+      chatOutline: {
+        title: "مخطط المحادثة",
+        description: "عرض مخطط للتنقل بين المطالبات",
+      },
       fonts: {
         title: "الخطوط",
         systemDefault: "الافتراضي للنظام",
@@ -1992,6 +2000,41 @@ export const ar: TranslationResources = {
       },
     },
     host: {
+      appearance: {
+        title: "المظهر",
+        name: {
+          label: "الاسم",
+        },
+        color: {
+          label: "اللون",
+          accessibilityLabel: "اللون، {{value}}",
+          options: {
+            none: "افتراضي",
+            violet: "بنفسجي",
+            sky: "سماوي",
+            emerald: "زمردي",
+            orange: "برتقالي",
+            pink: "وردي",
+            indigo: "نيلي",
+            teal: "أزرق مخضر",
+            red: "أحمر",
+            amber: "كهرماني",
+            blue: "أزرق",
+          },
+        },
+        badge: {
+          label: "شارة الشريط الجانبي",
+          accessibilityLabel: "شارة الشريط الجانبي، {{value}}",
+          options: {
+            name: "الاسم",
+            icon: "أيقونة فقط",
+            hidden: "مخفي",
+          },
+        },
+        preview: {
+          workspaceName: "my-workspace",
+        },
+      },
       notFound: "لم يتم العثور على Host",
       badges: {
         relay: "تتابع",
