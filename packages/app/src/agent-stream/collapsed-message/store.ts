@@ -8,8 +8,16 @@ import { create } from "zustand";
  */
 interface CollapsedMessagesState {
   collapsedKeys: ReadonlySet<string>;
+  /**
+   * Messages measured as tall enough to be worth collapsing. Only a rendered
+   * message can answer that, and the sticky header shows messages that are off
+   * screen — so the message records the answer here and the header reads it,
+   * rather than offering a control that would do nothing.
+   */
+  collapsibleKeys: ReadonlySet<string>;
   setCollapsed: (input: { agentId: string; itemId: string; collapsed: boolean }) => void;
   toggleCollapsed: (input: { agentId: string; itemId: string }) => void;
+  setCollapsible: (input: { agentId: string; itemId: string; collapsible: boolean }) => void;
 }
 
 // Neither an agent id nor a stream item id can contain a NUL, so the pair
@@ -20,10 +28,11 @@ export function collapsedMessageKey(agentId: string, itemId: string): string {
   return `${agentId}${KEY_SEPARATOR}${itemId}`;
 }
 
-const EMPTY_COLLAPSED_KEYS: ReadonlySet<string> = new Set<string>();
+const EMPTY_KEYS: ReadonlySet<string> = new Set<string>();
 
 export const useCollapsedMessagesStore = create<CollapsedMessagesState>()((set) => ({
-  collapsedKeys: EMPTY_COLLAPSED_KEYS,
+  collapsedKeys: EMPTY_KEYS,
+  collapsibleKeys: EMPTY_KEYS,
   setCollapsed: ({ agentId, itemId, collapsed }) =>
     set((state) => {
       const key = collapsedMessageKey(agentId, itemId);
@@ -49,6 +58,20 @@ export const useCollapsedMessagesStore = create<CollapsedMessagesState>()((set) 
       }
       return { collapsedKeys: next };
     }),
+  setCollapsible: ({ agentId, itemId, collapsible }) =>
+    set((state) => {
+      const key = collapsedMessageKey(agentId, itemId);
+      if (state.collapsibleKeys.has(key) === collapsible) {
+        return state;
+      }
+      const next = new Set(state.collapsibleKeys);
+      if (collapsible) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return { collapsibleKeys: next };
+    }),
 }));
 
 export function useIsMessageCollapsed(agentId: string, itemId: string): boolean {
@@ -67,4 +90,18 @@ export function setMessageCollapsed(input: {
 
 export function toggleMessageCollapsed(input: { agentId: string; itemId: string }): void {
   useCollapsedMessagesStore.getState().toggleCollapsed(input);
+}
+
+export function useIsMessageCollapsible(agentId: string, itemId: string): boolean {
+  return useCollapsedMessagesStore((state) =>
+    state.collapsibleKeys.has(collapsedMessageKey(agentId, itemId)),
+  );
+}
+
+export function setMessageCollapsible(input: {
+  agentId: string;
+  itemId: string;
+  collapsible: boolean;
+}): void {
+  useCollapsedMessagesStore.getState().setCollapsible(input);
 }

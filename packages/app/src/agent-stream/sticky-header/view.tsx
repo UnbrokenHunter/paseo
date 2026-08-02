@@ -13,7 +13,11 @@ import { isNative, isWeb } from "@/constants/platform";
 import type { StickyConversationHeaderMode } from "@/hooks/use-settings";
 import { formatMessageTimestamp } from "@/utils/time";
 import { MessageCollapseToggle } from "../collapsed-message/view";
-import { toggleMessageCollapsed, useIsMessageCollapsed } from "../collapsed-message/store";
+import {
+  toggleMessageCollapsed,
+  useIsMessageCollapsed,
+  useIsMessageCollapsible,
+} from "../collapsed-message/store";
 import {
   STICKY_CONVERSATION_HEADER_HEIGHT,
   type StickyConversationPreview,
@@ -97,6 +101,8 @@ function StickySide({ agentId, align, role, preview, onPress }: StickySideProps)
   const [isHovered, setIsHovered] = useState(false);
   const itemId = preview?.itemId;
   const collapsed = useIsMessageCollapsed(agentId, itemId ?? "");
+  // A message too short to be worth collapsing gets no control here either.
+  const collapsible = useIsMessageCollapsible(agentId, itemId ?? "");
   const handlePress = useCallback(() => {
     if (itemId) {
       onPress(itemId);
@@ -149,21 +155,23 @@ function StickySide({ agentId, align, role, preview, onPress }: StickySideProps)
           </Text>
         </View>
       </Pressable>
-      <View
-        style={[
-          styles.toggleSlot,
-          align === "left" ? styles.toggleSlotStart : styles.toggleSlotEnd,
-          showToggle ? styles.toggleVisible : styles.toggleHidden,
-        ]}
-        pointerEvents={showToggle ? "auto" : "none"}
-      >
-        <MessageCollapseToggle
-          collapsed={collapsed}
-          role={role}
-          onPress={handleToggle}
-          testID={`sticky-conversation-collapse-${role}`}
-        />
-      </View>
+      {collapsible ? (
+        <View
+          style={[
+            styles.toggleSlot,
+            align === "left" ? styles.toggleSlotStart : styles.toggleSlotEnd,
+            showToggle ? styles.toggleVisible : styles.toggleHidden,
+          ]}
+          pointerEvents={showToggle ? "auto" : "none"}
+        >
+          <MessageCollapseToggle
+            collapsed={collapsed}
+            role={role}
+            onPress={handleToggle}
+            testID={`sticky-conversation-collapse-${role}`}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }

@@ -16,7 +16,12 @@ import { useIsCompactFormFactor } from "@/constants/layout";
 import type { Theme } from "@/styles/theme";
 import type { AssistantMessageItem, UserMessageItem } from "@/types/stream";
 import { CollapsedPreviewFade } from "./preview-fade";
-import { setMessageCollapsed, useIsMessageCollapsed } from "./store";
+import {
+  setMessageCollapsed,
+  setMessageCollapsible,
+  useIsMessageCollapsed,
+  useIsMessageCollapsible,
+} from "./store";
 
 export type CollapsibleMessageRole = "user" | "assistant";
 export type CollapsibleMessageItem = UserMessageItem | AssistantMessageItem;
@@ -154,6 +159,8 @@ interface CollapsibleStreamMessageProps {
    * re-render every message in history on every streaming flush.
    */
   renderPreview: (item: CollapsibleMessageItem) => ReactNode;
+  /** Brings a just-expanded message to the top of the viewport. */
+  onRevealExpanded?: (itemId: string) => void;
   children: ReactNode;
 }
 
@@ -167,6 +174,7 @@ export function CollapsibleStreamMessage({
   agentId,
   item,
   renderPreview,
+  onRevealExpanded,
   children,
 }: CollapsibleStreamMessageProps) {
   const { t } = useTranslation();
@@ -174,7 +182,9 @@ export function CollapsibleStreamMessage({
   const collapsed = useIsMessageCollapsed(agentId, item.id);
   const isCompact = useIsCompactFormFactor();
   const [isHovered, setIsHovered] = useState(false);
-  const [canCollapse, setCanCollapse] = useState(false);
+  // Published rather than local: the sticky header offers the same control for
+  // messages that are off screen and cannot measure them itself.
+  const canCollapse = useIsMessageCollapsible(agentId, item.id);
   const swapFadeStyle = useCollapseSwapFade(collapsed);
 
   const handlePointerEnter = useCallback(() => setIsHovered(true), []);
@@ -187,11 +197,30 @@ export function CollapsibleStreamMessage({
     () => setMessageCollapsed({ agentId, itemId: item.id, collapsed: false }),
     [agentId, item.id],
   );
-  const handleBodyLayout = useCallback((event: LayoutChangeEvent) => {
-    const worthCollapsing =
-      event.nativeEvent.layout.height >= COLLAPSED_MAX_FOOTPRINT + COLLAPSE_MIN_SAVED_HEIGHT;
-    setCanCollapse((previous) => (previous === worthCollapsing ? previous : worthCollapsing));
-  }, []);
+  /**
+   * Pressing the stub means "show me this message", so the message is brought
+   * to the top; pressing the arrow means "put it back", so the view holds
+   * still. The scroll waits two frames because the row only takes its expanded
+   * height after React commits, and scrolling before that lands on the stub's
+   * old geometry.
+   */
+  const handleExpandFromBody = useCallback(() => {
+    setMessageCollapsed({ agentId, itemId: item.id, collapsed: false });
+    if (!onRevealExpanded) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => onRevealExpanded(item.id));
+    });
+  }, [agentId, item.id, onRevealExpanded]);
+  const handleBodyLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const worthCollapsing =
+        event.nativeEvent.layout.height >= COLLAPSED_MAX_FOOTPRINT + COLLAPSE_MIN_SAVED_HEIGHT;
+      setMessageCollapsible({ agentId, itemId: item.id, collapsible: worthCollapsing });
+    },
+    [agentId, item.id],
+  );
 
   const pointedAt = isHovered || isNative || isCompact;
   const messageToggleSlotStyle = useMemo(
@@ -231,7 +260,7 @@ export function CollapsibleStreamMessage({
             a closed thing, and closed things open when you click them. */}
         <Pressable
           style={[styles.bubble, role === "user" ? styles.bubbleUser : styles.bubbleAssistant]}
-          onPress={handleExpand}
+          onPress={handleExpandFromBody}
           accessibilityRole="button"
           accessibilityLabel={t(TOGGLE_LABEL_KEYS.expand[role])}
           testID={`collapsed-message-body-${role}`}
