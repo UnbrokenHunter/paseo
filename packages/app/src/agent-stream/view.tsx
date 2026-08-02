@@ -692,6 +692,12 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
       [client, resolvedServerId, workspaceRoot],
     );
 
+    // Pressing a collapsed stub asks to see that message, so bring it to the
+    // top once it has its full height back.
+    const handleRevealExpandedMessage = useStableEvent((itemId: string) => {
+      viewportRef.current?.scrollToItem(itemId);
+    });
+
     const renderUserMessageItem = useCallback(
       (layoutItem: StreamLayoutItem, item: Extract<StreamItem, { kind: "user_message" }>) => {
         return (
@@ -699,6 +705,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             agentId={agentId}
             item={item}
             renderPreview={renderCollapsedPreview}
+            onRevealExpanded={handleRevealExpandedMessage}
           >
             <UserMessage
               serverId={resolvedServerId}
@@ -716,7 +723,14 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
           </CollapsibleStreamMessage>
         );
       },
-      [context.capabilities, agentId, client, renderCollapsedPreview, resolvedServerId],
+      [
+        context.capabilities,
+        agentId,
+        client,
+        handleRevealExpandedMessage,
+        renderCollapsedPreview,
+        resolvedServerId,
+      ],
     );
 
     const renderAssistantMessageItem = useCallback(
@@ -733,6 +747,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
               agentId={agentId}
               item={item}
               renderPreview={renderCollapsedPreview}
+              onRevealExpanded={handleRevealExpandedMessage}
             >
               <AssistantMessage
                 message={item.text}
@@ -750,6 +765,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
         agentId,
         client,
         handleInlinePathPress,
+        handleRevealExpandedMessage,
         renderCollapsedPreview,
         resolvedServerId,
         toast,

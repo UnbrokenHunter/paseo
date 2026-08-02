@@ -60,6 +60,66 @@ test.describe("Message collapse", () => {
       await expect(userMessage).toBeVisible({ timeout: 30_000 });
       await userMessage.hover();
       await expect(page.getByTestId("collapse-message-user")).toHaveCount(0);
+      // The sticky header must not offer it either — it cannot measure the
+      // message itself, so it reads what the message published.
+      if ((await page.getByTestId("sticky-conversation-header").count()) > 0) {
+        await expect(page.getByTestId("sticky-conversation-collapse-user")).toHaveCount(0);
+      }
+    } finally {
+      await agent.cleanup();
+    }
+  });
+
+  test("pressing the stub reveals the message, the arrow leaves the view alone", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    const agent = await startRunningMockAgent(page, {
+      prefix: "collapse-reveal-",
+      model: "one-minute-stream",
+      prompt: PROMPT,
+    });
+    try {
+      const userMessage = page.getByTestId("user-message").filter({ hasText: PROMPT }).first();
+      await expect(userMessage).toBeVisible({ timeout: 30_000 });
+      await userMessage.hover();
+      await page.getByTestId("collapse-message-user").first().click();
+      await expect(page.getByTestId("collapsed-message-user").first()).toBeVisible();
+
+      // Scroll the stub away from the top, then open it from its own body.
+      await page.mouse.move(700, 400);
+      await page.mouse.wheel(0, 400);
+      await page.waitForTimeout(600);
+      await page.getByTestId("collapsed-message-user").first().scrollIntoViewIfNeeded();
+      await page.getByTestId("collapsed-message-body-user").first().click();
+      await expect(page.getByTestId("collapsed-message-user")).toHaveCount(0);
+      await page.waitForTimeout(1200);
+
+      const offsetFromTop = await page.evaluate(() => {
+        const scroll = document.querySelector('[data-testid="agent-chat-scroll"]');
+        const message = document.querySelector('[data-testid="user-message"]');
+        if (!(scroll instanceof HTMLElement) || !(message instanceof HTMLElement)) return null;
+        return message.getBoundingClientRect().top - scroll.getBoundingClientRect().top;
+      });
+      expect(offsetFromTop).not.toBeNull();
+      expect(Math.abs(offsetFromTop ?? 0)).toBeLessThan(60);
+
+      // The arrow puts it back without moving the view.
+      await userMessage.hover();
+      await page.getByTestId("collapse-message-user").first().click();
+      await expect(page.getByTestId("collapsed-message-user").first()).toBeVisible();
+      const before = await page.evaluate(() => {
+        const scroll = document.querySelector('[data-testid="agent-chat-scroll"]');
+        return scroll instanceof HTMLElement ? scroll.scrollTop : null;
+      });
+      await page.getByTestId("expand-message-user").first().click();
+      await expect(page.getByTestId("collapsed-message-user")).toHaveCount(0);
+      await page.waitForTimeout(1200);
+      const after = await page.evaluate(() => {
+        const scroll = document.querySelector('[data-testid="agent-chat-scroll"]');
+        return scroll instanceof HTMLElement ? scroll.scrollTop : null;
+      });
+      expect(after).toBe(before);
     } finally {
       await agent.cleanup();
     }
