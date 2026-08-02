@@ -40,6 +40,12 @@ interface StickyConversationHeaderProps {
    */
   pushOffset: number;
   /**
+   * Block opacity as it attaches, from `stickyBlockRevealOpacity`. 0 with the
+   * conversation at rest, so the surface and its rule rise with the scroll
+   * rather than popping in.
+   */
+  revealOpacity: number;
+  /**
    * Width the conversation's scrollbar takes out of its own box. The block is
    * laid out over the whole pane, so it has to give the same width back or its
    * column centres against a wider box than the conversation's and every pinned
@@ -64,6 +70,7 @@ export function StickyConversationHeader({
   mode,
   previews,
   pushOffset,
+  revealOpacity,
   gutterWidth,
   onPressPreview,
 }: StickyConversationHeaderProps) {
@@ -96,8 +103,8 @@ export function StickyConversationHeader({
     [],
   );
   const blockStyle = useMemo(
-    () => [styles.block, { transform: [{ translateY: -pushOffset }] }],
-    [pushOffset],
+    () => [styles.block, { opacity: revealOpacity, transform: [{ translateY: -pushOffset }] }],
+    [pushOffset, revealOpacity],
   );
   const overlayStyle = useMemo(() => [styles.overlay, { right: gutterWidth }], [gutterWidth]);
 

@@ -96,8 +96,16 @@ export interface StreamRenderInput {
    * The header slides the block up by what that distance has closed, so the
    * oldest pinned line scrolls off rather than being swapped out under the
    * reader — see `stickyConversationPushOffset`.
+   *
+   * `revealDistance` is how far content has scrolled under the fold. The header
+   * fades the block in over the first stretch of it, so the surface and its rule
+   * rise with the scroll instead of popping in — see `stickyBlockRevealOpacity`.
    */
-  onAboveViewportItemChange: (itemId: string | null, distanceToFold: number | null) => void;
+  onAboveViewportItemChange: (
+    itemId: string | null,
+    distanceToFold: number | null,
+    revealDistance: number,
+  ) => void;
   /**
    * Width the viewport's own scrollbar takes out of the content box, 0 when it
    * takes none. The sticky block is laid out over the whole pane, so without

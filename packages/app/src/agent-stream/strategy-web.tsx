@@ -559,6 +559,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     onAboveViewportItemChange(
       boundaryItemId,
       Number.isFinite(nextTop) ? nextTop - viewportTop : null,
+      scrolledAbove,
     );
   });
 

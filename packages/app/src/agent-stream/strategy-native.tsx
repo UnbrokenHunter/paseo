@@ -268,7 +268,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       }
     }
 
-    onAboveViewportItemChange(boundaryItemId, distanceToFold);
+    onAboveViewportItemChange(boundaryItemId, distanceToFold, scrolledAbove);
   });
 
   const handleViewableItemsChanged = useStableEvent(

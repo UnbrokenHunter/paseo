@@ -32,6 +32,29 @@ export const STICKY_CONVERSATION_ROW_HEIGHT =
 export const STICKY_PIN_TEXT_INSET = STICKY_PIN_VERTICAL_PADDING;
 
 /**
+ * Scroll distance a freshly attached block takes to reach full strength. The
+ * block covers no content when the conversation sits still, so it rises with the
+ * scroll instead of the surface and its rule snapping in at once. One line of
+ * scroll is enough to be over before the pinned text has moved far.
+ */
+export const STICKY_BLOCK_REVEAL_DISTANCE = STICKY_PIN_LINE_HEIGHT;
+
+/**
+ * Block opacity for how far content has scrolled under the fold. 0 at rest, so a
+ * still conversation shows no block over its own top message, ramping to 1 once
+ * a line of scroll has passed.
+ */
+export function stickyBlockRevealOpacity(revealDistance: number): number {
+  if (!Number.isFinite(revealDistance) || revealDistance <= 0) {
+    return 0;
+  }
+  if (revealDistance >= STICKY_BLOCK_REVEAL_DISTANCE) {
+    return 1;
+  }
+  return revealDistance / STICKY_BLOCK_REVEAL_DISTANCE;
+}
+
+/**
  * Where the handoff happens, measured down from the viewport's top edge.
  *
  * This is the y a pinned line's text occupies, so a message swaps into its pin

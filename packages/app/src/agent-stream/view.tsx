@@ -84,7 +84,9 @@ import {
   selectStickyConversationPreviews,
   selectStickyIncomingRole,
   shouldTrackStickyPreviews,
+  STICKY_BLOCK_REVEAL_DISTANCE,
   STICKY_CONVERSATION_ROW_HEIGHT,
+  stickyBlockRevealOpacity,
   stickyConversationFoldOffset,
   stickyConversationPushOffset,
   trackStickyPreviewGenerationStarts,
@@ -332,6 +334,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     const [isNearBottom, setIsNearBottom] = useState(true);
     const [aboveViewportItemId, setAboveViewportItemId] = useState<string | null>(null);
     const [stickyDistanceToFold, setStickyDistanceToFold] = useState<number | null>(null);
+    const [stickyRevealDistance, setStickyRevealDistance] = useState(0);
     const [contentGutter, setContentGutter] = useState(0);
     const stickyGenerationStartsRef = useRef(new Map<string, number>());
     const [expandedInlineToolCallIds, setExpandedInlineToolCallIds] = useState<Set<string>>(
@@ -399,6 +402,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     useEffect(() => {
       setIsNearBottom(true);
       setAboveViewportItemId(null);
+      setStickyRevealDistance(0);
       stickyGenerationStartsRef.current.clear();
       setExpandedInlineToolCallIds(new Set());
       setExpandedToolCallGroupIds(new Set());
@@ -1072,7 +1076,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     const stickyPreviewEnabled = shouldTrackStickyPreviews(stickyHeaderMode);
     const showJumpToBottom = shouldShowJumpToBottom(isNearBottom, isTimelineDetached);
     const handleAboveViewportItemChange = useStableEvent(
-      (itemId: string | null, distanceToFold: number | null) => {
+      (itemId: string | null, distanceToFold: number | null, revealDistance: number) => {
         setAboveViewportItemId((previous) => (previous === itemId ? previous : itemId));
         // Clamped to the row it can act over and rounded to the pixel the block
         // is drawn at, so scrolling anywhere else keeps reporting the same value
@@ -1082,6 +1086,10 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             ? null
             : Math.round(distanceToFold);
         setStickyDistanceToFold((previous) => (previous === next ? previous : next));
+        // Clamped to the reveal ramp and rounded so scrolling deeper than it
+        // keeps reporting the same value and rerenders nothing.
+        const nextReveal = Math.round(Math.min(revealDistance, STICKY_BLOCK_REVEAL_DISTANCE));
+        setStickyRevealDistance((previous) => (previous === nextReveal ? previous : nextReveal));
       },
     );
     // Recorded during render so a response that starts and finishes streaming
@@ -1168,6 +1176,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             mode={stickyHeaderMode}
             previews={stickyPreviews}
             pushOffset={stickyPushOffset}
+            revealOpacity={stickyBlockRevealOpacity(stickyRevealDistance)}
             gutterWidth={contentGutter}
             onPressPreview={handleStickyPreviewPress}
           />

@@ -6,7 +6,9 @@ import {
   selectStickyConversationPreviews,
   selectStickyIncomingRole,
   shouldTrackStickyPreviews,
+  STICKY_BLOCK_REVEAL_DISTANCE,
   STICKY_CONVERSATION_ROW_HEIGHT,
+  stickyBlockRevealOpacity,
   stickyConversationPushOffset,
   toStickyPreviewText,
   trackStickyPreviewGenerationStarts,
@@ -350,6 +352,20 @@ describe("stickyConversationPushOffset", () => {
         distanceToFold: 4,
       }),
     ).toBe(STICKY_CONVERSATION_ROW_HEIGHT - 4);
+  });
+});
+
+describe("stickyBlockRevealOpacity", () => {
+  it("keeps the block off while the conversation sits at rest", () => {
+    expect(stickyBlockRevealOpacity(0)).toBe(0);
+    expect(stickyBlockRevealOpacity(-5)).toBe(0);
+    expect(stickyBlockRevealOpacity(Number.NaN)).toBe(0);
+  });
+
+  it("ramps in over the reveal distance and holds full past it", () => {
+    expect(stickyBlockRevealOpacity(STICKY_BLOCK_REVEAL_DISTANCE / 2)).toBeCloseTo(0.5);
+    expect(stickyBlockRevealOpacity(STICKY_BLOCK_REVEAL_DISTANCE)).toBe(1);
+    expect(stickyBlockRevealOpacity(STICKY_BLOCK_REVEAL_DISTANCE * 4)).toBe(1);
   });
 });
 
