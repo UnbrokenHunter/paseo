@@ -136,6 +136,7 @@ describe("createWebStreamStrategy", () => {
             hasOlderHistory: false,
             olderHistoryProgressKey: null,
             stickyPreviewEnabled: false,
+            stickyFoldOffset: 0,
             onAboveViewportItemChange: vi.fn(),
             scrollEnabled: true,
             listStyle: null,
@@ -182,6 +183,7 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: false,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
@@ -240,6 +242,7 @@ describe("createWebStreamStrategy", () => {
           hasOlderHistory: false,
           olderHistoryProgressKey: null,
           stickyPreviewEnabled: false,
+          stickyFoldOffset: 0,
           onAboveViewportItemChange: vi.fn(),
           scrollEnabled: true,
           listStyle: null,
@@ -326,6 +329,7 @@ describe("createWebStreamStrategy", () => {
             hasOlderHistory: true,
             olderHistoryProgressKey: "epoch-1:20",
             stickyPreviewEnabled: false,
+            stickyFoldOffset: 0,
             onAboveViewportItemChange: vi.fn(),
             scrollEnabled: true,
             listStyle: null,
@@ -394,6 +398,7 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: false,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
@@ -489,6 +494,7 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: false,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
@@ -599,6 +605,7 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: false,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
@@ -698,6 +705,7 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: false,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
@@ -799,6 +807,7 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: false,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
@@ -890,6 +899,7 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: true,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange,
       scrollEnabled: true,
       listStyle: null,
@@ -933,6 +943,78 @@ describe("createWebStreamStrategy", () => {
     }
 
     Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 300 });
+    act(() => {
+      scrollContainer.dispatchEvent(new Event("scroll"));
+    });
+    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith("message-2");
+  });
+
+  it("hands a message off to its pin as it goes under the sticky block", () => {
+    const strategy = createWebStreamStrategy({ isMobileBreakpoint: true });
+    const viewportRef = React.createRef<StreamViewportHandle>();
+    const onAboveViewportItemChange = vi.fn();
+    const historyMounted = [userMessage(0), userMessage(1), userMessage(2)];
+    const renderInput: StreamRenderInput = {
+      agentId: "agent-sticky-fold",
+      segments: { historyVirtualized: [], historyMounted, liveHead: [] },
+      boundary: {
+        hasVirtualizedHistory: false,
+        hasMountedHistory: true,
+        hasLiveHead: false,
+      },
+      renderers: createRenderers(vi.fn()),
+      listEmptyComponent: null,
+      viewportRef,
+      routeBottomAnchorRequest: null,
+      isAuthoritativeHistoryReady: true,
+      onNearBottomChange: vi.fn(),
+      onNearHistoryStart: vi.fn(),
+      isLoadingOlderHistory: false,
+      hasOlderHistory: false,
+      olderHistoryProgressKey: null,
+      stickyPreviewEnabled: true,
+      // One row's worth of block covering the top of the conversation.
+      stickyFoldOffset: ROW_HEIGHT,
+      onAboveViewportItemChange,
+      scrollEnabled: true,
+      listStyle: null,
+      baseListContentContainerStyle: null,
+      forwardListContentContainerStyle: null,
+    };
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => {
+      root?.render(strategy.render(renderInput));
+    });
+
+    const scrollContainer = container.querySelector('[data-testid="agent-chat-scroll"]');
+    if (!(scrollContainer instanceof HTMLElement)) {
+      throw new Error("Expected agent chat scroll container");
+    }
+    Object.defineProperty(scrollContainer, "clientHeight", { configurable: true, value: 100 });
+    Object.defineProperty(scrollContainer, "scrollHeight", { configurable: true, value: 400 });
+    const content = scrollContainer.firstElementChild;
+    if (!(content instanceof HTMLElement)) {
+      throw new Error("Expected stream content container");
+    }
+    Array.from(content.children).forEach((child, index) => {
+      Object.defineProperty(child, "offsetTop", { configurable: true, value: index * ROW_HEIGHT });
+    });
+
+    // Nothing has scrolled, so nothing is behind the block and the offset is
+    // held back: the block only exists once a message is pinned, and pinning
+    // the top message of a still conversation would cover it with the very
+    // block that pinned it.
+    Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 0 });
+    act(() => {
+      scrollContainer.dispatchEvent(new Event("scroll"));
+    });
+    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith("message-0");
+
+    // Scrolled a row, the block covers a row's worth of content: row 2 has gone
+    // under it, a row earlier than the viewport's own top edge would report.
+    Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: ROW_HEIGHT });
     act(() => {
       scrollContainer.dispatchEvent(new Event("scroll"));
     });

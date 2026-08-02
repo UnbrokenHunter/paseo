@@ -160,6 +160,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     scrollEnabled,
     stickyPreviewEnabled,
     onAboveViewportItemChange,
+    stickyFoldOffset,
     isMobileBreakpoint,
   } = props;
   const scrollContainerRef = useRef<HTMLElement | null>(null);
@@ -280,7 +281,14 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     if (!scrollContainer) {
       return;
     }
-    const viewportTop = scrollContainer.scrollTop;
+    // The fold is the bottom of the sticky block, not the viewport's own top
+    // edge: the block covers that strip, so a message is gone once it is under
+    // it. Never deeper than what has actually scrolled past, though — the block
+    // only exists once something is pinned, so an unclamped offset would pin
+    // the first message of a conversation that has not moved, and then cover it
+    // with the block that pinned it.
+    const scrolledAbove = Math.max(scrollContainer.scrollTop, 0);
+    const viewportTop = scrolledAbove + Math.min(stickyFoldOffset, scrolledAbove);
     let boundaryItemId: string | null = null;
 
     const virtualRowsContainer = virtualRowsContainerRef.current;

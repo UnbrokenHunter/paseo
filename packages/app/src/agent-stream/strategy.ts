@@ -78,6 +78,12 @@ export interface StreamRenderInput {
   /** Skip above-viewport bookkeeping entirely when the sticky header is off. */
   stickyPreviewEnabled: boolean;
   /**
+   * How far below the viewport's top edge the fold sits — the height the sticky
+   * block covers, from `stickyConversationFoldOffset`. A message hands off to
+   * its pin as it slides under the block rather than as it leaves the viewport.
+   */
+  stickyFoldOffset: number;
+  /**
    * Latest user/assistant message the viewport has scrolled entirely past, or
    * null when none has. Viewports track only those two kinds.
    */

@@ -124,6 +124,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     scrollEnabled,
     stickyPreviewEnabled,
     onAboveViewportItemChange,
+    stickyFoldOffset,
     listStyle,
     baseListContentContainerStyle,
     strategy,
@@ -213,7 +214,19 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     if (metrics.viewportHeight <= 0) {
       return;
     }
-    const viewportTop = metrics.offsetY + metrics.viewportHeight;
+    // The fold is the bottom of the sticky block, not the viewport's own top
+    // edge: the block covers that strip, so a message is gone once it is under
+    // it. Content coordinates run up from the bottom here, so moving the fold
+    // down the screen subtracts. Never deeper than what has actually scrolled
+    // past, though — the block only exists once something is pinned, so an
+    // unclamped offset would pin the first message of a conversation that has
+    // not moved, and then cover it with the block that pinned it.
+    const scrolledAbove = Math.max(
+      metrics.contentHeight - metrics.viewportHeight - metrics.offsetY,
+      0,
+    );
+    const viewportTop =
+      metrics.offsetY + metrics.viewportHeight - Math.min(stickyFoldOffset, scrolledAbove);
     let boundaryItemId: string | null = null;
 
     const headerHeight = liveHeadHeightRef.current;

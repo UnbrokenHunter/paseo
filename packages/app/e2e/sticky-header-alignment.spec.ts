@@ -51,16 +51,30 @@ test("pinned messages sit on the same rails as real ones", async ({ page }) => {
       const assistantMessage = first('[data-testid="assistant-message"]');
       const userPin = first('[data-testid="sticky-conversation-preview-user"]');
       const assistantPin = first('[data-testid="sticky-conversation-preview-assistant"]');
+      const header = first('[data-testid="sticky-conversation-header"]');
+      const scroll = first('[data-testid="agent-chat-scroll"]');
       return {
         userBubbleRight: box(userBubble)?.right ?? null,
         userPinRight: box(userPin)?.right ?? null,
         assistantLeft: box(assistantMessage)?.left ?? null,
         assistantPinLeft: box(assistantPin)?.left ?? null,
+        userPinWidth: box(userPin)?.width ?? null,
+        // The row the pin caps against: the pin's own parent.
+        rowWidth: userPin?.parentElement
+          ? userPin.parentElement.getBoundingClientRect().width
+          : null,
+        blockHeight: header && scroll ? box(header)!.bottom - box(scroll)!.top : null,
       };
     });
 
     expect(rails.userPinRight).toBe(rails.userBubbleRight);
     expect(rails.assistantPinLeft).toBe(rails.assistantLeft);
+    // A prompt longer than the cap stops at three quarters of the column and
+    // fades, rather than running the width of the conversation.
+    expect(rails.userPinWidth).toBeCloseTo(rails.rowWidth! * 0.75, 0);
+    // The rule under the last pinned line is the boundary the swap fires at, so
+    // the block has to be exactly the fold the strategies offset to: two rows.
+    expect(rails.blockHeight).toBe(68);
   } finally {
     await agent.cleanup();
   }

@@ -7,6 +7,28 @@ import type { StreamItem } from "@/types/stream";
  */
 export const STICKY_CONVERSATION_ROW_HEIGHT = 34;
 
+/** How much of the message column a pinned line may take before it fades out. */
+export const STICKY_PIN_MAX_WIDTH_RATIO = 0.75;
+
+/**
+ * How far below the viewport's top edge a message has to start before it counts
+ * as gone. The block covers the top of the conversation, so the swap belongs at
+ * the bottom of the block: a message hands off to its pin exactly as the real
+ * one slides under it, and the rule under the last pinned line is the boundary
+ * the swap fires at.
+ *
+ * Sized for a full block rather than the rows that currently have something to
+ * pin. The boundary this offset picks is what decides which rows fill, so a
+ * height that follows the filled rows would feed back into itself and oscillate
+ * across the row that is entering.
+ */
+export function stickyConversationFoldOffset(mode: StickyConversationHeaderMode): number {
+  if (mode === "off") {
+    return 0;
+  }
+  return STICKY_CONVERSATION_ROW_HEIGHT * (mode === "user-and-ai" ? 2 : 1);
+}
+
 export interface StickyConversationPreview {
   itemId: string;
   text: string;

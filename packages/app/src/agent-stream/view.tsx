@@ -76,6 +76,7 @@ import { layoutStream, type StreamLayoutItem } from "./layout";
 import {
   selectStickyConversationPreviews,
   shouldTrackStickyPreviews,
+  stickyConversationFoldOffset,
   trackStickyPreviewGenerationStarts,
 } from "./sticky-header/model";
 import { StickyConversationHeader } from "./sticky-header/view";
@@ -1138,6 +1139,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
               hasOlderHistory: hasOlder,
               olderHistoryProgressKey: progressKey,
               stickyPreviewEnabled,
+              stickyFoldOffset: stickyConversationFoldOffset(stickyHeaderMode),
               onAboveViewportItemChange: handleAboveViewportItemChange,
               scrollEnabled: streamScrollEnabled,
               listStyle: stylesheet.list,
