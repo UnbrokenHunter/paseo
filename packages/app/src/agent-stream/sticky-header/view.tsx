@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, Text, View, type ViewStyle } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { MAX_CONTENT_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
-import { isNative, isWeb } from "@/constants/platform";
+import { isNative } from "@/constants/platform";
 import type { StickyConversationHeaderMode } from "@/hooks/use-settings";
 import { MessageCollapseToggle } from "../collapsed-message/view";
 import {
@@ -18,14 +18,6 @@ import {
 } from "./model";
 
 export { STICKY_CONVERSATION_ROW_HEIGHT };
-
-// Plain (non-Unistyles) object: `backdropFilter` has no React Native equivalent.
-const backdropBlurStyle = isWeb
-  ? ({
-      backdropFilter: "blur(12px)",
-      WebkitBackdropFilter: "blur(12px)",
-    } as unknown as ViewStyle)
-  : null;
 
 interface StickyConversationHeaderProps {
   agentId: string;
@@ -146,8 +138,8 @@ function StickyRow({ agentId, align, role, preview, onPress }: StickyRowProps) {
       <Pressable
         style={[
           styles.pin,
-          backdropBlurStyle,
           align === "left" ? styles.pinAssistant : styles.pinUser,
+          isHovered ? styles.pinHovered : null,
         ]}
         onPress={handlePress}
         accessibilityRole="button"
@@ -174,18 +166,23 @@ const styles = StyleSheet.create((theme) => ({
     top: 0,
     left: 0,
     right: 0,
-  },
-  column: {
-    width: "100%",
-    maxWidth: MAX_CONTENT_WIDTH,
-    alignSelf: "center",
-    // A little air at the top so a pin reads as floating over the conversation
-    // rather than welded to the edge of the panel.
-    paddingTop: theme.spacing[2],
+    // Matches the list's own content padding.
     paddingHorizontal: {
       xs: theme.spacing[3],
       md: theme.spacing[4],
     },
+  },
+  /**
+   * The same box a stream row gets — `stylesheet.streamItemWrapper` in
+   * agent-stream/view.tsx — so a pin lands on the message's own rail. Missing
+   * this inner inset is what put every pin a step outside the text it came
+   * from.
+   */
+  column: {
+    width: "100%",
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: "center",
+    paddingHorizontal: theme.spacing[2],
   },
   row: {
     height: STICKY_CONVERSATION_ROW_HEIGHT,
@@ -205,22 +202,37 @@ const styles = StyleSheet.create((theme) => ({
     maxWidth: "88%",
     flexShrink: 1,
     minWidth: 0,
-    paddingHorizontal: theme.spacing[3],
     paddingVertical: theme.spacing[1],
-    borderRadius: theme.borderRadius["2xl"],
+    justifyContent: "center",
+    // The one thing that separates a pin from the content sliding under it.
+    // VS Code's sticky widget is otherwise painted in the editor's own colours;
+    // the shadow is what says "held above" rather than "different surface".
     ...theme.shadow.sm,
   },
-  // Each side squares the corner that faces its author, the same way its
-  // message does, and carries its message's own surface.
+  /**
+   * No padding on the left and the conversation's own background: the pinned
+   * text starts exactly where the response's text starts, and is painted in the
+   * surface it was already on. Only the shadow marks it as pinned.
+   */
   pinAssistant: {
-    backgroundColor: theme.colors.surface1,
-    borderTopLeftRadius: theme.borderRadius.sm,
-    borderWidth: theme.borderWidth[1],
-    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface0,
+    paddingRight: theme.spacing[3],
+    borderTopRightRadius: theme.borderRadius.lg,
+    borderBottomRightRadius: theme.borderRadius.lg,
   },
+  /**
+   * A prompt is a bubble in the conversation, so its pin is the same bubble:
+   * same surface, same squared top-right corner, and the same horizontal
+   * padding, which puts the pinned text on the same rail as the real one.
+   */
   pinUser: {
     backgroundColor: theme.colors.surface3,
+    paddingHorizontal: theme.spacing[4],
+    borderRadius: theme.borderRadius["2xl"],
     borderTopRightRadius: theme.borderRadius.sm,
+  },
+  pinHovered: {
+    opacity: 0.9,
   },
   toggleVisible: {
     opacity: 1,
@@ -230,6 +242,6 @@ const styles = StyleSheet.create((theme) => ({
   },
   previewText: {
     color: theme.colors.foreground,
-    fontSize: theme.fontSize.sm,
+    fontSize: theme.fontSize.base,
   },
 }));

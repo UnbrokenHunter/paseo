@@ -5,7 +5,7 @@ import type { StreamItem } from "@/types/stream";
  * Height of one pinned row. A row keeps it even when that side has nothing to
  * pin, so the side that does never moves as the other comes and goes.
  */
-export const STICKY_CONVERSATION_ROW_HEIGHT = 30;
+export const STICKY_CONVERSATION_ROW_HEIGHT = 34;
 
 export interface StickyConversationPreview {
   itemId: string;
