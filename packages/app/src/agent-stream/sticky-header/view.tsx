@@ -1,6 +1,13 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, Text, View } from "react-native";
+import {
+  Pressable,
+  Text,
+  View,
+  type PressableStateCallbackType,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { MAX_CONTENT_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
 import { isNative } from "@/constants/platform";
@@ -29,13 +36,12 @@ interface StickyConversationHeaderProps {
 /**
  * The last prompt and response, pinned where they left the screen.
  *
- * Each one keeps the shape it has in the conversation — the prompt as its own
- * bubble on the right, the response as text on the left rail — and only as much
- * width as its text needs. A full-width bar across the top read as a separate
- * piece of chrome instead of as the messages themselves holding on.
- *
- * The two stack rather than share a row, in the order they sit on their sides,
- * so a pinned pair reads the way the conversation does.
+ * Modelled on VS Code's sticky scroll (editor/contrib/stickyScroll): the bar
+ * is painted in the surface's own colours, and a bottom border and shadow
+ * alone say "held above". Each pin keeps the shape its message has — the
+ * prompt as its own bubble on the right rail, the response as plain text on
+ * the left — and the arrows hang in the margins outside the text, so a pinned
+ * line sits exactly on the rail the message itself uses.
  */
 export function StickyConversationHeader({
   agentId,
@@ -46,6 +52,31 @@ export function StickyConversationHeader({
   const showAssistantSide = mode === "user-and-ai";
   const assistant = showAssistantSide ? previews.assistant : null;
   const user = previews.user;
+  // The arrows hang outside the rows, in the margins; a brief hide delay keeps
+  // an arrow alive while the pointer crosses the gap between its pin and it.
+  const [isHovered, setIsHovered] = useState(false);
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handlePointerEnter = useCallback(() => {
+    if (hideTimeoutRef.current !== null) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    setIsHovered(true);
+  }, []);
+  const handlePointerLeave = useCallback(() => {
+    if (hideTimeoutRef.current !== null) {
+      clearTimeout(hideTimeoutRef.current);
+    }
+    hideTimeoutRef.current = setTimeout(() => setIsHovered(false), 150);
+  }, []);
+  useEffect(
+    () => () => {
+      if (hideTimeoutRef.current !== null) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   if (mode === "off" || (!assistant && !user)) {
     return null;
@@ -53,23 +84,34 @@ export function StickyConversationHeader({
 
   return (
     <View style={styles.overlay} pointerEvents="box-none" testID="sticky-conversation-header">
-      <View style={styles.column} pointerEvents="box-none">
-        {showAssistantSide ? (
-          <StickyRow
-            agentId={agentId}
-            align="left"
-            role="assistant"
-            preview={assistant}
-            onPress={onPressPreview}
-          />
-        ) : null}
-        <StickyRow
-          agentId={agentId}
-          align="right"
-          role="user"
-          preview={user}
-          onPress={onPressPreview}
-        />
+      <View style={styles.bar} pointerEvents="box-none">
+        <View style={styles.content} pointerEvents="box-none">
+          <View
+            style={styles.column}
+            pointerEvents="box-none"
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
+          >
+            {showAssistantSide ? (
+              <StickyRow
+                agentId={agentId}
+                align="left"
+                role="assistant"
+                preview={assistant}
+                arrowsVisible={isHovered}
+                onPress={onPressPreview}
+              />
+            ) : null}
+            <StickyRow
+              agentId={agentId}
+              align="right"
+              role="user"
+              preview={user}
+              arrowsVisible={isHovered}
+              onPress={onPressPreview}
+            />
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -80,13 +122,13 @@ interface StickyRowProps {
   align: "left" | "right";
   role: "user" | "assistant";
   preview: StickyConversationPreview | null;
+  arrowsVisible: boolean;
   onPress: (itemId: string) => void;
 }
 
-function StickyRow({ agentId, align, role, preview, onPress }: StickyRowProps) {
+function StickyRow({ agentId, align, role, preview, arrowsVisible, onPress }: StickyRowProps) {
   const { t } = useTranslation();
   const isCompact = useIsCompactFormFactor();
-  const [isHovered, setIsHovered] = useState(false);
   const itemId = preview?.itemId;
   const collapsed = useIsMessageCollapsed(agentId, itemId ?? "");
   // A message too short to be worth collapsing gets no control here either.
@@ -101,8 +143,7 @@ function StickyRow({ agentId, align, role, preview, onPress }: StickyRowProps) {
       toggleMessageCollapsed({ agentId, itemId });
     }
   }, [agentId, itemId]);
-  const handlePointerEnter = useCallback(() => setIsHovered(true), []);
-  const handlePointerLeave = useCallback(() => setIsHovered(false), []);
+  const pinStyle = useMemo(() => buildPinStyle(align), [align]);
 
   // The row holds its height even when empty, so the side that is pinned never
   // moves as the other one comes and goes.
@@ -110,10 +151,13 @@ function StickyRow({ agentId, align, role, preview, onPress }: StickyRowProps) {
     return <View style={styles.row} pointerEvents="none" />;
   }
 
-  const showToggle = isHovered || isNative || isCompact;
+  const showToggle = arrowsVisible || isNative || isCompact;
   const toggle = collapsible ? (
     <View
-      style={showToggle ? styles.toggleVisible : styles.toggleHidden}
+      style={[
+        align === "left" ? styles.toggleLeft : styles.toggleRight,
+        showToggle ? styles.toggleVisible : styles.toggleHidden,
+      ]}
       pointerEvents={showToggle ? "auto" : "none"}
     >
       <MessageCollapseToggle
@@ -129,18 +173,9 @@ function StickyRow({ agentId, align, role, preview, onPress }: StickyRowProps) {
     <View
       style={[styles.row, align === "left" ? styles.rowLeft : styles.rowRight]}
       pointerEvents="box-none"
-      onPointerEnter={handlePointerEnter}
-      onPointerLeave={handlePointerLeave}
     >
-      {/* Outer side first on the AI row, last on the user row: the arrow takes
-          the same corner it does on the message itself. */}
-      {align === "left" ? toggle : null}
       <Pressable
-        style={[
-          styles.pin,
-          align === "left" ? styles.pinAssistant : styles.pinUser,
-          isHovered ? styles.pinHovered : null,
-        ]}
+        style={pinStyle}
         onPress={handlePress}
         accessibilityRole="button"
         accessibilityLabel={t(
@@ -155,9 +190,23 @@ function StickyRow({ agentId, align, role, preview, onPress }: StickyRowProps) {
           {preview.text}
         </Text>
       </Pressable>
-      {align === "right" ? toggle : null}
+      {/* Hung outside the row's own box, in the margin the conversation keeps
+          beside every message, so the pinned text never moves to make room. */}
+      {toggle}
     </View>
   );
+}
+
+type PinStyleState = PressableStateCallbackType & { hovered?: boolean };
+
+// Hoisted out of the JSX (react-perf) and typed for the web's `hovered` state,
+// the same pattern as `PressableStyleFn` in git/diff-pane.tsx.
+function buildPinStyle(align: "left" | "right") {
+  return ({ hovered }: PinStyleState): StyleProp<ViewStyle> => [
+    styles.pin,
+    align === "right" ? styles.pinUser : null,
+    hovered ? styles.pinHovered : null,
+  ];
 }
 
 const styles = StyleSheet.create((theme) => ({
@@ -166,7 +215,20 @@ const styles = StyleSheet.create((theme) => ({
     top: 0,
     left: 0,
     right: 0,
-    // Matches the list's own content padding.
+  },
+  /**
+   * Painted in the conversation's own surface, the way VS Code's widget is
+   * painted in the editor's colours — the bottom border and shadow alone mark
+   * it as held above the content scrolling underneath.
+   */
+  bar: {
+    backgroundColor: theme.colors.surface0,
+    borderBottomWidth: theme.borderWidth[1],
+    borderBottomColor: theme.colors.border,
+    ...theme.shadow.sm,
+  },
+  // Matches the list's own content padding.
+  content: {
     paddingHorizontal: {
       xs: theme.spacing[3],
       md: theme.spacing[4],
@@ -188,7 +250,6 @@ const styles = StyleSheet.create((theme) => ({
     height: STICKY_CONVERSATION_ROW_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[1],
   },
   rowLeft: {
     justifyContent: "flex-start",
@@ -204,26 +265,13 @@ const styles = StyleSheet.create((theme) => ({
     minWidth: 0,
     paddingVertical: theme.spacing[1],
     justifyContent: "center",
-    // The one thing that separates a pin from the content sliding under it.
-    // VS Code's sticky widget is otherwise painted in the editor's own colours;
-    // the shadow is what says "held above" rather than "different surface".
-    ...theme.shadow.sm,
-  },
-  /**
-   * No padding on the left and the conversation's own background: the pinned
-   * text starts exactly where the response's text starts, and is painted in the
-   * surface it was already on. Only the shadow marks it as pinned.
-   */
-  pinAssistant: {
-    backgroundColor: theme.colors.surface0,
-    paddingRight: theme.spacing[3],
-    borderTopRightRadius: theme.borderRadius.lg,
-    borderBottomRightRadius: theme.borderRadius.lg,
   },
   /**
    * A prompt is a bubble in the conversation, so its pin is the same bubble:
    * same surface, same squared top-right corner, and the same horizontal
-   * padding, which puts the pinned text on the same rail as the real one.
+   * padding, which puts the pinned text on the same rail as the real one. The
+   * response pin gets no paint of its own — plain text straight on the bar,
+   * exactly as the message sits on the conversation surface.
    */
   pinUser: {
     backgroundColor: theme.colors.surface3,
@@ -233,6 +281,27 @@ const styles = StyleSheet.create((theme) => ({
   },
   pinHovered: {
     opacity: 0.9,
+  },
+  /**
+   * Arrows live just past the row's own box, in the margin the conversation
+   * keeps beside every message, so the pinned text never shifts to make room
+   * for one. `right: "100%"` anchors the control's far edge to the rail.
+   */
+  toggleLeft: {
+    position: "absolute",
+    right: "100%",
+    top: 0,
+    bottom: 0,
+    marginRight: theme.spacing[1],
+    justifyContent: "center",
+  },
+  toggleRight: {
+    position: "absolute",
+    left: "100%",
+    top: 0,
+    bottom: 0,
+    marginLeft: theme.spacing[1],
+    justifyContent: "center",
   },
   toggleVisible: {
     opacity: 1,

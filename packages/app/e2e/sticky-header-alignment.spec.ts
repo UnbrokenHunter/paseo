@@ -7,17 +7,20 @@ import { startRunningMockAgent, submitMessage } from "./helpers/composer";
 // prompt's pin ends where its bubble ends, the response's pin starts where its
 // text starts. The sticky column re-creates the list's padding and the stream
 // row's wrapper inset by hand, so this guards the two from drifting apart.
+// The prompts are long enough to be collapsible, which reveals the arrows —
+// they hang in the margins and must not push a pin off its rail.
 test("pinned messages sit on the same rails as real ones", async ({ page }) => {
   test.setTimeout(300_000);
+  const filler = "with enough words to make the prompt tall enough to fold".repeat(6);
   const agent = await startRunningMockAgent(page, {
     prefix: "sticky-align-",
     model: "ten-second-stream",
-    prompt: "First prompt for the alignment probe.",
+    prompt: `First prompt for the alignment probe, ${filler}.`,
   });
   try {
     await awaitAssistantMessage(page);
     await expectAgentIdle(page, 60_000).catch(() => undefined);
-    await submitMessage(page, "Second prompt for the alignment probe.");
+    await submitMessage(page, `Second prompt for the alignment probe, ${filler}.`);
     await expectAgentIdle(page, 90_000).catch(() => undefined);
     await page.waitForTimeout(3000);
 
@@ -25,6 +28,19 @@ test("pinned messages sit on the same rails as real ones", async ({ page }) => {
     await page.mouse.wheel(0, -700);
     await page.waitForTimeout(900);
     await expect(page.getByTestId("sticky-conversation-header")).toBeVisible();
+
+    // Reveal the user arrow (its wrapper carries the opacity), then measure.
+    // The assistant side is not asserted: which response is pinned here is a
+    // short one that cannot be folded, so it gets no arrow at all.
+    await page.getByTestId("sticky-conversation-preview-user").hover();
+    await expect
+      .poll(async () =>
+        page.evaluate(() => {
+          const el = document.querySelector('[data-testid="sticky-conversation-collapse-user"]');
+          return el?.parentElement ? getComputedStyle(el.parentElement).opacity : null;
+        }),
+      )
+      .toBe("1");
 
     const rails = await page.evaluate(() => {
       const first = (selector: string) => document.querySelector(selector);
