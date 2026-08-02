@@ -75,8 +75,11 @@ import {
 import { layoutStream, type StreamLayoutItem } from "./layout";
 import {
   selectStickyConversationPreviews,
+  selectStickyIncomingRole,
   shouldTrackStickyPreviews,
+  STICKY_CONVERSATION_ROW_HEIGHT,
   stickyConversationFoldOffset,
+  stickyConversationPushOffset,
   trackStickyPreviewGenerationStarts,
 } from "./sticky-header/model";
 import { StickyConversationHeader } from "./sticky-header/view";
@@ -363,6 +366,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     );
     const [isNearBottom, setIsNearBottom] = useState(true);
     const [aboveViewportItemId, setAboveViewportItemId] = useState<string | null>(null);
+    const [stickyDistanceToFold, setStickyDistanceToFold] = useState<number | null>(null);
     const stickyGenerationStartsRef = useRef(new Map<string, number>());
     const [expandedInlineToolCallIds, setExpandedInlineToolCallIds] = useState<Set<string>>(
       new Set(),
@@ -1092,9 +1096,19 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     );
 
     const stickyPreviewEnabled = shouldTrackStickyPreviews(stickyHeaderMode);
-    const handleAboveViewportItemChange = useStableEvent((itemId: string | null) => {
-      setAboveViewportItemId((previous) => (previous === itemId ? previous : itemId));
-    });
+    const handleAboveViewportItemChange = useStableEvent(
+      (itemId: string | null, distanceToFold: number | null) => {
+        setAboveViewportItemId((previous) => (previous === itemId ? previous : itemId));
+        // Clamped to the row it can act over and rounded to the pixel the block
+        // is drawn at, so scrolling anywhere else keeps reporting the same value
+        // and rerenders nothing.
+        const next =
+          distanceToFold === null || distanceToFold > STICKY_CONVERSATION_ROW_HEIGHT
+            ? null
+            : Math.round(distanceToFold);
+        setStickyDistanceToFold((previous) => (previous === next ? previous : next));
+      },
+    );
     // Recorded during render so a response that starts and finishes streaming
     // below the fold still carries its generation-start time when it scrolls up.
     if (stickyPreviewEnabled) {
@@ -1113,6 +1127,27 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
           generationStartByItemId: stickyGenerationStartsRef.current,
         }),
       [aboveViewportItemId, projectedToolCalls.head, projectedToolCalls.tail, stickyHeaderMode],
+    );
+    const stickyPushOffset = useMemo(
+      () =>
+        stickyConversationPushOffset({
+          distanceToFold: stickyDistanceToFold,
+          incomingRole: selectStickyIncomingRole({
+            tail: projectedToolCalls.tail,
+            head: projectedToolCalls.head,
+            aboveViewportItemId,
+          }),
+          previews: stickyPreviews,
+          mode: stickyHeaderMode,
+        }),
+      [
+        aboveViewportItemId,
+        projectedToolCalls.head,
+        projectedToolCalls.tail,
+        stickyDistanceToFold,
+        stickyHeaderMode,
+        stickyPreviews,
+      ],
     );
     const handleStickyPreviewPress = useStableEvent((itemId: string) => {
       viewportRef.current?.scrollToItem(itemId);
@@ -1151,6 +1186,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             agentId={agentId}
             mode={stickyHeaderMode}
             previews={stickyPreviews}
+            pushOffset={stickyPushOffset}
             onPressPreview={handleStickyPreviewPress}
           />
           {!isNearBottom && (

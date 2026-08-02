@@ -4,7 +4,10 @@ import {
   findLastIndexStartedAbove,
   isStickyPreviewTrackedItem,
   selectStickyConversationPreviews,
+  selectStickyIncomingRole,
   shouldTrackStickyPreviews,
+  STICKY_CONVERSATION_ROW_HEIGHT,
+  stickyConversationPushOffset,
   toStickyPreviewText,
   trackStickyPreviewGenerationStarts,
 } from "./model";
@@ -226,5 +229,119 @@ describe("findLastIndexStartedAbove", () => {
 
   it("handles an empty list", () => {
     expect(findLastIndexStartedAbove({ count: 0, getTop, viewportTop: 10 })).toBe(-1);
+  });
+});
+
+const PUSH_BASE = {
+  incomingRole: "user" as const,
+  previews: {
+    user: { itemId: "u1", text: "q", timestamp: 1, sequence: 1 },
+    assistant: { itemId: "a1", text: "a", timestamp: 2, sequence: 2 },
+  },
+  mode: "user-and-ai" as const,
+};
+
+describe("stickyConversationPushOffset", () => {
+  it("leaves the block still while nothing is due at the fold", () => {
+    expect(stickyConversationPushOffset({ ...PUSH_BASE, distanceToFold: null })).toBe(0);
+    expect(
+      stickyConversationPushOffset({
+        ...PUSH_BASE,
+        distanceToFold: STICKY_CONVERSATION_ROW_HEIGHT * 3,
+      }),
+    ).toBe(0);
+    expect(
+      stickyConversationPushOffset({
+        ...PUSH_BASE,
+        distanceToFold: STICKY_CONVERSATION_ROW_HEIGHT,
+      }),
+    ).toBe(0);
+  });
+
+  it("rides up by exactly what the incoming line has closed", () => {
+    expect(
+      stickyConversationPushOffset({
+        ...PUSH_BASE,
+        distanceToFold: STICKY_CONVERSATION_ROW_HEIGHT - 10,
+      }),
+    ).toBe(10);
+    expect(stickyConversationPushOffset({ ...PUSH_BASE, distanceToFold: 1 })).toBe(
+      STICKY_CONVERSATION_ROW_HEIGHT - 1,
+    );
+  });
+
+  it("stops one row up, where the swap takes over", () => {
+    expect(stickyConversationPushOffset({ ...PUSH_BASE, distanceToFold: 0 })).toBe(
+      STICKY_CONVERSATION_ROW_HEIGHT,
+    );
+    expect(stickyConversationPushOffset({ ...PUSH_BASE, distanceToFold: -200 })).toBe(
+      STICKY_CONVERSATION_ROW_HEIGHT,
+    );
+  });
+
+  it("sits still when the incoming message only replaces the lower line", () => {
+    // Newest pinned is the response; another response swaps into its row and the
+    // prompt above it does not move.
+    expect(
+      stickyConversationPushOffset({ ...PUSH_BASE, incomingRole: "assistant", distanceToFold: 4 }),
+    ).toBe(0);
+  });
+
+  it("sits still for a response arriving in user-only mode", () => {
+    expect(
+      stickyConversationPushOffset({
+        ...PUSH_BASE,
+        mode: "user",
+        incomingRole: "assistant",
+        distanceToFold: 4,
+      }),
+    ).toBe(0);
+    expect(
+      stickyConversationPushOffset({
+        ...PUSH_BASE,
+        mode: "user",
+        incomingRole: "user",
+        distanceToFold: 4,
+      }),
+    ).toBe(STICKY_CONVERSATION_ROW_HEIGHT - 4);
+  });
+});
+
+describe("selectStickyIncomingRole", () => {
+  it("names the first tracked message still below the fold", () => {
+    expect(
+      selectStickyIncomingRole({ tail: conversation, head: [], aboveViewportItemId: "u2" }),
+    ).toBe("assistant");
+    expect(
+      selectStickyIncomingRole({ tail: conversation, head: [], aboveViewportItemId: "a1" }),
+    ).toBe("user");
+  });
+
+  it("skips untracked items on the way down", () => {
+    expect(
+      selectStickyIncomingRole({ tail: conversation, head: [], aboveViewportItemId: "a1" }),
+    ).toBe("user");
+  });
+
+  it("is null at the newest message, and with no boundary at all", () => {
+    expect(
+      selectStickyIncomingRole({ tail: conversation, head: [], aboveViewportItemId: "a2" }),
+    ).toBeNull();
+    expect(
+      selectStickyIncomingRole({ tail: conversation, head: [], aboveViewportItemId: null }),
+    ).toBeNull();
+    expect(
+      selectStickyIncomingRole({ tail: conversation, head: [], aboveViewportItemId: "gone" }),
+    ).toBeNull();
+  });
+
+  it("continues into the live head", () => {
+    expect(
+      selectStickyIncomingRole({
+        tail: conversation,
+        head: [assistantMessage("live", "streaming", 6)],
+        aboveViewportItemId: "a2",
+      }),
+    ).toBe("assistant");
   });
 });

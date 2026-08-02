@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Pressable,
@@ -34,6 +34,11 @@ interface StickyConversationHeaderProps {
   agentId: string;
   mode: StickyConversationHeaderMode;
   previews: StickyConversationPreviews;
+  /**
+   * How far the block has ridden up as the next message closes on the fold,
+   * from `stickyConversationPushOffset`. 0 while the block sits still.
+   */
+  pushOffset: number;
   onPressPreview: (itemId: string) => void;
 }
 
@@ -51,6 +56,7 @@ export function StickyConversationHeader({
   agentId,
   mode,
   previews,
+  pushOffset,
   onPressPreview,
 }: StickyConversationHeaderProps) {
   const showAssistantSide = mode === "user-and-ai";
@@ -81,6 +87,10 @@ export function StickyConversationHeader({
     },
     [],
   );
+  const blockStyle = useMemo(
+    () => [styles.block, { transform: [{ translateY: -pushOffset }] }],
+    [pushOffset],
+  );
 
   if (mode === "off" || (!assistant && !user)) {
     return null;
@@ -97,31 +107,38 @@ export function StickyConversationHeader({
 
   return (
     <View style={styles.overlay} pointerEvents="box-none" testID="sticky-conversation-header">
-      <View
-        style={styles.bar}
-        pointerEvents="box-none"
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
-      >
-        {/* Both rows are always laid out, even with nothing to pin on that side,
-            so the fold stays where the strategies put it. A row that pins
-            nothing paints nothing. */}
-        {slots.map(({ role, preview }) =>
-          role === "assistant" && !showAssistantSide ? null : (
-            <StickyLine key={role}>
-              <StickyRow
-                agentId={agentId}
-                align={role === "user" ? "right" : "left"}
-                role={role}
-                preview={preview}
-                arrowsVisible={isHovered}
-                onPress={onPressPreview}
-              />
-            </StickyLine>
-          ),
-        )}
+      {/* The block rides up out of this box as the next message arrives, so the
+          line that has been pinned longest leaves the top of the screen the way
+          any other content does. The clip is what makes it leave rather than
+          ride over the toolbar above; it only bites at the pane's own edges,
+          which the arrows in the margins stay inside of. */}
+      <View style={blockStyle} pointerEvents="box-none">
+        <View
+          style={styles.bar}
+          pointerEvents="box-none"
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
+        >
+          {/* Both rows are always laid out, even with nothing to pin on that side,
+              so the fold stays where the strategies put it. A row that pins
+              nothing paints nothing. */}
+          {slots.map(({ role, preview }) =>
+            role === "assistant" && !showAssistantSide ? null : (
+              <StickyLine key={role}>
+                <StickyRow
+                  agentId={agentId}
+                  align={role === "user" ? "right" : "left"}
+                  role={role}
+                  preview={preview}
+                  arrowsVisible={isHovered}
+                  onPress={onPressPreview}
+                />
+              </StickyLine>
+            ),
+          )}
+        </View>
+        <StickyBlockFade color={styles.fade.color} />
       </View>
-      <StickyBlockFade color={styles.fade.color} />
     </View>
   );
 }
@@ -263,6 +280,10 @@ const styles = StyleSheet.create((theme) => ({
     top: 0,
     left: 0,
     right: 0,
+    overflow: "hidden",
+  },
+  block: {
+    width: "100%",
   },
   /**
    * Painted in the conversation's own surface, the way VS Code's widget is

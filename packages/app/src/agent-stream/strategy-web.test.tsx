@@ -939,14 +939,14 @@ describe("createWebStreamStrategy", () => {
       act(() => {
         scrollContainer.dispatchEvent(new Event("scroll"));
       });
-      expect(onAboveViewportItemChange).toHaveBeenLastCalledWith(item.id);
+      expect(onAboveViewportItemChange.mock.lastCall?.[0]).toBe(item.id);
     }
 
     Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 300 });
     act(() => {
       scrollContainer.dispatchEvent(new Event("scroll"));
     });
-    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith("message-2");
+    expect(onAboveViewportItemChange.mock.lastCall?.[0]).toBe("message-2");
   });
 
   it("hands a message off to its pin as it goes under the sticky block", () => {
@@ -1010,7 +1010,7 @@ describe("createWebStreamStrategy", () => {
     act(() => {
       scrollContainer.dispatchEvent(new Event("scroll"));
     });
-    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith("message-0");
+    expect(onAboveViewportItemChange.mock.lastCall?.[0]).toBe("message-0");
 
     // Scrolled a row, the block covers a row's worth of content: row 2 has gone
     // under it, a row earlier than the viewport's own top edge would report.
@@ -1018,6 +1018,6 @@ describe("createWebStreamStrategy", () => {
     act(() => {
       scrollContainer.dispatchEvent(new Event("scroll"));
     });
-    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith("message-2");
+    expect(onAboveViewportItemChange.mock.lastCall?.[0]).toBe("message-2");
   });
 });

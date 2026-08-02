@@ -228,20 +228,31 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     const viewportTop =
       metrics.offsetY + metrics.viewportHeight - Math.min(stickyFoldOffset, scrolledAbove);
     let boundaryItemId: string | null = null;
+    // How far the next tracked message's first line still has to travel to reach
+    // the fold. Only the live head is measured row by row here, so a boundary
+    // deep in history reports null and the block simply swaps in place — the
+    // rows the reader is scrolling through are the live head's either way.
+    let distanceToFold: number | null = null;
 
     const headerHeight = liveHeadHeightRef.current;
     if (headerHeight > 0) {
       // segments.liveHead is newest first, so the first match walking forward is
-      // also the chronologically latest one that has started above the top edge.
+      // also the chronologically latest one that has started above the top edge,
+      // and the tracked row seen just before it is the next one due at the fold.
       for (const item of segments.liveHead) {
         if (!isStickyPreviewTrackedItem(item)) {
           continue;
         }
         const metric = liveHeadRowMetricsRef.current.get(item.id);
-        if (metric && headerHeight - metric.top >= viewportTop) {
+        if (!metric) {
+          continue;
+        }
+        const rowTop = headerHeight - metric.top;
+        if (rowTop >= viewportTop) {
           boundaryItemId = item.id;
           break;
         }
+        distanceToFold = viewportTop - rowTop;
       }
     }
 
@@ -261,7 +272,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       }
     }
 
-    onAboveViewportItemChange(boundaryItemId);
+    onAboveViewportItemChange(boundaryItemId, distanceToFold);
   });
 
   const handleViewableItemsChanged = useStableEvent(

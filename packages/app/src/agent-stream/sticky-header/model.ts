@@ -56,6 +56,107 @@ export function stickyConversationFoldOffset(mode: StickyConversationHeaderMode)
   return lastRowTop + STICKY_PIN_TEXT_INSET;
 }
 
+/**
+ * Whether the message arriving at the fold will take the top line's place.
+ *
+ * A message only pushes when it displaces the line above it. Two responses in a
+ * row do not: the second replaces the first in the lower row and the prompt
+ * above them stays exactly where it is, so riding the block up would carry that
+ * prompt off screen and then redraw it back. In user-only mode the same holds
+ * for anything that is not a prompt — a response arriving at the fold changes
+ * nothing about what is pinned.
+ */
+function willDisplaceTopLine(input: {
+  incomingRole: "user" | "assistant" | null;
+  previews: StickyConversationPreviews;
+  mode: StickyConversationHeaderMode;
+}): boolean {
+  const { incomingRole, previews, mode } = input;
+  if (incomingRole === null) {
+    return false;
+  }
+  if (mode !== "user-and-ai") {
+    return incomingRole === "user";
+  }
+  const newest =
+    (previews.user?.sequence ?? -1) >= (previews.assistant?.sequence ?? -1) ? "user" : "assistant";
+  return incomingRole !== newest;
+}
+
+/**
+ * Role of the first tracked message still below the fold — the one on its way
+ * in. Null when the boundary is the newest tracked message there is.
+ */
+export function selectStickyIncomingRole(input: {
+  tail: readonly StreamItem[];
+  head: readonly StreamItem[];
+  aboveViewportItemId: string | null;
+}): "user" | "assistant" | null {
+  const { tail, head, aboveViewportItemId } = input;
+  if (!aboveViewportItemId) {
+    return null;
+  }
+  const total = tail.length + head.length;
+  const itemAt = (index: number): StreamItem | undefined =>
+    index < tail.length ? tail[index] : head[index - tail.length];
+  let boundaryIndex = -1;
+  for (let index = total - 1; index >= 0; index -= 1) {
+    if (itemAt(index)?.id === aboveViewportItemId) {
+      boundaryIndex = index;
+      break;
+    }
+  }
+  if (boundaryIndex < 0) {
+    return null;
+  }
+  for (let index = boundaryIndex + 1; index < total; index += 1) {
+    const item = itemAt(index);
+    if (item?.kind === "user_message") {
+      return "user";
+    }
+    if (item?.kind === "assistant_message") {
+      return "assistant";
+    }
+  }
+  return null;
+}
+
+/**
+ * How far to slide the pinned block up, given the distance from the fold to the
+ * first line of the message that has not pinned yet.
+ *
+ * A message does not replace the one above it in place. As the next message's
+ * line comes down onto the fold, the block moves up with it at exactly the
+ * scroll's own rate, so the line that has been pinned longest leaves the top of
+ * the screen the way any other content would. It is fully gone at the moment the
+ * incoming line lands on the fold, which is the moment the swap fires — the
+ * block redraws one row shorter at the top and one row longer at the bottom, and
+ * nothing on screen moves.
+ *
+ * 0 when nothing is coming, or when what is coming does not displace the top
+ * line: the block sits still and the lower row swaps in place.
+ */
+export function stickyConversationPushOffset(input: {
+  /** Distance from the fold to the incoming message's first line, or null. */
+  distanceToFold: number | null;
+  incomingRole: "user" | "assistant" | null;
+  previews: StickyConversationPreviews;
+  mode: StickyConversationHeaderMode;
+}): number {
+  const { distanceToFold } = input;
+  if (distanceToFold === null || !Number.isFinite(distanceToFold)) {
+    return 0;
+  }
+  if (!willDisplaceTopLine(input)) {
+    return 0;
+  }
+  const push = STICKY_CONVERSATION_ROW_HEIGHT - distanceToFold;
+  if (push <= 0) {
+    return 0;
+  }
+  return Math.min(push, STICKY_CONVERSATION_ROW_HEIGHT);
+}
+
 export interface StickyConversationPreview {
   itemId: string;
   text: string;

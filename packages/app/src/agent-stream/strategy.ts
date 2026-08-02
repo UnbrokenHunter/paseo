@@ -86,8 +86,14 @@ export interface StreamRenderInput {
   /**
    * Latest user/assistant message the viewport has scrolled entirely past, or
    * null when none has. Viewports track only those two kinds.
+   *
+   * `distanceToFold` is how far the next tracked message's first line still has
+   * to travel to reach the fold, or null when there is no next message in range.
+   * The header slides the block up by what that distance has closed, so the
+   * oldest pinned line scrolls off rather than being swapped out under the
+   * reader — see `stickyConversationPushOffset`.
    */
-  onAboveViewportItemChange: (itemId: string | null) => void;
+  onAboveViewportItemChange: (itemId: string | null, distanceToFold: number | null) => void;
   scrollEnabled: boolean;
   listStyle: StyleProp<ViewStyle>;
   baseListContentContainerStyle: StyleProp<ViewStyle>;

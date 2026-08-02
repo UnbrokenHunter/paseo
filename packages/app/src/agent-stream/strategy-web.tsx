@@ -325,6 +325,9 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     const scrolledAbove = Math.max(scrollContainer.scrollTop, 0);
     const viewportTop = scrolledAbove + Math.min(stickyFoldOffset, scrolledAbove);
     let boundaryItemId: string | null = null;
+    // Top of the first tracked message still below the fold, in the same
+    // coordinates. The block rides up on whatever distance this has closed.
+    let nextTop = Number.POSITIVE_INFINITY;
 
     const virtualRowsContainer = virtualRowsContainerRef.current;
     if (shouldUseVirtualizer && virtualRowsContainer) {
@@ -332,8 +335,9 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       // Public mirror of the virtualizer's internal measurements, including rows
       // that have scrolled out of the DOM. Refreshed whenever it renders.
       const measurements = rowVirtualizer.measurementsCache;
+      const count = Math.min(measurements.length, segments.historyVirtualized.length);
       const lastAbove = findLastIndexStartedAbove({
-        count: Math.min(measurements.length, segments.historyVirtualized.length),
+        count,
         getTop: (index) => virtualBase + measurements[index].start,
         viewportTop,
       });
@@ -344,25 +348,42 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
           break;
         }
       }
+      for (let index = lastAbove + 1; index < count; index += 1) {
+        const item = segments.historyVirtualized[index];
+        if (item && isStickyPreviewTrackedItem(item)) {
+          nextTop = virtualBase + measurements[index].start;
+          break;
+        }
+      }
     }
 
     const registry = streamRowRegistryRef.current;
+    const domRowTop = (index: number): number => {
+      const element = registry.get(trackedDomRowIds[index]);
+      // An unmounted row cannot be proven above; treat it as still below.
+      return element
+        ? element.offsetTop + measureFirstTextLineInset(element)
+        : Number.POSITIVE_INFINITY;
+    };
     const lastDomAbove = findLastIndexStartedAbove({
       count: trackedDomRowIds.length,
-      getTop: (index) => {
-        const element = registry.get(trackedDomRowIds[index]);
-        // An unmounted row cannot be proven above; treat it as still below.
-        return element
-          ? element.offsetTop + measureFirstTextLineInset(element)
-          : Number.POSITIVE_INFINITY;
-      },
+      getTop: domRowTop,
       viewportTop,
     });
     if (lastDomAbove >= 0) {
       boundaryItemId = trackedDomRowIds[lastDomAbove];
     }
+    // Mounted rows come after the virtualized ones, so a nearer candidate here
+    // wins outright; the min also covers the case where nothing above the fold
+    // is a DOM row at all.
+    if (lastDomAbove + 1 < trackedDomRowIds.length) {
+      nextTop = Math.min(nextTop, domRowTop(lastDomAbove + 1));
+    }
 
-    onAboveViewportItemChange(boundaryItemId);
+    onAboveViewportItemChange(
+      boundaryItemId,
+      Number.isFinite(nextTop) ? nextTop - viewportTop : null,
+    );
   });
 
   const measureVirtualizedRowElement = useCallback(
