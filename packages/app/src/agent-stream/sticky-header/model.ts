@@ -1,36 +1,35 @@
 import type { StickyConversationHeaderMode } from "@/hooks/use-settings";
 import type { StreamItem } from "@/types/stream";
 
-/**
- * Height of one pinned row. A row keeps it even when that side has nothing to
- * pin, so the side that does never moves as the other comes and goes.
- */
-export const STICKY_CONVERSATION_ROW_HEIGHT = 34;
-
-/**
- * Where a pinned line has run out entirely, as a fraction of its own width. The
- * line is fully readable up to `STICKY_PIN_FADE_START` and gone by here, so it
- * reaches about three quarters across and dissolves rather than being cut.
- *
- * The pin itself takes the same width its message takes, which is what lets the
- * text stay put across the handoff — capping the box instead would move a long
- * prompt's line sideways the moment it pinned, since a prompt's bubble is
- * anchored to the right rail and grows leftwards.
- */
-export const STICKY_PIN_FADE_END = 0.75;
-export const STICKY_PIN_FADE_START = 0.5;
-
 /** Line height of a pinned line. Matches the message text it stands in for. */
 export const STICKY_PIN_LINE_HEIGHT = 22;
-/** Gap between a pinned line and the rule under it. */
-export const STICKY_PIN_RULE_GAP = 4;
 /**
- * Where a pinned line's text sits inside its row. The pin is anchored to the
- * row's bottom edge so its rule lands on the row boundary, which leaves the
- * text this far down from the top of the row.
+ * Space above and below a pinned line, which is the prompt bubble's own padding
+ * (`userMessageStylesheet.bubble` in components/message.tsx). A pinned prompt is
+ * shown in its bubble, and the bubble has to be the size it is in the
+ * conversation or the pin reads as a different, thinner thing.
+ *
+ * The response side takes the same padding even though it has no bubble to
+ * fill. Both rows have to put their text at the same depth: the fold is a text
+ * position, and it decides which message pins, which decides which side takes
+ * the lower row. A depth that varied by side would feed back into itself and
+ * oscillate across the handoff.
  */
-export const STICKY_PIN_TEXT_INSET =
-  STICKY_CONVERSATION_ROW_HEIGHT - (STICKY_PIN_LINE_HEIGHT + STICKY_PIN_RULE_GAP + 1);
+export const STICKY_PIN_VERTICAL_PADDING = 16;
+
+/**
+ * Height of one pinned row — one line in its bubble. A row keeps it even when
+ * that side has nothing to pin, so the side that does never moves as the other
+ * comes and goes.
+ */
+export const STICKY_CONVERSATION_ROW_HEIGHT =
+  STICKY_PIN_LINE_HEIGHT + STICKY_PIN_VERTICAL_PADDING * 2;
+
+/**
+ * Where a pinned line's text sits inside its row. The pin fills the row, so the
+ * text sits its own padding down from the row's top.
+ */
+export const STICKY_PIN_TEXT_INSET = STICKY_PIN_VERTICAL_PADDING;
 
 /**
  * Where the handoff happens, measured down from the viewport's top edge.

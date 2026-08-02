@@ -4,7 +4,6 @@ import {
   Pressable,
   Text,
   View,
-  type LayoutChangeEvent,
   type PressableStateCallbackType,
   type StyleProp,
   type ViewStyle,
@@ -20,11 +19,11 @@ import {
   useIsMessageCollapsible,
 } from "../collapsed-message/store";
 import { parseStickyPreviewSpans } from "./inline-preview";
-import { StickyBlockFade, StickyPinFade } from "./pin-fade";
+import { StickyBlockFade } from "./block-fade";
 import {
   STICKY_CONVERSATION_ROW_HEIGHT,
   STICKY_PIN_LINE_HEIGHT,
-  STICKY_PIN_RULE_GAP,
+  STICKY_PIN_VERTICAL_PADDING,
   type StickyConversationPreview,
   type StickyConversationPreviews,
 } from "./model";
@@ -186,20 +185,6 @@ function StickyRow({ agentId, align, role, preview, arrowsVisible, onPress }: St
   const collapsed = useIsMessageCollapsed(agentId, itemId ?? "");
   // A message too short to be worth collapsing gets no control here either.
   const collapsible = useIsMessageCollapsible(agentId, itemId ?? "");
-  /**
-   * A pin takes its message's width up to the column, so a pin filling the
-   * column is one whose message did not fit on a line — the only thing that
-   * should fade. Measuring the two boxes is what makes that knowable: a short
-   * message must not fade, and nothing else reports whether the line was cut.
-   */
-  const [capWidth, setCapWidth] = useState(0);
-  const [pinWidth, setPinWidth] = useState(0);
-  const handleRowLayout = useCallback((event: LayoutChangeEvent) => {
-    setCapWidth(event.nativeEvent.layout.width);
-  }, []);
-  const handlePinLayout = useCallback((event: LayoutChangeEvent) => {
-    setPinWidth(event.nativeEvent.layout.width);
-  }, []);
   const spans = useMemo(() => parseStickyPreviewSpans(preview?.text ?? ""), [preview?.text]);
   const handlePress = useCallback(() => {
     if (itemId) {
@@ -240,11 +225,9 @@ function StickyRow({ agentId, align, role, preview, arrowsVisible, onPress }: St
     <View
       style={[styles.row, align === "left" ? styles.rowLeft : styles.rowRight]}
       pointerEvents="box-none"
-      onLayout={handleRowLayout}
     >
       <Pressable
         style={align === "right" ? userPinStyle : assistantPinStyle}
-        onLayout={handlePinLayout}
         onPress={handlePress}
         accessibilityRole="button"
         accessibilityLabel={t(
@@ -255,16 +238,10 @@ function StickyRow({ agentId, align, role, preview, arrowsVisible, onPress }: St
         )}
         testID={`sticky-conversation-preview-${role}`}
       >
-        {/* The text is the pin's only in-flow child, so the pin hugs it up to
-            the cap and the rule comes out the length of the line. A prompt cuts
-            with an ellipsis instead of a wash: it is pinned inside its own
-            bubble, and a bubble that dissolves halfway across reads as a broken
-            box rather than as a line running on. */}
-        <Text
-          style={styles.previewText}
-          numberOfLines={1}
-          ellipsizeMode={role === "user" ? "tail" : "clip"}
-        >
+        {/* The text is the pin's only child, so the pin hugs it up to the cap
+            and the rule comes out the length of the line. A line too long to
+            pin whole ends in an ellipsis, the way any cut line does. */}
+        <Text style={styles.previewText} numberOfLines={1} ellipsizeMode="tail">
           {spans.map((span) => (
             <Text
               key={span.offset}
@@ -279,9 +256,6 @@ function StickyRow({ agentId, align, role, preview, arrowsVisible, onPress }: St
             </Text>
           ))}
         </Text>
-        {role !== "user" && capWidth > 0 && pinWidth >= capWidth - 1 ? (
-          <StickyPinFade color={styles.fade.color} />
-        ) : null}
       </Pressable>
       {/* Hung outside the row's own box, in the margin the conversation keeps
           beside every message, so the pinned text never moves to make room. */}
@@ -338,14 +312,14 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.spacing[2],
   },
   /**
-   * The pin sits on the row's bottom edge, so its rule lands on the row's
+   * The pin fills the row, so the rule under a response lands on the row's
    * boundary rather than floating inside it — the last row's rule is then
    * exactly the fold the strategies offset the swap to.
    */
   row: {
     height: STICKY_CONVERSATION_ROW_HEIGHT,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "stretch",
   },
   rowLeft: {
     justifyContent: "flex-start",
@@ -354,34 +328,33 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "flex-end",
   },
   /**
-   * A pinned message is the message's own text — no bubble, no surface of its
-   * own, either side. It takes the box that message takes, up to the column, so
-   * the text lands in the same place and the rule comes out the length of the
-   * message rather than of some box drawn around it.
+   * A response is its own text on the page, no surface of its own. It takes the
+   * box the message takes, up to the column, so the text lands in the same place
+   * and the rule comes out the length of the message rather than of some box
+   * drawn around it. The padding is the prompt bubble's, which the response has
+   * no use for except to put its text at the same depth — see
+   * `STICKY_PIN_VERTICAL_PADDING`.
    */
   pin: {
     maxWidth: "100%",
     flexShrink: 1,
     minWidth: 0,
-    paddingBottom: STICKY_PIN_RULE_GAP,
+    paddingVertical: STICKY_PIN_VERTICAL_PADDING,
     borderBottomWidth: theme.borderWidth[1],
     borderBottomColor: theme.colors.border,
   },
   /**
-   * A prompt keeps its bubble. Everything else in the conversation reads as a
-   * prompt by its bubble, so a pin without one turns a long prompt into
-   * something that looks like a response — left-aligned text running out to the
-   * right. The bubble is shallower than the message's, because a pinned line is
-   * a line rather than a paragraph, but the text sits in the same place: the
-   * padding is the message's, and the box grows upward from the line rather than
-   * pushing it down.
+   * A prompt keeps its bubble, at the size the conversation draws it —
+   * `userMessageStylesheet.bubble` in components/message.tsx, padding and radii
+   * both. Everything else in the conversation reads as a prompt by its bubble,
+   * so a pin without one turns a long prompt into something that looks like a
+   * response, and a pin with a thinner one reads as a different element again.
    *
    * The rule belongs to the response side only. Under a rounded bubble it reads
    * as a box that has been cut, not as the mark of the fold.
    */
   pinUser: {
     paddingHorizontal: theme.spacing[4],
-    paddingTop: STICKY_PIN_RULE_GAP,
     backgroundColor: theme.colors.surface3,
     borderRadius: theme.borderRadius["2xl"],
     borderTopRightRadius: theme.borderRadius.sm,

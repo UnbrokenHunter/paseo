@@ -87,15 +87,25 @@ test("pinned messages sit on the same rails as real ones", async ({ page }) => {
         ).left,
         userPinWidth: userPin.getBoundingClientRect().width,
         userBubbleWidth: userMessage.querySelector(":scope > * > *").getBoundingClientRect().width,
-        // The bar, not the header and not the block that rides it up and down:
-        // the block also holds the strip the cover fades out over, which hangs
-        // below the bar.
-        blockHeight:
-          header.firstElementChild.firstElementChild.getBoundingClientRect().bottom -
+        // How deep the text sits inside its bubble, either side of the handoff.
+        // A pinned prompt is shown in the bubble the conversation draws, so the
+        // padding above the line has to be the padding above the message's.
+        userPinTextInset:
+          firstLine(userPin).top - userPin.getBoundingClientRect().top,
+        userBubbleTextInset:
+          firstLine(userMessage).top -
+          userMessage.querySelector(":scope > * > *").getBoundingClientRect().top,
+        // The bar's own box, not where it currently sits: it rides up out of the
+        // header as the next message arrives, so its distance from the viewport
+        // top is whatever the scroll left it mid-push. Its height is not.
+        blockHeight: header.firstElementChild.firstElementChild.getBoundingClientRect().height,
+        // The block's top never gets below the viewport's.
+        blockTopBelowViewport:
+          header.firstElementChild.firstElementChild.getBoundingClientRect().top -
           scroll.getBoundingClientRect().top,
-        fadeHeight:
-          header.getBoundingClientRect().bottom -
-          header.firstElementChild.firstElementChild.getBoundingClientRect().bottom,
+        // The cover's own strip, which hangs under the bar inside the block —
+        // measured the same way and for the same reason as the bar's height.
+        fadeHeight: header.firstElementChild.children[1].getBoundingClientRect().height,
       };
     })()`)) as {
       userTextLeft: number;
@@ -104,7 +114,10 @@ test("pinned messages sit on the same rails as real ones", async ({ page }) => {
       assistantPinTextLeft: number;
       userPinWidth: number;
       userBubbleWidth: number;
+      userPinTextInset: number;
+      userBubbleTextInset: number;
       blockHeight: number;
+      blockTopBelowViewport: number;
       fadeHeight: number;
     };
 
@@ -112,8 +125,11 @@ test("pinned messages sit on the same rails as real ones", async ({ page }) => {
     expect(rails.assistantPinTextLeft).toBeCloseTo(rails.assistantTextLeft, 0);
     // A pin takes its message's own box, which is what keeps the text still.
     expect(rails.userPinWidth).toBeCloseTo(rails.userBubbleWidth, 0);
-    // Two rows of pinned line, and the block covers exactly that.
-    expect(rails.blockHeight).toBeCloseTo(68, 0);
+    expect(rails.userPinTextInset).toBeCloseTo(rails.userBubbleTextInset, 0);
+    // Two rows of pinned line, each the height of a prompt's bubble, and the
+    // block covers exactly that.
+    expect(rails.blockHeight).toBeCloseTo(108, 0);
+    expect(rails.blockTopBelowViewport).toBeLessThanOrEqual(0.5);
     // Below it the cover runs out rather than stopping on an edge, so a message
     // passing under the block fades instead of being cut mid-glyph.
     expect(rails.fadeHeight).toBeCloseTo(16, 0);
