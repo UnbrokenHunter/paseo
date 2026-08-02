@@ -20,6 +20,23 @@ function assistantMessage(id: string, text: string, timestamp: number): StreamIt
   return { kind: "assistant_message", id, text, timestamp: new Date(timestamp) };
 }
 
+function assistantBlock(
+  id: string,
+  text: string,
+  timestamp: number,
+  blockGroupId: string,
+  blockIndex: number,
+): StreamItem {
+  return {
+    kind: "assistant_message",
+    id,
+    text,
+    timestamp: new Date(timestamp),
+    blockGroupId,
+    blockIndex,
+  };
+}
+
 function todoList(id: string, timestamp: number): StreamItem {
   return {
     kind: "todo_list",
@@ -103,6 +120,35 @@ describe("selectStickyConversationPreviews", () => {
     expect(previews.user?.itemId).toBe("u2");
     expect(previews.assistant?.itemId).toBe("a1");
     expect(previews.assistant!.sequence).toBeLessThan(previews.user!.sequence);
+  });
+
+  it("pins the first block of a split response, not the block being read", () => {
+    // A long response is promoted into one item per markdown block. Scrolling
+    // deep into it lands the boundary on a later block; the pin must still show
+    // the message's beginning.
+    const split: StreamItem[] = [
+      userMessage("u1", "explain", 1),
+      assistantBlock("g:block:0", "First, the overview.", 2, "g", 0),
+      assistantBlock("g:block:1", "Second, the details.", 3, "g", 1),
+      assistantBlock("g:block:2", "Third, the caveats.", 4, "g", 2),
+    ];
+    const atLastBlock = selectStickyConversationPreviews({
+      tail: split,
+      head: [],
+      aboveViewportItemId: "g:block:2",
+      mode: "user-and-ai",
+    });
+    expect(atLastBlock.assistant?.itemId).toBe("g:block:0");
+    expect(atLastBlock.assistant?.text).toBe("First, the overview.");
+    // The pin does not move as the reader crosses block boundaries within the
+    // same response.
+    const atMiddleBlock = selectStickyConversationPreviews({
+      tail: split,
+      head: [],
+      aboveViewportItemId: "g:block:1",
+      mode: "user-and-ai",
+    });
+    expect(atMiddleBlock.assistant?.itemId).toBe("g:block:0");
   });
 
   it("drops the assistant side in user-only mode", () => {

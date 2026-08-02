@@ -1,5 +1,5 @@
 import type { StickyConversationHeaderMode } from "@/hooks/use-settings";
-import type { StreamItem } from "@/types/stream";
+import type { AssistantMessageItem, StreamItem } from "@/types/stream";
 
 /** Line height of a pinned line. Matches the message text it stands in for. */
 export const STICKY_PIN_LINE_HEIGHT = 22;
@@ -270,19 +270,52 @@ export function selectStickyConversationPreviews(
     if (item.kind === "user_message" && !user) {
       user = toPreview(item.id, item.text, item.timestamp.getTime(), index);
     } else if (wantsAssistant && item.kind === "assistant_message" && !assistant) {
-      const generationStart = generationStartByItemId?.get(item.id);
+      // A long response is split into one item per markdown block, so scrolling
+      // down through it would otherwise pin each block in turn. Pin the group's
+      // first block instead — the beginning of the message, held for its whole
+      // length.
+      const groupHead = resolveAssistantGroupHead(itemAt, index, item);
+      const generationStart = generationStartByItemId?.get(groupHead.item.id);
       assistant = toPreview(
-        item.id,
-        item.text,
+        groupHead.item.id,
+        groupHead.item.text,
         generationStart === undefined
-          ? item.timestamp.getTime()
-          : Math.min(generationStart, item.timestamp.getTime()),
-        index,
+          ? groupHead.item.timestamp.getTime()
+          : Math.min(generationStart, groupHead.item.timestamp.getTime()),
+        groupHead.index,
       );
     }
   }
 
   return { user, assistant };
+}
+
+/**
+ * Walk back to the first block of a block-split assistant message, given one of
+ * its blocks. Blocks of one response share a `blockGroupId` and sit contiguously
+ * (see `promoteCompletedAssistantBlocks` in types/stream.ts); a message that was
+ * never split has no group and is its own head.
+ */
+function resolveAssistantGroupHead(
+  itemAt: (index: number) => StreamItem | undefined,
+  index: number,
+  item: AssistantMessageItem,
+): { item: AssistantMessageItem; index: number } {
+  const groupId = item.blockGroupId;
+  if (groupId === undefined) {
+    return { item, index };
+  }
+  let headItem = item;
+  let headIndex = index;
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const candidate = itemAt(cursor);
+    if (candidate?.kind !== "assistant_message" || candidate.blockGroupId !== groupId) {
+      break;
+    }
+    headItem = candidate;
+    headIndex = cursor;
+  }
+  return { item: headItem, index: headIndex };
 }
 
 function toPreview(
