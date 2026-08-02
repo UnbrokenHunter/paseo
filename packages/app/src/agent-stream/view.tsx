@@ -367,6 +367,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     const [isNearBottom, setIsNearBottom] = useState(true);
     const [aboveViewportItemId, setAboveViewportItemId] = useState<string | null>(null);
     const [stickyDistanceToFold, setStickyDistanceToFold] = useState<number | null>(null);
+    const [contentGutter, setContentGutter] = useState(0);
     const stickyGenerationStartsRef = useRef(new Map<string, number>());
     const [expandedInlineToolCallIds, setExpandedInlineToolCallIds] = useState<Set<string>>(
       new Set(),
@@ -1128,6 +1129,10 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
         }),
       [aboveViewportItemId, projectedToolCalls.head, projectedToolCalls.tail, stickyHeaderMode],
     );
+    const handleContentGutterChange = useStableEvent((width: number) => {
+      const next = Math.round(width);
+      setContentGutter((previous) => (previous === next ? previous : next));
+    });
     const stickyPushOffset = useMemo(
       () =>
         stickyConversationPushOffset({
@@ -1176,6 +1181,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
               stickyPreviewEnabled,
               stickyFoldOffset: stickyConversationFoldOffset(stickyHeaderMode),
               onAboveViewportItemChange: handleAboveViewportItemChange,
+              onContentGutterChange: handleContentGutterChange,
               scrollEnabled: streamScrollEnabled,
               listStyle: stylesheet.list,
               baseListContentContainerStyle: stylesheet.listContentContainer,
@@ -1187,6 +1193,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             mode={stickyHeaderMode}
             previews={stickyPreviews}
             pushOffset={stickyPushOffset}
+            gutterWidth={contentGutter}
             onPressPreview={handleStickyPreviewPress}
           />
           {!isNearBottom && (

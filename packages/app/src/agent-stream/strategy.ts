@@ -94,6 +94,14 @@ export interface StreamRenderInput {
    * reader — see `stickyConversationPushOffset`.
    */
   onAboveViewportItemChange: (itemId: string | null, distanceToFold: number | null) => void;
+  /**
+   * Width the viewport's own scrollbar takes out of the content box, 0 when it
+   * takes none. The sticky block is laid out over the whole pane, so without
+   * this its column centres against a box a scrollbar wider than the one the
+   * conversation centres against, and every pinned line sits half a scrollbar
+   * inboard of the message it stands for.
+   */
+  onContentGutterChange: (width: number) => void;
   scrollEnabled: boolean;
   listStyle: StyleProp<ViewStyle>;
   baseListContentContainerStyle: StyleProp<ViewStyle>;

@@ -87,14 +87,15 @@ test("pinned messages sit on the same rails as real ones", async ({ page }) => {
         ).left,
         userPinWidth: userPin.getBoundingClientRect().width,
         userBubbleWidth: userMessage.querySelector(":scope > * > *").getBoundingClientRect().width,
-        // The bar, not the header: the header also holds the strip the cover
-        // fades out over, which hangs below the block.
+        // The bar, not the header and not the block that rides it up and down:
+        // the block also holds the strip the cover fades out over, which hangs
+        // below the bar.
         blockHeight:
-          header.firstElementChild.getBoundingClientRect().bottom -
+          header.firstElementChild.firstElementChild.getBoundingClientRect().bottom -
           scroll.getBoundingClientRect().top,
         fadeHeight:
           header.getBoundingClientRect().bottom -
-          header.firstElementChild.getBoundingClientRect().bottom,
+          header.firstElementChild.firstElementChild.getBoundingClientRect().bottom,
       };
     })()`)) as {
       userTextLeft: number;

@@ -19,6 +19,7 @@ import {
   useIsMessageCollapsed,
   useIsMessageCollapsible,
 } from "../collapsed-message/store";
+import { parseStickyPreviewSpans } from "./inline-preview";
 import { StickyBlockFade, StickyPinFade } from "./pin-fade";
 import {
   STICKY_CONVERSATION_ROW_HEIGHT,
@@ -39,6 +40,13 @@ interface StickyConversationHeaderProps {
    * from `stickyConversationPushOffset`. 0 while the block sits still.
    */
   pushOffset: number;
+  /**
+   * Width the conversation's scrollbar takes out of its own box. The block is
+   * laid out over the whole pane, so it has to give the same width back or its
+   * column centres against a wider box than the conversation's and every pinned
+   * line sits half a scrollbar inboard of the message it stands for.
+   */
+  gutterWidth: number;
   onPressPreview: (itemId: string) => void;
 }
 
@@ -57,6 +65,7 @@ export function StickyConversationHeader({
   mode,
   previews,
   pushOffset,
+  gutterWidth,
   onPressPreview,
 }: StickyConversationHeaderProps) {
   const showAssistantSide = mode === "user-and-ai";
@@ -91,6 +100,7 @@ export function StickyConversationHeader({
     () => [styles.block, { transform: [{ translateY: -pushOffset }] }],
     [pushOffset],
   );
+  const overlayStyle = useMemo(() => [styles.overlay, { right: gutterWidth }], [gutterWidth]);
 
   if (mode === "off" || (!assistant && !user)) {
     return null;
@@ -106,7 +116,7 @@ export function StickyConversationHeader({
   ].sort((a, b) => (a.preview?.sequence ?? -1) - (b.preview?.sequence ?? -1));
 
   return (
-    <View style={styles.overlay} pointerEvents="box-none" testID="sticky-conversation-header">
+    <View style={overlayStyle} pointerEvents="box-none" testID="sticky-conversation-header">
       {/* The block rides up out of this box as the next message arrives, so the
           line that has been pinned longest leaves the top of the screen the way
           any other content does. The clip is what makes it leave rather than
@@ -190,6 +200,7 @@ function StickyRow({ agentId, align, role, preview, arrowsVisible, onPress }: St
   const handlePinLayout = useCallback((event: LayoutChangeEvent) => {
     setPinWidth(event.nativeEvent.layout.width);
   }, []);
+  const spans = useMemo(() => parseStickyPreviewSpans(preview?.text ?? ""), [preview?.text]);
   const handlePress = useCallback(() => {
     if (itemId) {
       onPress(itemId);
@@ -245,11 +256,30 @@ function StickyRow({ agentId, align, role, preview, arrowsVisible, onPress }: St
         testID={`sticky-conversation-preview-${role}`}
       >
         {/* The text is the pin's only in-flow child, so the pin hugs it up to
-            the cap and the rule comes out the length of the line. */}
-        <Text style={styles.previewText} numberOfLines={1} ellipsizeMode="clip">
-          {preview.text}
+            the cap and the rule comes out the length of the line. A prompt cuts
+            with an ellipsis instead of a wash: it is pinned inside its own
+            bubble, and a bubble that dissolves halfway across reads as a broken
+            box rather than as a line running on. */}
+        <Text
+          style={styles.previewText}
+          numberOfLines={1}
+          ellipsizeMode={role === "user" ? "tail" : "clip"}
+        >
+          {spans.map((span) => (
+            <Text
+              key={span.offset}
+              style={[
+                span.bold ? styles.spanBold : null,
+                span.italic ? styles.spanItalic : null,
+                span.code ? styles.spanCode : null,
+                span.strike ? styles.spanStrike : null,
+              ]}
+            >
+              {span.text}
+            </Text>
+          ))}
         </Text>
-        {capWidth > 0 && pinWidth >= capWidth - 1 ? (
+        {role !== "user" && capWidth > 0 && pinWidth >= capWidth - 1 ? (
           <StickyPinFade color={styles.fade.color} />
         ) : null}
       </Pressable>
@@ -338,14 +368,24 @@ const styles = StyleSheet.create((theme) => ({
     borderBottomColor: theme.colors.border,
   },
   /**
-   * The prompt's own bubble padding, kept even though the bubble is gone. What
-   * has to line up across the handoff is the text, not the box: a prompt's text
-   * stops a bubble's padding short of the rail on both sides, so without this
-   * the line would step sideways as it pinned. The response has no padding to
-   * match — its text starts on the rail already.
+   * A prompt keeps its bubble. Everything else in the conversation reads as a
+   * prompt by its bubble, so a pin without one turns a long prompt into
+   * something that looks like a response — left-aligned text running out to the
+   * right. The bubble is shallower than the message's, because a pinned line is
+   * a line rather than a paragraph, but the text sits in the same place: the
+   * padding is the message's, and the box grows upward from the line rather than
+   * pushing it down.
+   *
+   * The rule belongs to the response side only. Under a rounded bubble it reads
+   * as a box that has been cut, not as the mark of the fold.
    */
   pinUser: {
     paddingHorizontal: theme.spacing[4],
+    paddingTop: STICKY_PIN_RULE_GAP,
+    backgroundColor: theme.colors.surface3,
+    borderRadius: theme.borderRadius["2xl"],
+    borderTopRightRadius: theme.borderRadius.sm,
+    borderBottomWidth: 0,
   },
   pinHovered: {
     opacity: 0.7,
@@ -389,5 +429,20 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.foreground,
     fontSize: theme.fontSize.base,
     lineHeight: STICKY_PIN_LINE_HEIGHT,
+  },
+  // The message's own inline marks. Without them the line is the source rather
+  // than the text — `**like this**` — and the glyphs are the wrong width, so it
+  // does not even sit still across the handoff.
+  spanBold: {
+    fontWeight: "600",
+  },
+  spanItalic: {
+    fontStyle: "italic",
+  },
+  spanCode: {
+    fontFamily: theme.fontFamily.mono,
+  },
+  spanStrike: {
+    textDecorationLine: "line-through",
   },
 }));

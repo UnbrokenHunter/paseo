@@ -195,6 +195,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     scrollEnabled,
     stickyPreviewEnabled,
     onAboveViewportItemChange,
+    onContentGutterChange,
     stickyFoldOffset,
     isMobileBreakpoint,
   } = props;
@@ -478,7 +479,8 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       return;
     }
     syncNearBottom(scrollContainer, onNearBottomChange);
-  }, [onNearBottomChange]);
+    onContentGutterChange(Math.max(0, scrollContainer.offsetWidth - scrollContainer.clientWidth));
+  }, [onContentGutterChange, onNearBottomChange]);
 
   const handleDomScroll = useCallback(() => {
     const scrollContainer = scrollContainerRef.current;
