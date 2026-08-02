@@ -6,7 +6,7 @@ import { getProviderIcon } from "@/components/provider-icons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Theme } from "@/styles/theme";
 import { ProviderUsageBalanceBar } from "./balance-bar";
-import { formatAgo } from "./format";
+import { formatAgo, useUsageClock } from "./format";
 import type { ProviderUsage } from "./types";
 import { ProviderUsageWindowBar } from "./window-bar";
 
@@ -53,6 +53,7 @@ export function ProviderUsageCard({
   compact?: boolean;
   testID?: string;
 }) {
+  useUsageClock();
   const { t } = useTranslation();
   const status = useStatusText(usage);
   const footer = useFooterText(usage);
