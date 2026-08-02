@@ -124,6 +124,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     scrollEnabled,
     stickyPreviewEnabled,
     onAboveViewportItemChange,
+    stickyFoldOffset,
     listStyle,
     baseListContentContainerStyle,
     strategy,
@@ -213,29 +214,55 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     if (metrics.viewportHeight <= 0) {
       return;
     }
-    const viewportTop = metrics.offsetY + metrics.viewportHeight;
+    // The fold is the bottom of the sticky block, not the viewport's own top
+    // edge: the block covers that strip, so a message is gone once it is under
+    // it. Content coordinates run up from the bottom here, so moving the fold
+    // down the screen subtracts. Never deeper than what has actually scrolled
+    // past, though — the block only exists once something is pinned, so an
+    // unclamped offset would pin the first message of a conversation that has
+    // not moved, and then cover it with the block that pinned it.
+    const scrolledAbove = Math.max(
+      metrics.contentHeight - metrics.viewportHeight - metrics.offsetY,
+      0,
+    );
+    const viewportTop =
+      metrics.offsetY + metrics.viewportHeight - Math.min(stickyFoldOffset, scrolledAbove);
     let boundaryItemId: string | null = null;
+    // How far the next tracked message's first line still has to travel to reach
+    // the fold. Only the live head is measured row by row here, so a boundary
+    // deep in history reports null and the block simply swaps in place — the
+    // rows the reader is scrolling through are the live head's either way.
+    let distanceToFold: number | null = null;
 
     const headerHeight = liveHeadHeightRef.current;
     if (headerHeight > 0) {
       // segments.liveHead is newest first, so the first match walking forward is
-      // also the chronologically latest one that cleared the top edge.
+      // also the chronologically latest one that has started above the top edge,
+      // and the tracked row seen just before it is the next one due at the fold.
       for (const item of segments.liveHead) {
         if (!isStickyPreviewTrackedItem(item)) {
           continue;
         }
         const metric = liveHeadRowMetricsRef.current.get(item.id);
-        if (metric && headerHeight - metric.bottom >= viewportTop) {
+        if (!metric) {
+          continue;
+        }
+        const rowTop = headerHeight - metric.top;
+        if (rowTop >= viewportTop) {
           boundaryItemId = item.id;
           break;
         }
+        distanceToFold = viewportTop - rowTop;
       }
     }
 
     if (boundaryItemId === null) {
+      // The list is inverted, so the highest viewable index is the row nearest
+      // the top edge — the one the reader is inside. Taking the row after it
+      // would name the message they have already finished.
       const maxViewableIndex = maxViewableHistoryIndexRef.current;
       if (maxViewableIndex !== null) {
-        for (let index = maxViewableIndex + 1; index < historyItems.length; index += 1) {
+        for (let index = maxViewableIndex; index < historyItems.length; index += 1) {
           const item = historyItems[index];
           if (item && isStickyPreviewTrackedItem(item)) {
             boundaryItemId = item.id;
@@ -245,7 +272,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       }
     }
 
-    onAboveViewportItemChange(boundaryItemId);
+    onAboveViewportItemChange(boundaryItemId, distanceToFold);
   });
 
   const handleViewableItemsChanged = useStableEvent(

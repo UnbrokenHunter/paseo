@@ -189,6 +189,12 @@ export const en = {
       userAccessibilityLabel: "Jump to the last user prompt: {{preview}}",
       assistantAccessibilityLabel: "Jump to the last AI response: {{preview}}",
     },
+    messageCollapse: {
+      collapseUser: "Collapse this prompt",
+      collapseAssistant: "Collapse this response",
+      expandUser: "Expand this prompt",
+      expandAssistant: "Expand this response",
+    },
     permission: {
       plan: "Plan",
       required: "Permission Required",

@@ -34,7 +34,8 @@ function userMessage(index: number): StreamItem {
   };
 }
 
-const VIRTUAL_ROW_STYLE = { height: 24 };
+const ROW_HEIGHT = 24;
+const VIRTUAL_ROW_STYLE = { height: ROW_HEIGHT };
 
 function createRenderers(onRowRender: () => void): StreamSegmentRenderers {
   return {
@@ -135,7 +136,9 @@ describe("createWebStreamStrategy", () => {
             hasOlderHistory: false,
             olderHistoryProgressKey: null,
             stickyPreviewEnabled: false,
+            stickyFoldOffset: 0,
             onAboveViewportItemChange: vi.fn(),
+            onContentGutterChange: vi.fn(),
             scrollEnabled: true,
             listStyle: null,
             baseListContentContainerStyle: null,
@@ -181,7 +184,9 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: false,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange: vi.fn(),
+      onContentGutterChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -239,7 +244,9 @@ describe("createWebStreamStrategy", () => {
           hasOlderHistory: false,
           olderHistoryProgressKey: null,
           stickyPreviewEnabled: false,
+          stickyFoldOffset: 0,
           onAboveViewportItemChange: vi.fn(),
+          onContentGutterChange: vi.fn(),
           scrollEnabled: true,
           listStyle: null,
           baseListContentContainerStyle: null,
@@ -325,7 +332,9 @@ describe("createWebStreamStrategy", () => {
             hasOlderHistory: true,
             olderHistoryProgressKey: "epoch-1:20",
             stickyPreviewEnabled: false,
+            stickyFoldOffset: 0,
             onAboveViewportItemChange: vi.fn(),
+            onContentGutterChange: vi.fn(),
             scrollEnabled: true,
             listStyle: null,
             baseListContentContainerStyle: null,
@@ -393,7 +402,9 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: false,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange: vi.fn(),
+      onContentGutterChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -488,7 +499,9 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: false,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange: vi.fn(),
+      onContentGutterChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -598,7 +611,9 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: false,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange: vi.fn(),
+      onContentGutterChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -697,7 +712,9 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: false,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange: vi.fn(),
+      onContentGutterChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -798,7 +815,9 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: false,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange: vi.fn(),
+      onContentGutterChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -889,7 +908,9 @@ describe("createWebStreamStrategy", () => {
       hasOlderHistory: false,
       olderHistoryProgressKey: null,
       stickyPreviewEnabled: true,
+      stickyFoldOffset: 0,
       onAboveViewportItemChange,
+      onContentGutterChange: vi.fn(),
       scrollEnabled: true,
       listStyle: null,
       baseListContentContainerStyle: null,
@@ -913,25 +934,101 @@ describe("createWebStreamStrategy", () => {
       throw new Error("Expected stream content container");
     }
     Array.from(content.children).forEach((child, index) => {
-      Object.defineProperty(child, "offsetTop", { configurable: true, value: index * 24 });
+      Object.defineProperty(child, "offsetTop", { configurable: true, value: index * ROW_HEIGHT });
     });
 
-    Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 0 });
-    act(() => {
-      scrollContainer.dispatchEvent(new Event("scroll"));
-    });
-    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith(null);
-
-    Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 50 });
-    act(() => {
-      scrollContainer.dispatchEvent(new Event("scroll"));
-    });
-    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith("message-1");
+    // A row is reported the moment its top edge passes the viewport top — the
+    // message the reader is inside — not once its bottom edge has gone by.
+    // Landing mid-row is the case that matters: it is where a tall message
+    // would otherwise leave the header describing the previous one.
+    for (const [index, item] of historyMounted.entries()) {
+      Object.defineProperty(scrollContainer, "scrollTop", {
+        configurable: true,
+        value: ROW_HEIGHT * index + ROW_HEIGHT / 2,
+      });
+      act(() => {
+        scrollContainer.dispatchEvent(new Event("scroll"));
+      });
+      expect(onAboveViewportItemChange.mock.lastCall?.[0]).toBe(item.id);
+    }
 
     Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 300 });
     act(() => {
       scrollContainer.dispatchEvent(new Event("scroll"));
     });
-    expect(onAboveViewportItemChange).toHaveBeenLastCalledWith("message-2");
+    expect(onAboveViewportItemChange.mock.lastCall?.[0]).toBe("message-2");
+  });
+
+  it("hands a message off to its pin as it goes under the sticky block", () => {
+    const strategy = createWebStreamStrategy({ isMobileBreakpoint: true });
+    const viewportRef = React.createRef<StreamViewportHandle>();
+    const onAboveViewportItemChange = vi.fn();
+    const historyMounted = [userMessage(0), userMessage(1), userMessage(2)];
+    const renderInput: StreamRenderInput = {
+      agentId: "agent-sticky-fold",
+      segments: { historyVirtualized: [], historyMounted, liveHead: [] },
+      boundary: {
+        hasVirtualizedHistory: false,
+        hasMountedHistory: true,
+        hasLiveHead: false,
+      },
+      renderers: createRenderers(vi.fn()),
+      listEmptyComponent: null,
+      viewportRef,
+      routeBottomAnchorRequest: null,
+      isAuthoritativeHistoryReady: true,
+      onNearBottomChange: vi.fn(),
+      onNearHistoryStart: vi.fn(),
+      isLoadingOlderHistory: false,
+      hasOlderHistory: false,
+      olderHistoryProgressKey: null,
+      stickyPreviewEnabled: true,
+      // One row's worth of block covering the top of the conversation.
+      stickyFoldOffset: ROW_HEIGHT,
+      onAboveViewportItemChange,
+      onContentGutterChange: vi.fn(),
+      scrollEnabled: true,
+      listStyle: null,
+      baseListContentContainerStyle: null,
+      forwardListContentContainerStyle: null,
+    };
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => {
+      root?.render(strategy.render(renderInput));
+    });
+
+    const scrollContainer = container.querySelector('[data-testid="agent-chat-scroll"]');
+    if (!(scrollContainer instanceof HTMLElement)) {
+      throw new Error("Expected agent chat scroll container");
+    }
+    Object.defineProperty(scrollContainer, "clientHeight", { configurable: true, value: 100 });
+    Object.defineProperty(scrollContainer, "scrollHeight", { configurable: true, value: 400 });
+    const content = scrollContainer.firstElementChild;
+    if (!(content instanceof HTMLElement)) {
+      throw new Error("Expected stream content container");
+    }
+    Array.from(content.children).forEach((child, index) => {
+      Object.defineProperty(child, "offsetTop", { configurable: true, value: index * ROW_HEIGHT });
+    });
+
+    // Nothing has scrolled, so nothing is behind the block and the offset is
+    // held back: the block only exists once a message is pinned, and pinning
+    // the top message of a still conversation would cover it with the very
+    // block that pinned it.
+    Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: 0 });
+    act(() => {
+      scrollContainer.dispatchEvent(new Event("scroll"));
+    });
+    expect(onAboveViewportItemChange.mock.lastCall?.[0]).toBe("message-0");
+
+    // Scrolled a row, the block covers a row's worth of content: row 2 has gone
+    // under it, a row earlier than the viewport's own top edge would report.
+    Object.defineProperty(scrollContainer, "scrollTop", { configurable: true, value: ROW_HEIGHT });
+    act(() => {
+      scrollContainer.dispatchEvent(new Event("scroll"));
+    });
+    expect(onAboveViewportItemChange.mock.lastCall?.[0]).toBe("message-2");
   });
 });

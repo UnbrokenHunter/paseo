@@ -78,10 +78,30 @@ export interface StreamRenderInput {
   /** Skip above-viewport bookkeeping entirely when the sticky header is off. */
   stickyPreviewEnabled: boolean;
   /**
+   * How far below the viewport's top edge the fold sits — the height the sticky
+   * block covers, from `stickyConversationFoldOffset`. A message hands off to
+   * its pin as it slides under the block rather than as it leaves the viewport.
+   */
+  stickyFoldOffset: number;
+  /**
    * Latest user/assistant message the viewport has scrolled entirely past, or
    * null when none has. Viewports track only those two kinds.
+   *
+   * `distanceToFold` is how far the next tracked message's first line still has
+   * to travel to reach the fold, or null when there is no next message in range.
+   * The header slides the block up by what that distance has closed, so the
+   * oldest pinned line scrolls off rather than being swapped out under the
+   * reader — see `stickyConversationPushOffset`.
    */
-  onAboveViewportItemChange: (itemId: string | null) => void;
+  onAboveViewportItemChange: (itemId: string | null, distanceToFold: number | null) => void;
+  /**
+   * Width the viewport's own scrollbar takes out of the content box, 0 when it
+   * takes none. The sticky block is laid out over the whole pane, so without
+   * this its column centres against a box a scrollbar wider than the one the
+   * conversation centres against, and every pinned line sits half a scrollbar
+   * inboard of the message it stands for.
+   */
+  onContentGutterChange: (width: number) => void;
   scrollEnabled: boolean;
   listStyle: StyleProp<ViewStyle>;
   baseListContentContainerStyle: StyleProp<ViewStyle>;

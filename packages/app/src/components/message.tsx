@@ -403,18 +403,100 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
 
 interface UserMessageImagePillProps {
   image: UserMessageImageAttachment;
-  onOpen: (image: UserMessageImageAttachment) => void;
+  onOpen?: (image: UserMessageImageAttachment) => void;
   accessibilityLabel: string;
 }
 
 function UserMessageImagePill({ image, onOpen, accessibilityLabel }: UserMessageImagePillProps) {
   const handlePress = useCallback(() => {
-    onOpen(image);
+    onOpen?.(image);
   }, [onOpen, image]);
   return (
-    <AttachmentFrame onPress={handlePress} accessibilityLabel={accessibilityLabel}>
+    <AttachmentFrame
+      onPress={onOpen ? handlePress : undefined}
+      accessibilityLabel={accessibilityLabel}
+    >
       <AttachmentThumbnail metadata={image} />
     </AttachmentFrame>
+  );
+}
+
+interface UserMessageBubbleContentProps {
+  message: string;
+  images?: UserMessageImageAttachment[];
+  attachments?: AgentAttachment[];
+  /** Omitted on read-only surfaces (the collapsed preview), where pills are inert. */
+  onOpenImage?: (image: UserMessageImageAttachment) => void;
+}
+
+/**
+ * Inside of a user bubble: attachment pills, image pills, then the prompt text,
+ * in that order. Shared with the collapsed-message preview so a collapsed
+ * prompt shows the same content the expanded one does.
+ */
+export function UserMessageBubbleContent({
+  message,
+  images = [],
+  attachments = [],
+  onOpenImage,
+}: UserMessageBubbleContentProps) {
+  const { t } = useTranslation();
+  const hasText = message.trim().length > 0;
+  const hasImages = images.length > 0;
+  const hasAttachments = attachments.length > 0;
+  const imagePreviewContainerStyle = useMemo(
+    () => [
+      userMessageStylesheet.imagePreviewContainer,
+      hasText || hasAttachments ? userMessageStylesheet.imagePreviewSpacing : undefined,
+    ],
+    [hasAttachments, hasText],
+  );
+  const attachmentPreviewContainerStyle = useMemo(
+    () => [
+      userMessageStylesheet.attachmentPreviewContainer,
+      hasText ? userMessageStylesheet.imagePreviewSpacing : undefined,
+    ],
+    [hasText],
+  );
+
+  return (
+    <>
+      {hasImages ? (
+        <View style={imagePreviewContainerStyle}>
+          {images.map((image) => (
+            <UserMessageImagePill
+              key={image.id}
+              image={image}
+              onOpen={onOpenImage}
+              accessibilityLabel={t("composer.attachments.openImage")}
+            />
+          ))}
+        </View>
+      ) : null}
+      {hasAttachments ? (
+        <View style={attachmentPreviewContainerStyle}>
+          {attachments.map((attachment, index) => {
+            const content = getAgentAttachmentPillContent(attachment, t);
+            return (
+              <AttachmentFrame
+                key={`${attachment.type}:${"number" in attachment ? attachment.number : index}`}
+              >
+                <AttachmentLabel
+                  icon={content.icon}
+                  title={content.title}
+                  subtitle={content.subtitle}
+                />
+              </AttachmentFrame>
+            );
+          })}
+        </View>
+      ) : null}
+      {hasText ? (
+        <Text selectable style={userMessageStylesheet.text}>
+          {message}
+        </Text>
+      ) : null}
+    </>
   );
 }
 
@@ -439,8 +521,6 @@ export const UserMessage = memo(function UserMessage({
   const handleLightboxClose = useCallback(() => setLightboxMetadata(null), []);
   const resolvedDisableOuterSpacing = useDisableOuterSpacing(disableOuterSpacing);
   const hasText = message.trim().length > 0;
-  const hasImages = images.length > 0;
-  const hasAttachments = attachments.length > 0;
   const showTrailingRow = hasText && (isCompact || isNative || isHovered);
   const formattedTimestamp = useMemo(
     () => formatMessageTimestamp(new Date(timestamp)),
@@ -469,20 +549,6 @@ export const UserMessage = memo(function UserMessage({
     ],
     [resolvedDisableOuterSpacing, isFirstInGroup, isLastInGroup],
   );
-  const imagePreviewContainerStyle = useMemo(
-    () => [
-      userMessageStylesheet.imagePreviewContainer,
-      hasText || hasAttachments ? userMessageStylesheet.imagePreviewSpacing : undefined,
-    ],
-    [hasAttachments, hasText],
-  );
-  const attachmentPreviewContainerStyle = useMemo(
-    () => [
-      userMessageStylesheet.attachmentPreviewContainer,
-      hasText ? userMessageStylesheet.imagePreviewSpacing : undefined,
-    ],
-    [hasText],
-  );
   const trailingRowStyle = useMemo(
     () => [
       userMessageStylesheet.trailingRow,
@@ -501,41 +567,12 @@ export const UserMessage = memo(function UserMessage({
         onPointerLeave={handlePointerLeave}
       >
         <View style={userMessageStylesheet.bubble}>
-          {hasImages ? (
-            <View style={imagePreviewContainerStyle}>
-              {images.map((image) => (
-                <UserMessageImagePill
-                  key={image.id}
-                  image={image}
-                  onOpen={setLightboxMetadata}
-                  accessibilityLabel={t("composer.attachments.openImage")}
-                />
-              ))}
-            </View>
-          ) : null}
-          {hasAttachments ? (
-            <View style={attachmentPreviewContainerStyle}>
-              {attachments.map((attachment, index) => {
-                const content = getAgentAttachmentPillContent(attachment, t);
-                return (
-                  <AttachmentFrame
-                    key={`${attachment.type}:${"number" in attachment ? attachment.number : index}`}
-                  >
-                    <AttachmentLabel
-                      icon={content.icon}
-                      title={content.title}
-                      subtitle={content.subtitle}
-                    />
-                  </AttachmentFrame>
-                );
-              })}
-            </View>
-          ) : null}
-          {hasText ? (
-            <Text selectable style={userMessageStylesheet.text}>
-              {message}
-            </Text>
-          ) : null}
+          <UserMessageBubbleContent
+            message={message}
+            images={images}
+            attachments={attachments}
+            onOpenImage={setLightboxMetadata}
+          />
         </View>
         {hasText ? (
           <View style={trailingRowStyle} pointerEvents={showTrailingRow ? "auto" : "none"}>

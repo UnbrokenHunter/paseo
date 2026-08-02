@@ -32,6 +32,7 @@ import {
   AssistantMessage,
   SpeakMessage,
   UserMessage,
+  UserMessageBubbleContent,
   ActivityLog,
   ToolCall,
   TodoListCard,
@@ -74,10 +75,16 @@ import {
 import { layoutStream, type StreamLayoutItem } from "./layout";
 import {
   selectStickyConversationPreviews,
+  selectStickyIncomingRole,
   shouldTrackStickyPreviews,
+  STICKY_CONVERSATION_ROW_HEIGHT,
+  stickyConversationFoldOffset,
+  stickyConversationPushOffset,
   trackStickyPreviewGenerationStarts,
 } from "./sticky-header/model";
 import { StickyConversationHeader } from "./sticky-header/view";
+import { CollapsibleStreamMessage, type CollapsibleMessageItem } from "./collapsed-message/view";
+import { clipMarkdownPreviewSource } from "./collapsed-message/preview-source";
 import {
   type BottomAnchorLocalRequest,
   type BottomAnchorRouteRequest,
@@ -359,6 +366,8 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     );
     const [isNearBottom, setIsNearBottom] = useState(true);
     const [aboveViewportItemId, setAboveViewportItemId] = useState<string | null>(null);
+    const [stickyDistanceToFold, setStickyDistanceToFold] = useState<number | null>(null);
+    const [contentGutter, setContentGutter] = useState(0);
     const stickyGenerationStartsRef = useRef(new Map<string, number>());
     const [expandedInlineToolCallIds, setExpandedInlineToolCallIds] = useState<Set<string>>(
       new Set(),
@@ -661,25 +670,73 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
       });
     }, []);
 
-    const renderUserMessageItem = useCallback(
-      (layoutItem: StreamLayoutItem, item: Extract<StreamItem, { kind: "user_message" }>) => {
+    // Collapsed previews render the real start of the message — markdown,
+    // images, attachments — from a clipped copy of the source, so a streaming
+    // response keeps updating its preview without paying for the whole body.
+    const renderCollapsedPreview = useCallback(
+      (item: CollapsibleMessageItem) => {
+        if (item.kind === "user_message") {
+          return (
+            <UserMessageBubbleContent
+              message={clipMarkdownPreviewSource(item.text)}
+              images={item.images}
+              attachments={item.attachments}
+            />
+          );
+        }
         return (
-          <UserMessage
-            serverId={resolvedServerId}
-            agentId={agentId}
-            messageId={item.id}
-            message={item.text}
-            images={item.images}
-            attachments={item.attachments}
+          <AssistantMessage
+            message={clipMarkdownPreviewSource(item.text)}
             timestamp={item.timestamp.getTime()}
-            capabilities={context.capabilities}
+            workspaceRoot={workspaceRoot}
+            serverId={resolvedServerId}
             client={client}
-            isFirstInGroup={layoutItem.isFirstInUserGroup}
-            isLastInGroup={layoutItem.isLastInUserGroup}
+            spacing="compactBoth"
           />
         );
       },
-      [context.capabilities, agentId, client, resolvedServerId],
+      [client, resolvedServerId, workspaceRoot],
+    );
+
+    // Pressing a collapsed stub asks to see that message, so bring it to the
+    // top once it has its full height back.
+    const handleRevealExpandedMessage = useStableEvent((itemId: string) => {
+      viewportRef.current?.scrollToItem(itemId);
+    });
+
+    const renderUserMessageItem = useCallback(
+      (layoutItem: StreamLayoutItem, item: Extract<StreamItem, { kind: "user_message" }>) => {
+        return (
+          <CollapsibleStreamMessage
+            agentId={agentId}
+            item={item}
+            renderPreview={renderCollapsedPreview}
+            onRevealExpanded={handleRevealExpandedMessage}
+          >
+            <UserMessage
+              serverId={resolvedServerId}
+              agentId={agentId}
+              messageId={item.id}
+              message={item.text}
+              images={item.images}
+              attachments={item.attachments}
+              timestamp={item.timestamp.getTime()}
+              capabilities={context.capabilities}
+              client={client}
+              isFirstInGroup={layoutItem.isFirstInUserGroup}
+              isLastInGroup={layoutItem.isLastInUserGroup}
+            />
+          </CollapsibleStreamMessage>
+        );
+      },
+      [
+        context.capabilities,
+        agentId,
+        client,
+        handleRevealExpandedMessage,
+        renderCollapsedPreview,
+        resolvedServerId,
+      ],
     );
 
     const renderAssistantMessageItem = useCallback(
@@ -692,18 +749,34 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             onOpenWorkspaceFile={handleInlinePathPress}
             toast={toast}
           >
-            <AssistantMessage
-              message={item.text}
-              timestamp={item.timestamp.getTime()}
-              workspaceRoot={workspaceRoot}
-              serverId={resolvedServerId}
-              client={client}
-              spacing={layoutItem.assistantSpacing}
-            />
+            <CollapsibleStreamMessage
+              agentId={agentId}
+              item={item}
+              renderPreview={renderCollapsedPreview}
+              onRevealExpanded={handleRevealExpandedMessage}
+            >
+              <AssistantMessage
+                message={item.text}
+                timestamp={item.timestamp.getTime()}
+                workspaceRoot={workspaceRoot}
+                serverId={resolvedServerId}
+                client={client}
+                spacing={layoutItem.assistantSpacing}
+              />
+            </CollapsibleStreamMessage>
           </AssistantFileLinkResolverProvider>
         );
       },
-      [client, handleInlinePathPress, resolvedServerId, toast, workspaceRoot],
+      [
+        agentId,
+        client,
+        handleInlinePathPress,
+        handleRevealExpandedMessage,
+        renderCollapsedPreview,
+        resolvedServerId,
+        toast,
+        workspaceRoot,
+      ],
     );
 
     const renderThoughtItem = useCallback(
@@ -1024,9 +1097,19 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     );
 
     const stickyPreviewEnabled = shouldTrackStickyPreviews(stickyHeaderMode);
-    const handleAboveViewportItemChange = useStableEvent((itemId: string | null) => {
-      setAboveViewportItemId((previous) => (previous === itemId ? previous : itemId));
-    });
+    const handleAboveViewportItemChange = useStableEvent(
+      (itemId: string | null, distanceToFold: number | null) => {
+        setAboveViewportItemId((previous) => (previous === itemId ? previous : itemId));
+        // Clamped to the row it can act over and rounded to the pixel the block
+        // is drawn at, so scrolling anywhere else keeps reporting the same value
+        // and rerenders nothing.
+        const next =
+          distanceToFold === null || distanceToFold > STICKY_CONVERSATION_ROW_HEIGHT
+            ? null
+            : Math.round(distanceToFold);
+        setStickyDistanceToFold((previous) => (previous === next ? previous : next));
+      },
+    );
     // Recorded during render so a response that starts and finishes streaming
     // below the fold still carries its generation-start time when it scrolls up.
     if (stickyPreviewEnabled) {
@@ -1045,6 +1128,31 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
           generationStartByItemId: stickyGenerationStartsRef.current,
         }),
       [aboveViewportItemId, projectedToolCalls.head, projectedToolCalls.tail, stickyHeaderMode],
+    );
+    const handleContentGutterChange = useStableEvent((width: number) => {
+      const next = Math.round(width);
+      setContentGutter((previous) => (previous === next ? previous : next));
+    });
+    const stickyPushOffset = useMemo(
+      () =>
+        stickyConversationPushOffset({
+          distanceToFold: stickyDistanceToFold,
+          incomingRole: selectStickyIncomingRole({
+            tail: projectedToolCalls.tail,
+            head: projectedToolCalls.head,
+            aboveViewportItemId,
+          }),
+          previews: stickyPreviews,
+          mode: stickyHeaderMode,
+        }),
+      [
+        aboveViewportItemId,
+        projectedToolCalls.head,
+        projectedToolCalls.tail,
+        stickyDistanceToFold,
+        stickyHeaderMode,
+        stickyPreviews,
+      ],
     );
     const handleStickyPreviewPress = useStableEvent((itemId: string) => {
       viewportRef.current?.scrollToItem(itemId);
@@ -1071,7 +1179,9 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
               hasOlderHistory: hasOlder,
               olderHistoryProgressKey: progressKey,
               stickyPreviewEnabled,
+              stickyFoldOffset: stickyConversationFoldOffset(stickyHeaderMode),
               onAboveViewportItemChange: handleAboveViewportItemChange,
+              onContentGutterChange: handleContentGutterChange,
               scrollEnabled: streamScrollEnabled,
               listStyle: stylesheet.list,
               baseListContentContainerStyle: stylesheet.listContentContainer,
@@ -1079,8 +1189,11 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             })}
           </MessageOuterSpacingProvider>
           <StickyConversationHeader
+            agentId={agentId}
             mode={stickyHeaderMode}
             previews={stickyPreviews}
+            pushOffset={stickyPushOffset}
+            gutterWidth={contentGutter}
             onPressPreview={handleStickyPreviewPress}
           />
           {!isNearBottom && (

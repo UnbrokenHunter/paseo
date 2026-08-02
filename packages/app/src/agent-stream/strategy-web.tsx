@@ -13,7 +13,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import type { Theme } from "@/styles/theme";
 import { estimateStreamItemHeight } from "./web-virtualization";
-import { findLastIndexFullyAbove, isStickyPreviewTrackedItem } from "./sticky-header/model";
+import { findLastIndexStartedAbove, isStickyPreviewTrackedItem } from "./sticky-header/model";
 import type { StreamRenderInput, StreamStrategy, StreamViewportHandle } from "./strategy";
 import { createStreamStrategy } from "./strategy";
 import {
@@ -48,6 +48,41 @@ const streamRowStyle: CSSProperties = {
 };
 
 const SCROLL_TO_ITEM_MARGIN_PX = 8;
+
+/** Reused across probes: a scroll handler measures several rows per event. */
+let firstTextLineRange: Range | null = null;
+
+/**
+ * How far a row's first line of text sits below the row's own top.
+ *
+ * The fold is a text position — a message hands off to its pin when its first
+ * line reaches the line the pin occupies — so the rows have to be compared on
+ * their text rather than their boxes. Between the two sits everything the row
+ * puts above its first line: the gap to the previous message, and, on a prompt,
+ * the bubble's padding. Those differ per message, so this is measured rather
+ * than assumed.
+ *
+ * A range over the first text node gives that line's own box. Environments
+ * without layout (jsdom) have no range geometry at all; there the inset comes
+ * out 0 and the comparison falls back to the row's top.
+ */
+function measureFirstTextLineInset(row: HTMLElement): number {
+  const range = (firstTextLineRange ??= document.createRange());
+  if (typeof range.getBoundingClientRect !== "function") {
+    return 0;
+  }
+  const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node && !node.nodeValue?.trim()) {
+    node = walker.nextNode();
+  }
+  if (!node) {
+    return 0;
+  }
+  range.selectNodeContents(node);
+  const inset = range.getBoundingClientRect().top - row.getBoundingClientRect().top;
+  return Number.isFinite(inset) && inset > 0 ? inset : 0;
+}
 
 type StreamRowRegistry = Map<string, HTMLElement>;
 
@@ -160,6 +195,8 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     scrollEnabled,
     stickyPreviewEnabled,
     onAboveViewportItemChange,
+    onContentGutterChange,
+    stickyFoldOffset,
     isMobileBreakpoint,
   } = props;
   const scrollContainerRef = useRef<HTMLElement | null>(null);
@@ -280,8 +317,18 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     if (!scrollContainer) {
       return;
     }
-    const viewportTop = scrollContainer.scrollTop;
+    // The fold is the bottom of the sticky block, not the viewport's own top
+    // edge: the block covers that strip, so a message is gone once it is under
+    // it. Never deeper than what has actually scrolled past, though — the block
+    // only exists once something is pinned, so an unclamped offset would pin
+    // the first message of a conversation that has not moved, and then cover it
+    // with the block that pinned it.
+    const scrolledAbove = Math.max(scrollContainer.scrollTop, 0);
+    const viewportTop = scrolledAbove + Math.min(stickyFoldOffset, scrolledAbove);
     let boundaryItemId: string | null = null;
+    // Top of the first tracked message still below the fold, in the same
+    // coordinates. The block rides up on whatever distance this has closed.
+    let nextTop = Number.POSITIVE_INFINITY;
 
     const virtualRowsContainer = virtualRowsContainerRef.current;
     if (shouldUseVirtualizer && virtualRowsContainer) {
@@ -289,9 +336,10 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       // Public mirror of the virtualizer's internal measurements, including rows
       // that have scrolled out of the DOM. Refreshed whenever it renders.
       const measurements = rowVirtualizer.measurementsCache;
-      const lastAbove = findLastIndexFullyAbove({
-        count: Math.min(measurements.length, segments.historyVirtualized.length),
-        getBottom: (index) => virtualBase + measurements[index].end,
+      const count = Math.min(measurements.length, segments.historyVirtualized.length);
+      const lastAbove = findLastIndexStartedAbove({
+        count,
+        getTop: (index) => virtualBase + measurements[index].start,
         viewportTop,
       });
       for (let index = lastAbove; index >= 0; index -= 1) {
@@ -301,23 +349,42 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
           break;
         }
       }
+      for (let index = lastAbove + 1; index < count; index += 1) {
+        const item = segments.historyVirtualized[index];
+        if (item && isStickyPreviewTrackedItem(item)) {
+          nextTop = virtualBase + measurements[index].start;
+          break;
+        }
+      }
     }
 
     const registry = streamRowRegistryRef.current;
-    const lastDomAbove = findLastIndexFullyAbove({
+    const domRowTop = (index: number): number => {
+      const element = registry.get(trackedDomRowIds[index]);
+      // An unmounted row cannot be proven above; treat it as still below.
+      return element
+        ? element.offsetTop + measureFirstTextLineInset(element)
+        : Number.POSITIVE_INFINITY;
+    };
+    const lastDomAbove = findLastIndexStartedAbove({
       count: trackedDomRowIds.length,
-      getBottom: (index) => {
-        const element = registry.get(trackedDomRowIds[index]);
-        // An unmounted row cannot be proven above; treat it as still below.
-        return element ? element.offsetTop + element.offsetHeight : Number.POSITIVE_INFINITY;
-      },
+      getTop: domRowTop,
       viewportTop,
     });
     if (lastDomAbove >= 0) {
       boundaryItemId = trackedDomRowIds[lastDomAbove];
     }
+    // Mounted rows come after the virtualized ones, so a nearer candidate here
+    // wins outright; the min also covers the case where nothing above the fold
+    // is a DOM row at all.
+    if (lastDomAbove + 1 < trackedDomRowIds.length) {
+      nextTop = Math.min(nextTop, domRowTop(lastDomAbove + 1));
+    }
 
-    onAboveViewportItemChange(boundaryItemId);
+    onAboveViewportItemChange(
+      boundaryItemId,
+      Number.isFinite(nextTop) ? nextTop - viewportTop : null,
+    );
   });
 
   const measureVirtualizedRowElement = useCallback(
@@ -412,7 +479,8 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       return;
     }
     syncNearBottom(scrollContainer, onNearBottomChange);
-  }, [onNearBottomChange]);
+    onContentGutterChange(Math.max(0, scrollContainer.offsetWidth - scrollContainer.clientWidth));
+  }, [onContentGutterChange, onNearBottomChange]);
 
   const handleDomScroll = useCallback(() => {
     const scrollContainer = scrollContainerRef.current;

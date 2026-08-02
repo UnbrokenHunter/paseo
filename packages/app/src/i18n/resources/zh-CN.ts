@@ -191,6 +191,12 @@ export const zhCN: TranslationResources = {
       userAccessibilityLabel: "跳转到最后一条用户消息：{{preview}}",
       assistantAccessibilityLabel: "跳转到最后一条 AI 回复：{{preview}}",
     },
+    messageCollapse: {
+      collapseUser: "折叠此条用户消息",
+      collapseAssistant: "折叠此条 AI 回复",
+      expandUser: "展开此条用户消息",
+      expandAssistant: "展开此条 AI 回复",
+    },
     permission: {
       plan: "Plan",
       required: "需要权限",
