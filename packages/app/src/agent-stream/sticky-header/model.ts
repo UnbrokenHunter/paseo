@@ -1,8 +1,10 @@
 import type { StickyConversationHeaderMode } from "@/hooks/use-settings";
-import type { AssistantMessageItem, StreamItem } from "@/types/stream";
+import type { StreamItem } from "@/types/stream";
+import { buildStreamMessageGroups } from "../message-groups";
 
 /** Line height of a pinned line. Matches the message text it stands in for. */
 export const STICKY_PIN_LINE_HEIGHT = 22;
+export const STICKY_PREVIEW_MAX_LINES = 2;
 /**
  * Space above and below a pinned line, which is the prompt bubble's own padding
  * (`userMessageStylesheet.bubble` in components/message.tsx). A pinned prompt is
@@ -15,7 +17,7 @@ export const STICKY_PIN_LINE_HEIGHT = 22;
  * the lower row. A depth that varied by side would feed back into itself and
  * oscillate across the handoff.
  */
-export const STICKY_PIN_VERTICAL_PADDING = 16;
+export const STICKY_PIN_VERTICAL_PADDING = 8;
 
 /**
  * Height of one pinned row — one line in its bubble. A row keeps it even when
@@ -24,6 +26,23 @@ export const STICKY_PIN_VERTICAL_PADDING = 16;
  */
 export const STICKY_CONVERSATION_ROW_HEIGHT =
   STICKY_PIN_LINE_HEIGHT + STICKY_PIN_VERTICAL_PADDING * 2;
+export const STICKY_CONVERSATION_MAX_ROW_HEIGHT =
+  STICKY_PIN_LINE_HEIGHT * STICKY_PREVIEW_MAX_LINES + STICKY_PIN_VERTICAL_PADDING * 2;
+
+export type StickyConversationRowHeights = Partial<Record<"user" | "assistant", number>>;
+
+function stickyConversationRowHeight(
+  role: "user" | "assistant",
+  rowHeights?: StickyConversationRowHeights,
+): number {
+  const measured = rowHeights?.[role];
+  return measured === undefined || !Number.isFinite(measured)
+    ? STICKY_CONVERSATION_ROW_HEIGHT
+    : Math.min(
+        Math.max(measured, STICKY_CONVERSATION_ROW_HEIGHT),
+        STICKY_CONVERSATION_MAX_ROW_HEIGHT,
+      );
+}
 
 /**
  * Where a pinned line's text sits inside its row. The pin fills the row, so the
@@ -95,12 +114,23 @@ export function stickyBlockBarRevealProgress(distanceSincePinned: number): numbe
  * decides which rows fill, so a height that followed the filled rows would feed
  * back into itself and oscillate across the row that is entering.
  */
-export function stickyConversationFoldOffset(mode: StickyConversationHeaderMode): number {
+export function stickyConversationFoldOffset(
+  mode: StickyConversationHeaderMode,
+  previews: StickyConversationPreviews,
+  rowHeights?: StickyConversationRowHeights,
+): number {
   if (mode === "off") {
     return 0;
   }
-  const lastRowTop = mode === "user-and-ai" ? STICKY_CONVERSATION_ROW_HEIGHT : 0;
+  const lastRowTop =
+    mode === "user-and-ai" ? stickyConversationRowHeight(oldestRole(previews), rowHeights) : 0;
   return lastRowTop + STICKY_PIN_TEXT_INSET;
+}
+
+function oldestRole(previews: StickyConversationPreviews): "user" | "assistant" {
+  return (previews.user?.sequence ?? -1) <= (previews.assistant?.sequence ?? -1)
+    ? "user"
+    : "assistant";
 }
 
 /**
@@ -143,9 +173,10 @@ export function selectStickyIncomingRole(input: {
   if (!aboveViewportItemId) {
     return null;
   }
-  const total = tail.length + head.length;
-  const itemAt = (index: number): StreamItem | undefined =>
-    index < tail.length ? tail[index] : head[index - tail.length];
+  const items = [...tail, ...head];
+  const groups = buildStreamMessageGroups(items);
+  const total = items.length;
+  const itemAt = (index: number): StreamItem | undefined => items[index];
   let boundaryIndex = -1;
   for (let index = total - 1; index >= 0; index -= 1) {
     if (itemAt(index)?.id === aboveViewportItemId) {
@@ -158,12 +189,14 @@ export function selectStickyIncomingRole(input: {
   }
   for (let index = boundaryIndex + 1; index < total; index += 1) {
     const item = itemAt(index);
-    if (item?.kind === "user_message") {
+    const group = item ? groups.get(item.id) : undefined;
+    if (!group?.isHost) {
+      continue;
+    }
+    if (group.message.kind === "user_message") {
       return "user";
     }
-    if (item?.kind === "assistant_message") {
-      return "assistant";
-    }
+    return "assistant";
   }
   return null;
 }
@@ -189,6 +222,7 @@ export function stickyConversationPushOffset(input: {
   incomingRole: "user" | "assistant" | null;
   previews: StickyConversationPreviews;
   mode: StickyConversationHeaderMode;
+  rowHeights?: StickyConversationRowHeights;
 }): number {
   const { distanceToFold } = input;
   if (distanceToFold === null || !Number.isFinite(distanceToFold)) {
@@ -197,11 +231,15 @@ export function stickyConversationPushOffset(input: {
   if (!willDisplaceTopLine(input)) {
     return 0;
   }
-  const push = STICKY_CONVERSATION_ROW_HEIGHT - distanceToFold;
+  const rowHeight = stickyConversationRowHeight(
+    input.mode === "user-and-ai" ? oldestRole(input.previews) : "user",
+    input.rowHeights,
+  );
+  const push = rowHeight - distanceToFold;
   if (push <= 0) {
     return 0;
   }
-  return Math.min(push, STICKY_CONVERSATION_ROW_HEIGHT);
+  return Math.min(push, rowHeight);
 }
 
 export interface StickyConversationPreview {
@@ -229,8 +267,13 @@ export const EMPTY_STICKY_CONVERSATION_PREVIEWS: StickyConversationPreviews = {
 };
 
 /** Only these kinds can ever fill a sticky slot, so viewports track nothing else. */
-export function isStickyPreviewTrackedItem(item: StreamItem): boolean {
-  return item.kind === "user_message" || item.kind === "assistant_message";
+export function isStickyPreviewTrackedItem(
+  item: StreamItem,
+  messageStartIds?: ReadonlySet<string>,
+): boolean {
+  return messageStartIds
+    ? messageStartIds.has(item.id)
+    : item.kind === "user_message" || item.kind === "assistant_message";
 }
 
 export function shouldTrackStickyPreviews(mode: StickyConversationHeaderMode): boolean {
@@ -238,7 +281,7 @@ export function shouldTrackStickyPreviews(mode: StickyConversationHeaderMode): b
 }
 
 export function toStickyPreviewText(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
+  return text.replace(/\r\n?/g, "\n").split("\n", 1)[0]?.trim() ?? "";
 }
 
 /**
@@ -288,9 +331,10 @@ export function selectStickyConversationPreviews(
     return EMPTY_STICKY_CONVERSATION_PREVIEWS;
   }
 
-  const total = tail.length + head.length;
-  const itemAt = (index: number): StreamItem | undefined =>
-    index < tail.length ? tail[index] : head[index - tail.length];
+  const items = [...tail, ...head];
+  const groups = buildStreamMessageGroups(items);
+  const total = items.length;
+  const itemAt = (index: number): StreamItem | undefined => items[index];
 
   let boundaryIndex = -1;
   for (let index = total - 1; index >= 0; index -= 1) {
@@ -317,53 +361,24 @@ export function selectStickyConversationPreviews(
     }
     if (item.kind === "user_message" && !user) {
       user = toPreview(item.id, item.text, item.timestamp.getTime(), index);
-    } else if (wantsAssistant && item.kind === "assistant_message" && !assistant) {
-      // A long response is split into one item per markdown block, so scrolling
-      // down through it would otherwise pin each block in turn. Pin the group's
-      // first block instead — the beginning of the message, held for its whole
-      // length.
-      const groupHead = resolveAssistantGroupHead(itemAt, index, item);
-      const generationStart = generationStartByItemId?.get(groupHead.item.id);
+    } else if (wantsAssistant && !assistant) {
+      const group = groups.get(item.id);
+      if (group?.message.kind !== "assistant_message") {
+        continue;
+      }
+      const generationStart = generationStartByItemId?.get(group.message.id);
       assistant = toPreview(
-        groupHead.item.id,
-        groupHead.item.text,
+        group.message.id,
+        group.message.text,
         generationStart === undefined
-          ? groupHead.item.timestamp.getTime()
-          : Math.min(generationStart, groupHead.item.timestamp.getTime()),
-        groupHead.index,
+          ? group.message.timestamp.getTime()
+          : Math.min(generationStart, group.message.timestamp.getTime()),
+        group.hostIndex,
       );
     }
   }
 
   return { user, assistant };
-}
-
-/**
- * Walk back to the first block of a block-split assistant message, given one of
- * its blocks. Blocks of one response share a `blockGroupId` and sit contiguously
- * (see `promoteCompletedAssistantBlocks` in types/stream.ts); a message that was
- * never split has no group and is its own head.
- */
-function resolveAssistantGroupHead(
-  itemAt: (index: number) => StreamItem | undefined,
-  index: number,
-  item: AssistantMessageItem,
-): { item: AssistantMessageItem; index: number } {
-  const groupId = item.blockGroupId;
-  if (groupId === undefined) {
-    return { item, index };
-  }
-  let headItem = item;
-  let headIndex = index;
-  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
-    const candidate = itemAt(cursor);
-    if (candidate?.kind !== "assistant_message" || candidate.blockGroupId !== groupId) {
-      break;
-    }
-    headItem = candidate;
-    headIndex = cursor;
-  }
-  return { item: headItem, index: headIndex };
 }
 
 function toPreview(

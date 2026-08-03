@@ -25,7 +25,12 @@ interface Marks {
   strike: boolean;
 }
 
-const NO_MARKS: Marks = { bold: false, italic: false, code: false, strike: false };
+const NO_MARKS: Marks = {
+  bold: false,
+  italic: false,
+  code: false,
+  strike: false,
+};
 
 /**
  * Block markers at the head of the line. The preview is a single line, so a
@@ -117,5 +122,9 @@ function push(out: StickyPreviewSpan[], text: string, marks: Marks): void {
     last.text += text;
     return;
   }
-  out.push({ ...marks, offset: last ? last.offset + last.text.length : 0, text });
+  out.push({
+    ...marks,
+    offset: last ? last.offset + last.text.length : 0,
+    text,
+  });
 }

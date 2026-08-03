@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { parseStickyPreviewSpans } from "./inline-preview";
 
-const plain = (text: string) => ({ text, bold: false, italic: false, code: false, strike: false });
+const plain = (text: string) => ({
+  text,
+  bold: false,
+  italic: false,
+  code: false,
+  strike: false,
+});
 
 /** Marks and text only. Offsets follow from the text, and are asserted once. */
 const marked = (source: string) =>

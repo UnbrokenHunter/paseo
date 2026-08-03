@@ -8,10 +8,13 @@ import {
   shouldTrackStickyPreviews,
   STICKY_BLOCK_BAR_REVEAL_DISTANCE,
   STICKY_BLOCK_REVEAL_DISTANCE,
+  STICKY_CONVERSATION_MAX_ROW_HEIGHT,
   STICKY_CONVERSATION_ROW_HEIGHT,
+  STICKY_PIN_TEXT_INSET,
   stickyBlockBarRevealProgress,
   stickyBlockRevealProgress,
   stickyConversationPushOffset,
+  stickyConversationFoldOffset,
   toStickyPreviewText,
   trackStickyPreviewGenerationStarts,
 } from "./model";
@@ -21,7 +24,12 @@ function userMessage(id: string, text: string, timestamp: number): StreamItem {
 }
 
 function assistantMessage(id: string, text: string, timestamp: number): StreamItem {
-  return { kind: "assistant_message", id, text, timestamp: new Date(timestamp) };
+  return {
+    kind: "assistant_message",
+    id,
+    text,
+    timestamp: new Date(timestamp),
+  };
 }
 
 function assistantBlock(
@@ -93,7 +101,7 @@ describe("selectStickyConversationPreviews", () => {
     expect(previews.assistant?.itemId).toBe("a2");
   });
 
-  it("continues chronologically into the live head", () => {
+  it("keeps the response start when later text moves into the live head", () => {
     const previews = selectStickyConversationPreviews({
       tail: conversation,
       head: [assistantMessage("live", "streaming so far", 6)],
@@ -101,10 +109,10 @@ describe("selectStickyConversationPreviews", () => {
       mode: "user-and-ai",
     });
     expect(previews.assistant).toEqual({
-      itemId: "live",
-      text: "streaming so far",
-      timestamp: 6,
-      sequence: 5,
+      itemId: "a2",
+      text: "second answer",
+      timestamp: 5,
+      sequence: 4,
     });
     expect(previews.user?.itemId).toBe("u2");
     // The block stacks in conversation order, so which of the pair came first
@@ -153,6 +161,23 @@ describe("selectStickyConversationPreviews", () => {
       mode: "user-and-ai",
     });
     expect(atMiddleBlock.assistant?.itemId).toBe("g:block:0");
+  });
+
+  it("keeps the actual response start across tool calls and later text sections", () => {
+    const split: StreamItem[] = [
+      userMessage("u1", "explain", 1),
+      assistantMessage("a1", "I will inspect it.", 2),
+      todoList("tool", 3),
+      assistantMessage("a2", "Here is the result.", 4),
+    ];
+    const previews = selectStickyConversationPreviews({
+      tail: split,
+      head: [],
+      aboveViewportItemId: "a2",
+      mode: "user-and-ai",
+    });
+    expect(previews.assistant?.itemId).toBe("a1");
+    expect(previews.assistant?.text).toBe("I will inspect it.");
   });
 
   it("drops the assistant side in user-only mode", () => {
@@ -232,8 +257,23 @@ describe("trackStickyPreviewGenerationStarts", () => {
 });
 
 describe("toStickyPreviewText", () => {
-  it("collapses a message to a single line", () => {
-    expect(toStickyPreviewText("  refactor\n\n  the parser  ")).toBe("refactor the parser");
+  it("stops at the first explicit line break", () => {
+    expect(toStickyPreviewText("  refactor\r\n\r\n  the parser  ")).toBe("refactor");
+    expect(toStickyPreviewText("\nsecond line")).toBe("");
+  });
+});
+
+describe("stickyConversationFoldOffset", () => {
+  it("places the fold after the measured upper row", () => {
+    const previews = {
+      user: { itemId: "u", text: "one", timestamp: 1, sequence: 1 },
+      assistant: { itemId: "a", text: "answer", timestamp: 2, sequence: 2 },
+    };
+    expect(
+      stickyConversationFoldOffset("user-and-ai", previews, {
+        user: STICKY_CONVERSATION_MAX_ROW_HEIGHT,
+      }),
+    ).toBe(STICKY_CONVERSATION_MAX_ROW_HEIGHT + STICKY_PIN_TEXT_INSET);
   });
 });
 
@@ -265,7 +305,13 @@ describe("findLastIndexStartedAbove", () => {
     // Row 3 spans [90, 150) and the top edge sits at 100: the reader is inside
     // row 3, so row 3 is the answer even though row 2 is the last one they
     // scrolled fully past.
-    expect(findLastIndexStartedAbove({ count: tops.length, getTop, viewportTop: 100 })).toBe(3);
+    expect(
+      findLastIndexStartedAbove({
+        count: tops.length,
+        getTop,
+        viewportTop: 100,
+      }),
+    ).toBe(3);
   });
 
   it("switches to a row the moment its top edge reaches the viewport top", () => {
@@ -274,7 +320,13 @@ describe("findLastIndexStartedAbove", () => {
   });
 
   it("returns the last row once everything is above", () => {
-    expect(findLastIndexStartedAbove({ count: tops.length, getTop, viewportTop: 999 })).toBe(4);
+    expect(
+      findLastIndexStartedAbove({
+        count: tops.length,
+        getTop,
+        viewportTop: 999,
+      }),
+    ).toBe(4);
   });
 
   it("handles an empty list", () => {
@@ -292,6 +344,16 @@ const PUSH_BASE = {
 };
 
 describe("stickyConversationPushOffset", () => {
+  it("pushes a wrapped oldest row through its measured height", () => {
+    expect(
+      stickyConversationPushOffset({
+        ...PUSH_BASE,
+        distanceToFold: 0,
+        rowHeights: { user: STICKY_CONVERSATION_MAX_ROW_HEIGHT },
+      }),
+    ).toBe(STICKY_CONVERSATION_MAX_ROW_HEIGHT);
+  });
+
   it("leaves the block still while nothing is due at the fold", () => {
     expect(stickyConversationPushOffset({ ...PUSH_BASE, distanceToFold: null })).toBe(0);
     expect(
@@ -333,7 +395,11 @@ describe("stickyConversationPushOffset", () => {
     // Newest pinned is the response; another response swaps into its row and the
     // prompt above it does not move.
     expect(
-      stickyConversationPushOffset({ ...PUSH_BASE, incomingRole: "assistant", distanceToFold: 4 }),
+      stickyConversationPushOffset({
+        ...PUSH_BASE,
+        incomingRole: "assistant",
+        distanceToFold: 4,
+      }),
     ).toBe(0);
   });
 
@@ -393,38 +459,79 @@ describe("stickyBlockBarRevealProgress", () => {
 describe("selectStickyIncomingRole", () => {
   it("names the first tracked message still below the fold", () => {
     expect(
-      selectStickyIncomingRole({ tail: conversation, head: [], aboveViewportItemId: "u2" }),
+      selectStickyIncomingRole({
+        tail: conversation,
+        head: [],
+        aboveViewportItemId: "u2",
+      }),
     ).toBe("assistant");
     expect(
-      selectStickyIncomingRole({ tail: conversation, head: [], aboveViewportItemId: "a1" }),
+      selectStickyIncomingRole({
+        tail: conversation,
+        head: [],
+        aboveViewportItemId: "a1",
+      }),
     ).toBe("user");
   });
 
   it("skips untracked items on the way down", () => {
     expect(
-      selectStickyIncomingRole({ tail: conversation, head: [], aboveViewportItemId: "a1" }),
+      selectStickyIncomingRole({
+        tail: conversation,
+        head: [],
+        aboveViewportItemId: "a1",
+      }),
     ).toBe("user");
   });
 
   it("is null at the newest message, and with no boundary at all", () => {
     expect(
-      selectStickyIncomingRole({ tail: conversation, head: [], aboveViewportItemId: "a2" }),
+      selectStickyIncomingRole({
+        tail: conversation,
+        head: [],
+        aboveViewportItemId: "a2",
+      }),
     ).toBeNull();
     expect(
-      selectStickyIncomingRole({ tail: conversation, head: [], aboveViewportItemId: null }),
+      selectStickyIncomingRole({
+        tail: conversation,
+        head: [],
+        aboveViewportItemId: null,
+      }),
     ).toBeNull();
     expect(
-      selectStickyIncomingRole({ tail: conversation, head: [], aboveViewportItemId: "gone" }),
+      selectStickyIncomingRole({
+        tail: conversation,
+        head: [],
+        aboveViewportItemId: "gone",
+      }),
     ).toBeNull();
   });
 
-  it("continues into the live head", () => {
+  it("does not treat a live-head response fragment as an incoming message", () => {
     expect(
       selectStickyIncomingRole({
         tail: conversation,
         head: [assistantMessage("live", "streaming", 6)],
         aboveViewportItemId: "a2",
       }),
-    ).toBe("assistant");
+    ).toBeNull();
+  });
+
+  it("skips renderer fragments when naming the next actual message", () => {
+    const split: StreamItem[] = [
+      userMessage("u1", "one", 1),
+      assistantMessage("a1", "first paragraph", 2),
+      todoList("tool", 3),
+      assistantMessage("a2", "later paragraph", 4),
+      userMessage("u2", "two", 5),
+    ];
+    expect(
+      selectStickyIncomingRole({
+        tail: split,
+        head: [],
+        aboveViewportItemId: "a1",
+      }),
+    ).toBe("user");
   });
 });

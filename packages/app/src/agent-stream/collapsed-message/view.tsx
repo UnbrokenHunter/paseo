@@ -12,7 +12,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-na
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { ChevronDown, ChevronUp } from "lucide-react-native";
 import { isNative } from "@/constants/platform";
-import { useIsCompactFormFactor } from "@/constants/layout";
+import { MAX_CONTENT_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
 import type { Theme } from "@/styles/theme";
 import type { AssistantMessageItem, UserMessageItem } from "@/types/stream";
 import { CollapsedPreviewFade } from "./preview-fade";
@@ -154,6 +154,10 @@ function useCollapseSwapFade(collapsed: boolean) {
 interface CollapsibleStreamMessageProps {
   agentId: string;
   item: CollapsibleMessageItem;
+  /** The current renderer row; every row in a message shares `item.id`. */
+  itemId: string;
+  isHost: boolean;
+  hasSiblingItems: boolean;
   /**
    * Called only while collapsed. Building the preview eagerly would clip and
    * re-render every message in history on every streaming flush.
@@ -173,6 +177,9 @@ interface CollapsibleStreamMessageProps {
 export function CollapsibleStreamMessage({
   agentId,
   item,
+  itemId,
+  isHost,
+  hasSiblingItems,
   renderPreview,
   onRevealExpanded,
   children,
@@ -210,17 +217,23 @@ export function CollapsibleStreamMessage({
       return;
     }
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => onRevealExpanded(item.id));
+      requestAnimationFrame(() => onRevealExpanded(itemId));
     });
-  }, [agentId, item.id, onRevealExpanded]);
+  }, [agentId, item.id, itemId, onRevealExpanded]);
   const handleBodyLayout = useCallback(
     (event: LayoutChangeEvent) => {
       const worthCollapsing =
+        hasSiblingItems ||
         event.nativeEvent.layout.height >= COLLAPSED_MAX_FOOTPRINT + COLLAPSE_MIN_SAVED_HEIGHT;
       setMessageCollapsible({ agentId, itemId: item.id, collapsible: worthCollapsing });
     },
-    [agentId, item.id],
+    [agentId, hasSiblingItems, item.id],
   );
+  useEffect(() => {
+    if (hasSiblingItems) {
+      setMessageCollapsible({ agentId, itemId: item.id, collapsible: true });
+    }
+  }, [agentId, hasSiblingItems, item.id]);
 
   const pointedAt = isHovered || isNative || isCompact;
   const messageToggleSlotStyle = useMemo(
@@ -247,6 +260,10 @@ export function CollapsibleStreamMessage({
     ],
     [role, swapFadeStyle],
   );
+
+  if (!isHost) {
+    return collapsed ? null : children;
+  }
 
   if (collapsed) {
     return (
@@ -340,7 +357,9 @@ const positionStyles = RNStyleSheet.create({
     maxWidth: "100%",
   },
   bodyAssistant: {
-    flex: 1,
+    width: "100%",
+    maxWidth: MAX_CONTENT_WIDTH,
+    marginHorizontal: "auto",
     minWidth: 0,
   },
   // The arrow sits at the message's top outer corner — the side that message is

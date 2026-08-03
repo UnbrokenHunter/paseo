@@ -4,6 +4,7 @@ import {
   Pressable,
   Text,
   View,
+  type LayoutChangeEvent,
   type PressableStateCallbackType,
   type StyleProp,
   type ViewStyle,
@@ -23,6 +24,7 @@ import {
   STICKY_CONVERSATION_ROW_HEIGHT,
   STICKY_PIN_LINE_HEIGHT,
   STICKY_PIN_VERTICAL_PADDING,
+  STICKY_PREVIEW_MAX_LINES,
   type StickyConversationPreview,
   type StickyConversationPreviews,
 } from "./model";
@@ -59,6 +61,7 @@ interface StickyConversationHeaderProps {
    */
   gutterWidth: number;
   onPressPreview: (itemId: string) => void;
+  onRowHeightChange: (role: "user" | "assistant", height: number) => void;
 }
 
 /**
@@ -80,6 +83,7 @@ export function StickyConversationHeader({
   barProgress,
   gutterWidth,
   onPressPreview,
+  onRowHeightChange,
 }: StickyConversationHeaderProps) {
   const showAssistantSide = mode === "user-and-ai";
   const assistant = showAssistantSide ? previews.assistant : null;
@@ -120,7 +124,10 @@ export function StickyConversationHeader({
   const backgroundStyle = useMemo(
     () => [
       styles.barBackground,
-      { transform: [{ scaleY: revealProgress }], transformOrigin: "top" as const },
+      {
+        transform: [{ scaleY: revealProgress }],
+        transformOrigin: "top" as const,
+      },
     ],
     [revealProgress],
   );
@@ -134,7 +141,10 @@ export function StickyConversationHeader({
   // That row's top is where the fold sits, so it is the only row a message ever
   // swaps into — the one above it was pinned earlier, from the row it is still
   // in, and does not move as the block grows under it.
-  const slots: Array<{ role: "user" | "assistant"; preview: StickyConversationPreview | null }> = [
+  const slots: {
+    role: "user" | "assistant";
+    preview: StickyConversationPreview | null;
+  }[] = [
     { role: "assistant" as const, preview: assistant },
     { role: "user" as const, preview: user },
   ].sort((a, b) => (a.preview?.sequence ?? -1) - (b.preview?.sequence ?? -1));
@@ -177,6 +187,7 @@ export function StickyConversationHeader({
                   revealProgress={revealProgress}
                   barProgress={barProgress}
                   onPress={onPressPreview}
+                  onHeightChange={onRowHeightChange}
                 />
               </StickyLine>
             ),
@@ -215,6 +226,7 @@ interface StickyRowProps {
   /** How far the response rule has extended, 0..1 — it wipes out on this. */
   barProgress: number;
   onPress: (itemId: string) => void;
+  onHeightChange: (role: "user" | "assistant", height: number) => void;
 }
 
 function StickyRow({
@@ -226,6 +238,7 @@ function StickyRow({
   revealProgress,
   barProgress,
   onPress,
+  onHeightChange,
 }: StickyRowProps) {
   const { t } = useTranslation();
   const isCompact = useIsCompactFormFactor();
@@ -234,6 +247,14 @@ function StickyRow({
   // A message too short to be worth collapsing gets no control here either.
   const collapsible = useIsMessageCollapsible(agentId, itemId ?? "");
   const spans = useMemo(() => parseStickyPreviewSpans(preview?.text ?? ""), [preview?.text]);
+  const rowStyle = useMemo(
+    () => [styles.row, align === "left" ? styles.rowLeft : styles.rowRight],
+    [align],
+  );
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => onHeightChange(role, Math.round(event.nativeEvent.layout.height)),
+    [onHeightChange, role],
+  );
   const handlePress = useCallback(() => {
     if (itemId) {
       onPress(itemId);
@@ -248,7 +269,7 @@ function StickyRow({
   // on the fold and the side that is pinned never moves as the other comes and
   // goes.
   if (!preview) {
-    return <View style={styles.row} pointerEvents="none" />;
+    return <View style={rowStyle} pointerEvents="none" onLayout={handleLayout} />;
   }
 
   const showToggle = arrowsVisible || isNative || isCompact;
@@ -270,10 +291,7 @@ function StickyRow({
   ) : null;
 
   return (
-    <View
-      style={[styles.row, align === "left" ? styles.rowLeft : styles.rowRight]}
-      pointerEvents="box-none"
-    >
+    <View style={rowStyle} pointerEvents="box-none" onLayout={handleLayout}>
       <Pressable
         style={align === "right" ? userPinStyle : assistantPinStyle}
         onPress={handlePress}
@@ -294,7 +312,10 @@ function StickyRow({
           <View
             style={[
               styles.pinBubble,
-              { transform: [{ scaleY: revealProgress }], transformOrigin: "top" },
+              {
+                transform: [{ scaleY: revealProgress }],
+                transformOrigin: "top",
+              },
             ]}
             pointerEvents="none"
           />
@@ -302,7 +323,10 @@ function StickyRow({
           <View
             style={[
               styles.pinRule,
-              { transform: [{ scaleX: barProgress }], transformOrigin: "center left" },
+              {
+                transform: [{ scaleX: barProgress }],
+                transformOrigin: "center left",
+              },
             ]}
             pointerEvents="none"
           />
@@ -311,7 +335,11 @@ function StickyRow({
             the cap and the chrome behind it comes out the length of the line. A
             line too long to pin whole ends in an ellipsis, the way any cut line
             does. */}
-        <Text style={styles.previewText} numberOfLines={1} ellipsizeMode="tail">
+        <Text
+          style={styles.previewText}
+          numberOfLines={STICKY_PREVIEW_MAX_LINES}
+          ellipsizeMode="tail"
+        >
           {spans.map((span) => (
             <Text
               key={span.offset}
@@ -322,7 +350,7 @@ function StickyRow({
                 span.strike ? styles.spanStrike : null,
               ]}
             >
-              {span.text}
+              {span.text || " "}
             </Text>
           ))}
         </Text>
@@ -400,9 +428,9 @@ const styles = StyleSheet.create((theme) => ({
    * exactly the fold the strategies offset the swap to.
    */
   row: {
-    height: STICKY_CONVERSATION_ROW_HEIGHT,
     flexDirection: "row",
     alignItems: "stretch",
+    minHeight: STICKY_CONVERSATION_ROW_HEIGHT,
   },
   rowLeft: {
     justifyContent: "flex-start",

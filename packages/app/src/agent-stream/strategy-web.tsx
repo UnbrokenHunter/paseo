@@ -224,6 +224,7 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     scrollEnabled,
     isMobileBreakpoint,
     stickyPreviewEnabled,
+    stickyPreviewItemIds,
     onAboveViewportItemChange,
     onContentGutterChange,
     stickyFoldOffset,
@@ -472,17 +473,17 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     }
     const ids: string[] = [];
     for (const item of segments.historyMounted) {
-      if (isStickyPreviewTrackedItem(item)) {
+      if (isStickyPreviewTrackedItem(item, stickyPreviewItemIds)) {
         ids.push(item.id);
       }
     }
     for (const item of segments.liveHead) {
-      if (isStickyPreviewTrackedItem(item)) {
+      if (isStickyPreviewTrackedItem(item, stickyPreviewItemIds)) {
         ids.push(item.id);
       }
     }
     return ids;
-  }, [segments.historyMounted, segments.liveHead, stickyPreviewEnabled]);
+  }, [segments.historyMounted, segments.liveHead, stickyPreviewEnabled, stickyPreviewItemIds]);
 
   const updateAboveViewportItem = useStableEvent(() => {
     if (!stickyPreviewEnabled) {
@@ -519,14 +520,14 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       });
       for (let index = lastAbove; index >= 0; index -= 1) {
         const item = segments.historyVirtualized[index];
-        if (item && isStickyPreviewTrackedItem(item)) {
+        if (item && isStickyPreviewTrackedItem(item, stickyPreviewItemIds)) {
           boundaryItemId = item.id;
           break;
         }
       }
       for (let index = lastAbove + 1; index < count; index += 1) {
         const item = segments.historyVirtualized[index];
-        if (item && isStickyPreviewTrackedItem(item)) {
+        if (item && isStickyPreviewTrackedItem(item, stickyPreviewItemIds)) {
           nextTop = virtualBase + measurements[index].start;
           break;
         }
@@ -1028,26 +1029,37 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
       <WebStreamRow
         key={item.id}
         itemId={item.id}
-        tracked={stickyPreviewEnabled && isStickyPreviewTrackedItem(item)}
+        tracked={stickyPreviewEnabled && isStickyPreviewTrackedItem(item, stickyPreviewItemIds)}
         registry={streamRowRegistryRef.current}
       >
         {renderHistoryMountedRow(item, index, segments.historyMounted)}
       </WebStreamRow>
     ));
-  }, [renderHistoryMountedRow, segments.historyMounted, stickyPreviewEnabled]);
+  }, [
+    renderHistoryMountedRow,
+    segments.historyMounted,
+    stickyPreviewEnabled,
+    stickyPreviewItemIds,
+  ]);
   const liveHeadRows = useMemo(() => {
     void liveHeadRowRevision;
     return segments.liveHead.map((item, index) => (
       <WebStreamRow
         key={item.id}
         itemId={item.id}
-        tracked={stickyPreviewEnabled && isStickyPreviewTrackedItem(item)}
+        tracked={stickyPreviewEnabled && isStickyPreviewTrackedItem(item, stickyPreviewItemIds)}
         registry={streamRowRegistryRef.current}
       >
         {renderLiveHeadRow(item, index, segments.liveHead)}
       </WebStreamRow>
     ));
-  }, [liveHeadRowRevision, renderLiveHeadRow, segments.liveHead, stickyPreviewEnabled]);
+  }, [
+    liveHeadRowRevision,
+    renderLiveHeadRow,
+    segments.liveHead,
+    stickyPreviewEnabled,
+    stickyPreviewItemIds,
+  ]);
   const liveAuxiliary = useMemo(() => {
     return renderLiveAuxiliary();
   }, [renderLiveAuxiliary]);

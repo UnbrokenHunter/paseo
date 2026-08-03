@@ -136,6 +136,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     baseListContentContainerStyle,
     strategy,
     stickyPreviewEnabled,
+    stickyPreviewItemIds,
     onAboveViewportItemChange,
     stickyFoldOffset,
   } = props;
@@ -236,7 +237,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       // also the chronologically latest one that has started above the top edge,
       // and the tracked row seen just before it is the next one due at the fold.
       for (const item of segments.liveHead) {
-        if (!isStickyPreviewTrackedItem(item)) {
+        if (!isStickyPreviewTrackedItem(item, stickyPreviewItemIds)) {
           continue;
         }
         const metric = liveHeadRowMetricsRef.current.get(item.id);
@@ -260,7 +261,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
       if (maxViewableIndex !== null) {
         for (let index = maxViewableIndex; index < historyItems.length; index += 1) {
           const item = historyItems[index];
-          if (item && isStickyPreviewTrackedItem(item)) {
+          if (item && isStickyPreviewTrackedItem(item, stickyPreviewItemIds)) {
             boundaryItemId = item.id;
             break;
           }
@@ -756,7 +757,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     void liveHeadRowRevision;
     const liveHeadRows = segments.liveHead.map((item, index) => {
       const row = renderLiveHeadRow(item, index, segments.liveHead);
-      if (!stickyPreviewEnabled || !isStickyPreviewTrackedItem(item)) {
+      if (!stickyPreviewEnabled || !isStickyPreviewTrackedItem(item, stickyPreviewItemIds)) {
         return <Fragment key={item.id}>{row}</Fragment>;
       }
       return (
@@ -798,6 +799,7 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     renderLiveHeadRow,
     segments.liveHead,
     stickyPreviewEnabled,
+    stickyPreviewItemIds,
   ]);
 
   const historyFooterContent = useMemo(() => {

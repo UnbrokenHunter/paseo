@@ -81,6 +81,8 @@ export interface StreamRenderInput {
   olderHistoryProgressKey: string | null;
   /** Skip above-viewport bookkeeping entirely when the sticky header is off. */
   stickyPreviewEnabled: boolean;
+  /** IDs of actual message starts; renderer fragments and tool-call sections are excluded. */
+  stickyPreviewItemIds?: ReadonlySet<string>;
   /**
    * How far below the viewport's top edge the fold sits — the height the sticky
    * block covers, from `stickyConversationFoldOffset`. A message hands off to
