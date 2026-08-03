@@ -41,11 +41,17 @@ interface StickyConversationHeaderProps {
   pushOffset: number;
   /**
    * How far the block has revealed as it attaches, 0..1 from
-   * `stickyBlockRevealProgress`. 0 with the conversation at rest. The surface and
-   * the prompt bubble fade in on it; the response rule extends on it from the
-   * text's own edge. The pinned text is placed and held, never tied to it.
+   * `stickyBlockRevealProgress`. Total scroll from the top, so it plays once: the
+   * surface and the prompt bubble fade in on it and then stay. The pinned text is
+   * placed and held, never tied to it.
    */
   revealProgress: number;
+  /**
+   * How far the pinned response's rule has extended, 0..1 from
+   * `stickyBlockBarRevealProgress`. Per-response scroll, so it replays for each
+   * response — the underline wipes out from the text's edge as you read down it.
+   */
+  barProgress: number;
   /**
    * Width the conversation's scrollbar takes out of its own box. The block is
    * laid out over the whole pane, so it has to give the same width back or its
@@ -72,6 +78,7 @@ export function StickyConversationHeader({
   previews,
   pushOffset,
   revealProgress,
+  barProgress,
   gutterWidth,
   onPressPreview,
 }: StickyConversationHeaderProps) {
@@ -159,6 +166,7 @@ export function StickyConversationHeader({
                   preview={preview}
                   arrowsVisible={isHovered}
                   revealProgress={revealProgress}
+                  barProgress={barProgress}
                   onPress={onPressPreview}
                 />
               </StickyLine>
@@ -194,11 +202,10 @@ interface StickyRowProps {
   role: "user" | "assistant";
   preview: StickyConversationPreview | null;
   arrowsVisible: boolean;
-  /**
-   * How far the row's own chrome — its rule or bubble, never its text — has
-   * revealed, 0..1. The chrome extends on it from the row's aligned edge.
-   */
+  /** How far the surface has revealed, 0..1 — the prompt bubble fades on it. */
   revealProgress: number;
+  /** How far the response rule has extended, 0..1 — it wipes out on this. */
+  barProgress: number;
   onPress: (itemId: string) => void;
 }
 
@@ -209,6 +216,7 @@ function StickyRow({
   preview,
   arrowsVisible,
   revealProgress,
+  barProgress,
   onPress,
 }: StickyRowProps) {
   const { t } = useTranslation();
@@ -273,15 +281,15 @@ function StickyRow({
         {/* The chrome sits behind the text and carries the reveal: a prompt's
             bubble, or a response's rule at the fold. The text hugs the pin, so
             both come out the length of the line. The rule extends from the text's
-            own edge with the scroll; the bubble, being a surface, fades in with
-            it instead. */}
+            own edge as you read down the response; the bubble, being a surface,
+            fades in with the block instead. */}
         {align === "right" ? (
           <View style={[styles.pinBubble, { opacity: revealProgress }]} pointerEvents="none" />
         ) : (
           <View
             style={[
               styles.pinRule,
-              { transform: [{ scaleX: revealProgress }], transformOrigin: "center left" },
+              { transform: [{ scaleX: barProgress }], transformOrigin: "center left" },
             ]}
             pointerEvents="none"
           />

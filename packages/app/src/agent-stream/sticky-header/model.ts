@@ -42,8 +42,10 @@ export const STICKY_BLOCK_REVEAL_DISTANCE = STICKY_PIN_LINE_HEIGHT * 2;
 
 /**
  * Reveal progress, 0..1, for how far content has scrolled under the fold. Linear
- * with the scroll: the text is already placed, so the rule and surface follow
- * the scroll straight across rather than on a curve of their own.
+ * with the scroll: the text is already placed, so the surface follows the scroll
+ * straight across rather than on a curve of its own. This measures total scroll
+ * from the top of the conversation, so it plays once — the surface is a mask,
+ * and once it is up it stays.
  */
 export function stickyBlockRevealProgress(revealDistance: number): number {
   if (!Number.isFinite(revealDistance) || revealDistance <= 0) {
@@ -53,6 +55,28 @@ export function stickyBlockRevealProgress(revealDistance: number): number {
     return 1;
   }
   return revealDistance / STICKY_BLOCK_REVEAL_DISTANCE;
+}
+
+/**
+ * Scroll a response's rule wipes across, measured from where that response
+ * pinned. Unlike the surface, the rule replays for each response as it becomes
+ * the pinned one, so this is per-response scroll, not scroll from the top.
+ */
+export const STICKY_BLOCK_BAR_REVEAL_DISTANCE = STICKY_PIN_LINE_HEIGHT * 5;
+
+/**
+ * Rule extension, 0..1, for how far the pinned response has scrolled past the
+ * fold since it pinned. Linear with the scroll, so the underline wipes out from
+ * the text's edge in step with reading down the response.
+ */
+export function stickyBlockBarRevealProgress(distanceSincePinned: number): number {
+  if (!Number.isFinite(distanceSincePinned) || distanceSincePinned <= 0) {
+    return 0;
+  }
+  if (distanceSincePinned >= STICKY_BLOCK_BAR_REVEAL_DISTANCE) {
+    return 1;
+  }
+  return distanceSincePinned / STICKY_BLOCK_BAR_REVEAL_DISTANCE;
 }
 
 /**

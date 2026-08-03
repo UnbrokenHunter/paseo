@@ -84,9 +84,9 @@ import {
   selectStickyConversationPreviews,
   selectStickyIncomingRole,
   shouldTrackStickyPreviews,
-  STICKY_BLOCK_REVEAL_DISTANCE,
-  STICKY_CONVERSATION_ROW_HEIGHT,
+  stickyBlockBarRevealProgress,
   stickyBlockRevealProgress,
+  STICKY_CONVERSATION_ROW_HEIGHT,
   stickyConversationFoldOffset,
   stickyConversationPushOffset,
   trackStickyPreviewGenerationStarts,
@@ -292,6 +292,24 @@ function shouldShowJumpToBottom(isNearBottom: boolean, isTimelineDetached: boole
   return !isNearBottom || isTimelineDetached;
 }
 
+/**
+ * Per-response progress for the pinned response's rule, 0..1. The rule wipes from
+ * where its response pinned, so this measures scroll depth from the baseline
+ * captured when a new response took the pin, and resets when the next one does.
+ */
+function useStickyBarProgress(assistant: { itemId: string } | null, scrollDepth: number): number {
+  const assistantItemId = assistant?.itemId ?? null;
+  const baselineRef = useRef(0);
+  const itemIdRef = useRef<string | null>(null);
+  if (assistantItemId !== itemIdRef.current) {
+    itemIdRef.current = assistantItemId;
+    baselineRef.current = scrollDepth;
+  }
+  return assistantItemId === null
+    ? 0
+    : stickyBlockBarRevealProgress(scrollDepth - baselineRef.current);
+}
+
 const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamViewProps>(
   function AgentStreamView(
     {
@@ -334,7 +352,10 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     const [isNearBottom, setIsNearBottom] = useState(true);
     const [aboveViewportItemId, setAboveViewportItemId] = useState<string | null>(null);
     const [stickyDistanceToFold, setStickyDistanceToFold] = useState<number | null>(null);
-    const [stickyRevealDistance, setStickyRevealDistance] = useState(0);
+    // Raw scroll under the fold, rounded so a run of the same scroll rerenders
+    // at most every few pixels. The surface reveals over the first stretch of it;
+    // the bar wipes over each response's own stretch, from where it pinned.
+    const [stickyScrollDepth, setStickyScrollDepth] = useState(0);
     const [contentGutter, setContentGutter] = useState(0);
     const stickyGenerationStartsRef = useRef(new Map<string, number>());
     const [expandedInlineToolCallIds, setExpandedInlineToolCallIds] = useState<Set<string>>(
@@ -402,7 +423,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     useEffect(() => {
       setIsNearBottom(true);
       setAboveViewportItemId(null);
-      setStickyRevealDistance(0);
+      setStickyScrollDepth(0);
       stickyGenerationStartsRef.current.clear();
       setExpandedInlineToolCallIds(new Set());
       setExpandedToolCallGroupIds(new Set());
@@ -1086,10 +1107,11 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             ? null
             : Math.round(distanceToFold);
         setStickyDistanceToFold((previous) => (previous === next ? previous : next));
-        // Clamped to the reveal ramp and rounded so scrolling deeper than it
-        // keeps reporting the same value and rerenders nothing.
-        const nextReveal = Math.round(Math.min(revealDistance, STICKY_BLOCK_REVEAL_DISTANCE));
-        setStickyRevealDistance((previous) => (previous === nextReveal ? previous : nextReveal));
+        // Rounded to a few pixels: the bar wipes off the raw depth, so it cannot
+        // be clamped, but rounding keeps a steady scroll from rerendering on
+        // every pixel.
+        const nextDepth = Math.round(Math.max(revealDistance, 0) / 4) * 4;
+        setStickyScrollDepth((previous) => (previous === nextDepth ? previous : nextDepth));
       },
     );
     // Recorded during render so a response that starts and finishes streaming
@@ -1111,6 +1133,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
         }),
       [aboveViewportItemId, projectedToolCalls.head, projectedToolCalls.tail, stickyHeaderMode],
     );
+    const stickyBarProgress = useStickyBarProgress(stickyPreviews.assistant, stickyScrollDepth);
     const handleContentGutterChange = useStableEvent((width: number) => {
       const next = Math.round(width);
       setContentGutter((previous) => (previous === next ? previous : next));
@@ -1176,7 +1199,8 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             mode={stickyHeaderMode}
             previews={stickyPreviews}
             pushOffset={stickyPushOffset}
-            revealProgress={stickyBlockRevealProgress(stickyRevealDistance)}
+            revealProgress={stickyBlockRevealProgress(stickyScrollDepth)}
+            barProgress={stickyBarProgress}
             gutterWidth={contentGutter}
             onPressPreview={handleStickyPreviewPress}
           />
