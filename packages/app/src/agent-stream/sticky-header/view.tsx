@@ -113,15 +113,11 @@ export function StickyConversationHeader({
     () => [styles.block, { transform: [{ translateY: -pushOffset }] }],
     [pushOffset],
   );
-  // The mask grows down from the top of the block as the scroll reveals it, so
-  // it comes in top-to-bottom rather than snapping on. It stays at full strength
-  // once revealed — it is a mask, not a decoration, so it must not thin out and
-  // let content scroll through the pinned text.
+  // The mask fades in with the scroll — a soft uniform fade, not a geometric
+  // wipe — and holds at full strength once revealed. It is a mask, so once it is
+  // up it stays; the reveal only softens its arrival at the top of the scroll.
   const backgroundStyle = useMemo(
-    () => [
-      styles.barBackground,
-      { transform: [{ scaleY: revealProgress }], transformOrigin: "top" as const },
-    ],
+    () => [styles.barBackground, { opacity: revealProgress }],
     [revealProgress],
   );
   const overlayStyle = useMemo(() => [styles.overlay, { right: gutterWidth }], [gutterWidth]);
@@ -289,15 +285,9 @@ function StickyRow({
         {/* The chrome sits behind the text and hugs the pin. A response's
             background comes from the block mask behind it, so it only needs its
             rule — which wipes out along the text edge as you read down it. A
-            prompt keeps its own bubble, revealed top-to-bottom with the block. */}
+            prompt keeps its own bubble, fading in with the block. */}
         {align === "right" ? (
-          <View
-            style={[
-              styles.pinBubble,
-              { transform: [{ scaleY: revealProgress }], transformOrigin: "top" },
-            ]}
-            pointerEvents="none"
-          />
+          <View style={[styles.pinBubble, { opacity: revealProgress }]} pointerEvents="none" />
         ) : (
           <View
             style={[
