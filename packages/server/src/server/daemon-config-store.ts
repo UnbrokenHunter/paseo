@@ -47,6 +47,29 @@ export interface LocalProviderProfile {
   displayName: string;
   /** Host and port of the local endpoint, for the "served from" line in the UI. */
   endpointLabel: string;
+  extends?: string;
+}
+
+/** A configured derived provider that shares an upstream provider's quota account. */
+export interface ProviderUsageAlias {
+  providerId: string;
+  displayName: string;
+  extends: string;
+}
+
+export function listProviderUsageAliases(config: MutableDaemonConfig): ProviderUsageAlias[] {
+  return Object.entries(config.providers).flatMap(([providerId, provider]) => {
+    if (provider.enabled === false) return [];
+    const parsed = ProviderOverrideSchema.safeParse(provider);
+    if (!parsed.success || !parsed.data.extends) return [];
+    return [
+      {
+        providerId,
+        displayName: parsed.data.label ?? providerId,
+        extends: parsed.data.extends,
+      },
+    ];
+  });
 }
 
 /**
@@ -71,6 +94,7 @@ export function listLocalProviderProfiles(config: MutableDaemonConfig): LocalPro
       providerId,
       displayName: parsed.data.label ?? providerId,
       endpointLabel,
+      extends: parsed.data.extends,
     });
   }
   return profiles;

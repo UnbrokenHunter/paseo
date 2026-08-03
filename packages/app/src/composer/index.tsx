@@ -249,10 +249,6 @@ function renderContextWindowMeter(
   pending: boolean,
   glyphSize: number,
 ): ReactElement | null {
-  const hasData = contextWindowMaxTokens !== null && contextWindowUsedTokens !== null;
-  if (!hasData && !pending) {
-    return null;
-  }
   return (
     <ContextWindowMeter
       maxTokens={contextWindowMaxTokens}

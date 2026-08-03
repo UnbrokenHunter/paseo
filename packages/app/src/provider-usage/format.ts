@@ -1,5 +1,15 @@
+import { useEffect, useState } from "react";
 import { formatTokenCount } from "@/components/context-window-meter.utils";
 import type { ProviderUsageBalanceUnit } from "./types";
+
+/** Re-render relative usage times while the surface stays open. */
+export function useUsageClock(): void {
+  const [, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+}
 
 export function clampPct(value: number): number {
   return Math.max(0, Math.min(100, value));

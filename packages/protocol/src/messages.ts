@@ -1344,6 +1344,8 @@ export const ProviderDiagnosticRequestMessageSchema = z.object({
 
 export const ProviderUsageListRequestMessageSchema = z.object({
   type: z.literal("provider.usage.list.request"),
+  /** Bypass the daemon's quota cache for an explicit user-initiated refresh. */
+  forceRefresh: z.boolean().optional(),
   requestId: z.string(),
 });
 

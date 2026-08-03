@@ -124,7 +124,7 @@ function formatBarText(
     case "loading":
       return { label: null, skeleton: true };
     case "unsupported":
-      return { label: null, skeleton: false };
+      return { label: accountUsage.message, skeleton: false };
     case "unmetered":
       return { label: t("providerUsage.states.unmetered"), skeleton: false };
     case "unavailable":
@@ -155,12 +155,12 @@ function formatBarText(
 
 /** Screen readers get the context-window ring and the usage sentence as one label. */
 function meterAccessibilityLabel(
-  percentage: number,
+  percentage: number | null,
   barLabel: string | null,
   t: ReturnType<typeof useTranslation>["t"],
 ): string {
-  const context = t("contextWindow.accessibility", { percentage });
-  return barLabel ? `${context}. ${barLabel}` : context;
+  const context = percentage === null ? null : t("contextWindow.accessibility", { percentage });
+  return [context, barLabel].filter((part): part is string => part !== null).join(". ");
 }
 
 type MeterGeometry = ReturnType<typeof getMeterGeometry>;
@@ -202,11 +202,17 @@ function IdleMeter({
 }
 
 /** The context-window ring: a track with the used fraction drawn over it. */
-function MeterRing({ geometry, percentage }: { geometry: MeterGeometry; percentage: number }) {
+function MeterRing({
+  geometry,
+  percentage,
+}: {
+  geometry: MeterGeometry;
+  percentage: number | null;
+}) {
   const { theme } = useUnistyles();
   const { svgSize, center, radius, strokeWidth, circumference } = geometry;
-  const clamped = clampPercentage(percentage);
-  const colors = getMeterColors(clamped, theme);
+  const clamped = percentage === null ? null : clampPercentage(percentage);
+  const colors = getMeterColors(clamped ?? 0, theme);
 
   return (
     <Svg
@@ -225,17 +231,19 @@ function MeterRing({ geometry, percentage }: { geometry: MeterGeometry; percenta
         stroke={colors.track}
         strokeWidth={strokeWidth}
       />
-      <Circle
-        cx={center}
-        cy={center}
-        r={radius}
-        fill="none"
-        stroke={colors.progress}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={circumference - (clamped / 100) * circumference}
-      />
+      {clamped === null ? null : (
+        <Circle
+          cx={center}
+          cy={center}
+          r={radius}
+          fill="none"
+          stroke={colors.progress}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference - (clamped / 100) * circumference}
+        />
+      )}
     </Svg>
   );
 }
@@ -278,25 +286,30 @@ function ContextWindowTooltipBody({
   usageView,
   usedTokens,
 }: {
-  maxTokens: number;
-  percentage: number;
+  maxTokens: number | null;
+  percentage: number | null;
   provider: string | null | undefined;
   sessionCost: string | null;
   usageView: ProviderUsageView;
-  usedTokens: number;
+  usedTokens: number | null;
 }) {
   const { t } = useTranslation();
+  const hasContextWindow = percentage !== null && maxTokens !== null && usedTokens !== null;
 
   return (
     <View style={styles.tooltipContent}>
-      <Text style={styles.tooltipTitle}>{t("contextWindow.title")}</Text>
-      <Text style={styles.tooltipText}>{t("contextWindow.used", { percentage })}</Text>
-      <Text style={styles.tooltipDetail}>
-        {t("contextWindow.tokens", {
-          used: formatTokenCount(usedTokens),
-          max: formatTokenCount(maxTokens),
-        })}
-      </Text>
+      {hasContextWindow ? (
+        <>
+          <Text style={styles.tooltipTitle}>{t("contextWindow.title")}</Text>
+          <Text style={styles.tooltipText}>{t("contextWindow.used", { percentage })}</Text>
+          <Text style={styles.tooltipDetail}>
+            {t("contextWindow.tokens", {
+              used: formatTokenCount(usedTokens),
+              max: formatTokenCount(maxTokens),
+            })}
+          </Text>
+        </>
+      ) : null}
       {sessionCost ? (
         <Text style={styles.tooltipDetail}>
           {t("contextWindow.sessionCost", { cost: sessionCost })}
@@ -396,11 +409,11 @@ export function ContextWindowMeter({
   // The bar rides on the context-window meter and its popover leads with the context
   // numbers, so it waits for them. Showing the pill earlier would open a popover
   // missing its own first half.
-  if (percentage === null || maxTokens === null || usedTokens === null) {
+  if (percentage === null && !showBar) {
     return pending ? <IdleMeter geometry={geometry} showPercentage={showPercentage} /> : null;
   }
 
-  const roundedPercentage = Math.round(percentage);
+  const roundedPercentage = percentage === null ? null : Math.round(percentage);
   const formattedSessionCost =
     typeof totalCostUsd === "number" ? formatSessionCost(totalCostUsd) : null;
 
@@ -437,7 +450,7 @@ export function ContextWindowMeter({
               <UsageBarLabel fadeStyle={fadeStyle} label={barLabel} skeleton={isBarSkeleton} />
             </>
           ) : null}
-          {showPercentage ? (
+          {showPercentage && roundedPercentage !== null ? (
             <Text style={styles.percentageLabel}>{`${roundedPercentage}%`}</Text>
           ) : null}
           <MeterRing geometry={geometry} percentage={percentage} />

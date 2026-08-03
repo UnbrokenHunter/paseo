@@ -17,6 +17,7 @@ import type { ScheduleService } from "./schedule/service.js";
 import type { CheckoutDiffManager, CheckoutDiffMetrics } from "./checkout-diff-manager.js";
 import {
   listLocalProviderProfiles,
+  listProviderUsageAliases,
   type DaemonConfigStore,
   type MutableDaemonConfig,
 } from "./daemon-config-store.js";
@@ -688,6 +689,7 @@ export class VoiceAssistantWebSocketServer {
     this.providerUsageService = new ProviderUsageService({
       logger: this.logger,
       listLocalProviders: () => listLocalProviderProfiles(this.daemonConfigStore.get()),
+      listProviderAliases: () => listProviderUsageAliases(this.daemonConfigStore.get()),
     });
 
     this.wss = this.createWebSocketServer(server, wsConfig, auth);
