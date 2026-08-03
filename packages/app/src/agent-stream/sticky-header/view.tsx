@@ -39,13 +39,18 @@ interface StickyConversationHeaderProps {
    */
   pushOffset: number;
   /**
-   * How far each pin has revealed, 0..1 from `stickyBlockPinRevealProgress`, per
-   * side. Each pin owns its own progress, measured from where it took its slot,
-   * so its background fades in and (on a response) its rule wipes out as you read
-   * down that message. The pinned text is placed and held, never tied to it.
+   * How far the block has revealed as it attaches, 0..1 from
+   * `stickyBlockRevealProgress`. Total scroll from the top, so it plays once: the
+   * surface and the prompt bubble fade in on it and then stay. The pinned text is
+   * placed and held, never tied to it.
    */
-  userPinProgress: number;
-  assistantPinProgress: number;
+  revealProgress: number;
+  /**
+   * How far the pinned response's rule has extended, 0..1 from
+   * `stickyBlockBarRevealProgress`. Per-response scroll, so it replays for each
+   * response — the underline wipes out from the text's edge as you read down it.
+   */
+  barProgress: number;
   /**
    * Width the conversation's scrollbar takes out of its own box. The block is
    * laid out over the whole pane, so it has to give the same width back or its
@@ -71,8 +76,8 @@ export function StickyConversationHeader({
   mode,
   previews,
   pushOffset,
-  userPinProgress,
-  assistantPinProgress,
+  revealProgress,
+  barProgress,
   gutterWidth,
   onPressPreview,
 }: StickyConversationHeaderProps) {
@@ -139,18 +144,20 @@ export function StickyConversationHeader({
         >
           {/* Both rows are always laid out, even with nothing to pin on that side,
               so the fold stays where the strategies put it. A row that pins
-              nothing paints nothing. Each row carries its own background, hugging
-              its own text, so one pin's surface never reaches over the other. */}
-          {slots.map(({ role, preview }) =>
+              nothing paints nothing. Each row carries its own background hugging
+              its own text, and the lower row stacks on top of the upper, so a
+              pin's surface never shows around or under the other pin. */}
+          {slots.map(({ role, preview }, index) =>
             role === "assistant" && !showAssistantSide ? null : (
-              <StickyLine key={role}>
+              <StickyLine key={role} zIndex={index}>
                 <StickyRow
                   agentId={agentId}
                   align={role === "user" ? "right" : "left"}
                   role={role}
                   preview={preview}
                   arrowsVisible={isHovered}
-                  progress={role === "user" ? userPinProgress : assistantPinProgress}
+                  revealProgress={revealProgress}
+                  barProgress={barProgress}
                   onPress={onPressPreview}
                 />
               </StickyLine>
@@ -169,9 +176,9 @@ export function StickyConversationHeader({
  * agent-stream/view.tsx. Rows laid out against the bar instead of this column
  * land a step outside the text.
  */
-function StickyLine({ children }: { children: ReactNode }) {
+function StickyLine({ children, zIndex }: { children: ReactNode; zIndex: number }) {
   return (
-    <View style={styles.content} pointerEvents="box-none">
+    <View style={[styles.content, { zIndex }]} pointerEvents="box-none">
       <View style={styles.column} pointerEvents="box-none">
         {children}
       </View>
@@ -185,12 +192,10 @@ interface StickyRowProps {
   role: "user" | "assistant";
   preview: StickyConversationPreview | null;
   arrowsVisible: boolean;
-  /**
-   * How far this pin has revealed, 0..1. Its background fades in on it, and on a
-   * response its rule wipes out from the text's edge — both as you read down the
-   * pinned message. The text itself is never tied to it.
-   */
-  progress: number;
+  /** How far the surface has revealed, 0..1 — the prompt bubble fades on it. */
+  revealProgress: number;
+  /** How far the response rule has extended, 0..1 — it wipes out on this. */
+  barProgress: number;
   onPress: (itemId: string) => void;
 }
 
@@ -200,7 +205,8 @@ function StickyRow({
   role,
   preview,
   arrowsVisible,
-  progress,
+  revealProgress,
+  barProgress,
   onPress,
 }: StickyRowProps) {
   const { t } = useTranslation();
@@ -263,18 +269,31 @@ function StickyRow({
         testID={`sticky-conversation-preview-${role}`}
       >
         {/* The chrome sits behind the text and hugs the pin, so it comes out the
-            length of the line and never reaches over the other pin. A prompt is a
-            bubble that fades in; a response is a surface that fades in under a
-            rule that wipes out from the text's own edge as you read down it. */}
+            length of the line and never reaches over the other pin. A response's
+            surface and a prompt's bubble both reveal top-to-bottom on the block's
+            reveal; a response also gets a rule that wipes out along the text edge
+            as you read down it. */}
         {align === "right" ? (
-          <View style={[styles.pinBubble, { opacity: progress }]} pointerEvents="none" />
+          <View
+            style={[
+              styles.pinBubble,
+              { transform: [{ scaleY: revealProgress }], transformOrigin: "top" },
+            ]}
+            pointerEvents="none"
+          />
         ) : (
           <>
-            <View style={[styles.pinSurface, { opacity: progress }]} pointerEvents="none" />
+            <View
+              style={[
+                styles.pinSurface,
+                { transform: [{ scaleY: revealProgress }], transformOrigin: "top" },
+              ]}
+              pointerEvents="none"
+            />
             <View
               style={[
                 styles.pinRule,
-                { transform: [{ scaleX: progress }], transformOrigin: "center left" },
+                { transform: [{ scaleX: barProgress }], transformOrigin: "center left" },
               ]}
               pointerEvents="none"
             />
@@ -333,9 +352,9 @@ const styles = StyleSheet.create((theme) => ({
     width: "100%",
   },
   /**
-   * Groups the pinned rows. It carries no surface of its own — each row paints
-   * its own, hugging its own text, so one pin's surface never reaches over the
-   * other and the text stays at full strength above it.
+   * Groups the pinned rows. It carries no surface of its own — each pin paints
+   * its own background hugging its own text (`pinSurface`/`pinBubble`), so a
+   * pin's surface never shows around or under the other pin.
    */
   bar: {},
   // Matches the list's own content padding.
@@ -368,11 +387,12 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "flex-end",
   },
   /**
-   * A response takes the box the message takes, up to the column, so the text
-   * lands in the same place and its surface (`pinSurface`) and rule (`pinRule`)
-   * come out the length of the message rather than of some box drawn around it.
-   * The padding is the prompt bubble's, which the response has no use for except
-   * to put its text at the same depth — see `STICKY_PIN_VERTICAL_PADDING`.
+   * A response is its own text on the page, no surface of its own. It takes the
+   * box the message takes, up to the column, so the text lands in the same place
+   * and its rule (`pinRule`) comes out the length of the message rather than of
+   * some box drawn around it. The padding is the prompt bubble's, which the
+   * response has no use for except to put its text at the same depth — see
+   * `STICKY_PIN_VERTICAL_PADDING`.
    */
   pin: {
     maxWidth: "100%",
@@ -381,9 +401,10 @@ const styles = StyleSheet.create((theme) => ({
     paddingVertical: STICKY_PIN_VERTICAL_PADDING,
   },
   /**
-   * The response's mask, hugging its text so it stops content scrolling through
-   * the pinned line without reaching over into the other pin's row. It fades in
-   * as its response reveals; the rule sits at its bottom edge.
+   * A response's own surface behind its text, so content does not scroll through
+   * it. It hugs the pin — only the length of the line — so it never reaches over
+   * the other pin, and it reveals top-to-bottom on the scroll (scaleY from the
+   * top) rather than snapping on with the text.
    */
   pinSurface: {
     position: "absolute",
@@ -395,9 +416,9 @@ const styles = StyleSheet.create((theme) => ({
   },
   /**
    * The response's rule at the fold, drawn as its own layer behind the text so
-   * it can wipe out on the reveal. The pin fills the row, so the rule lands on
-   * the row's boundary — the last row's rule is then exactly the fold the
-   * strategies offset the swap to.
+   * it can rise with the scroll. The pin fills the row, so the rule lands on the
+   * row's boundary — the last row's rule is then exactly the fold the strategies
+   * offset the swap to.
    */
   pinRule: {
     position: "absolute",

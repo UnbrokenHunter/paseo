@@ -84,7 +84,8 @@ import {
   selectStickyConversationPreviews,
   selectStickyIncomingRole,
   shouldTrackStickyPreviews,
-  stickyBlockPinRevealProgress,
+  stickyBlockBarRevealProgress,
+  stickyBlockRevealProgress,
   STICKY_CONVERSATION_ROW_HEIGHT,
   stickyConversationFoldOffset,
   stickyConversationPushOffset,
@@ -296,15 +297,17 @@ function shouldShowJumpToBottom(isNearBottom: boolean, isTimelineDetached: boole
  * took its slot, so this measures scroll depth from the baseline captured when a
  * new message took that slot, and resets when the next one does.
  */
-function useStickyPinProgress(pin: { itemId: string } | null, scrollDepth: number): number {
-  const pinItemId = pin?.itemId ?? null;
+function useStickyBarProgress(assistant: { itemId: string } | null, scrollDepth: number): number {
+  const assistantItemId = assistant?.itemId ?? null;
   const baselineRef = useRef(0);
   const itemIdRef = useRef<string | null>(null);
-  if (pinItemId !== itemIdRef.current) {
-    itemIdRef.current = pinItemId;
+  if (assistantItemId !== itemIdRef.current) {
+    itemIdRef.current = assistantItemId;
     baselineRef.current = scrollDepth;
   }
-  return pinItemId === null ? 0 : stickyBlockPinRevealProgress(scrollDepth - baselineRef.current);
+  return assistantItemId === null
+    ? 0
+    : stickyBlockBarRevealProgress(scrollDepth - baselineRef.current);
 }
 
 const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamViewProps>(
@@ -1130,11 +1133,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
         }),
       [aboveViewportItemId, projectedToolCalls.head, projectedToolCalls.tail, stickyHeaderMode],
     );
-    const stickyUserProgress = useStickyPinProgress(stickyPreviews.user, stickyScrollDepth);
-    const stickyAssistantProgress = useStickyPinProgress(
-      stickyPreviews.assistant,
-      stickyScrollDepth,
-    );
+    const stickyBarProgress = useStickyBarProgress(stickyPreviews.assistant, stickyScrollDepth);
     const handleContentGutterChange = useStableEvent((width: number) => {
       const next = Math.round(width);
       setContentGutter((previous) => (previous === next ? previous : next));
@@ -1200,8 +1199,8 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             mode={stickyHeaderMode}
             previews={stickyPreviews}
             pushOffset={stickyPushOffset}
-            userPinProgress={stickyUserProgress}
-            assistantPinProgress={stickyAssistantProgress}
+            revealProgress={stickyBlockRevealProgress(stickyScrollDepth)}
+            barProgress={stickyBarProgress}
             gutterWidth={contentGutter}
             onPressPreview={handleStickyPreviewPress}
           />

@@ -6,9 +6,11 @@ import {
   selectStickyConversationPreviews,
   selectStickyIncomingRole,
   shouldTrackStickyPreviews,
-  STICKY_BLOCK_PIN_REVEAL_DISTANCE,
+  STICKY_BLOCK_BAR_REVEAL_DISTANCE,
+  STICKY_BLOCK_REVEAL_DISTANCE,
   STICKY_CONVERSATION_ROW_HEIGHT,
-  stickyBlockPinRevealProgress,
+  stickyBlockBarRevealProgress,
+  stickyBlockRevealProgress,
   stickyConversationPushOffset,
   toStickyPreviewText,
   trackStickyPreviewGenerationStarts,
@@ -355,20 +357,36 @@ describe("stickyConversationPushOffset", () => {
   });
 });
 
-describe("stickyBlockPinRevealProgress", () => {
-  it("is nothing until the pin has scrolled past where it appeared", () => {
-    expect(stickyBlockPinRevealProgress(0)).toBe(0);
-    expect(stickyBlockPinRevealProgress(-5)).toBe(0);
-    expect(stickyBlockPinRevealProgress(Number.NaN)).toBe(0);
+describe("stickyBlockRevealProgress", () => {
+  it("is nothing at rest, before any content has scrolled under the fold", () => {
+    expect(stickyBlockRevealProgress(0)).toBe(0);
+    expect(stickyBlockRevealProgress(-5)).toBe(0);
+    expect(stickyBlockRevealProgress(Number.NaN)).toBe(0);
   });
 
-  it("tracks the scroll straight across its span and holds full past it", () => {
-    // Linear and length-independent: a quarter of the span is a quarter revealed,
-    // whatever the pinned line's own length.
-    expect(stickyBlockPinRevealProgress(STICKY_BLOCK_PIN_REVEAL_DISTANCE / 4)).toBeCloseTo(0.25);
-    expect(stickyBlockPinRevealProgress(STICKY_BLOCK_PIN_REVEAL_DISTANCE / 2)).toBeCloseTo(0.5);
-    expect(stickyBlockPinRevealProgress(STICKY_BLOCK_PIN_REVEAL_DISTANCE)).toBe(1);
-    expect(stickyBlockPinRevealProgress(STICKY_BLOCK_PIN_REVEAL_DISTANCE * 4)).toBe(1);
+  it("tracks the scroll straight across and holds full past the span", () => {
+    // Linear: a quarter of the way is a quarter of the way.
+    expect(stickyBlockRevealProgress(STICKY_BLOCK_REVEAL_DISTANCE / 4)).toBeCloseTo(0.25);
+    expect(stickyBlockRevealProgress(STICKY_BLOCK_REVEAL_DISTANCE / 2)).toBeCloseTo(0.5);
+    expect(stickyBlockRevealProgress(STICKY_BLOCK_REVEAL_DISTANCE)).toBe(1);
+    expect(stickyBlockRevealProgress(STICKY_BLOCK_REVEAL_DISTANCE * 4)).toBe(1);
+  });
+});
+
+describe("stickyBlockBarRevealProgress", () => {
+  it("is nothing until the response has scrolled past the fold", () => {
+    expect(stickyBlockBarRevealProgress(0)).toBe(0);
+    expect(stickyBlockBarRevealProgress(-5)).toBe(0);
+    expect(stickyBlockBarRevealProgress(Number.NaN)).toBe(0);
+  });
+
+  it("wipes across its own span, slower than the surface reveal", () => {
+    // Per-response, and a good deal longer than the surface span so the underline
+    // is a gradual wipe rather than a flash.
+    expect(STICKY_BLOCK_BAR_REVEAL_DISTANCE).toBeGreaterThan(STICKY_BLOCK_REVEAL_DISTANCE);
+    expect(stickyBlockBarRevealProgress(STICKY_BLOCK_BAR_REVEAL_DISTANCE / 2)).toBeCloseTo(0.5);
+    expect(stickyBlockBarRevealProgress(STICKY_BLOCK_BAR_REVEAL_DISTANCE)).toBe(1);
+    expect(stickyBlockBarRevealProgress(STICKY_BLOCK_BAR_REVEAL_DISTANCE * 4)).toBe(1);
   });
 });
 
