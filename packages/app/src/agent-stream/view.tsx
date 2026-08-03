@@ -1107,10 +1107,10 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             ? null
             : Math.round(distanceToFold);
         setStickyDistanceToFold((previous) => (previous === next ? previous : next));
-        // Rounded to a few pixels: the bar wipes off the raw depth, so it cannot
-        // be clamped, but rounding keeps a steady scroll from rerendering on
-        // every pixel.
-        const nextDepth = Math.round(Math.max(revealDistance, 0) / 4) * 4;
+        // Rounded to a couple pixels: the bar wipes off the raw depth, so it
+        // cannot be clamped, but rounding keeps a steady scroll from rerendering
+        // on every pixel. Fine enough that the wipe still reads as smooth.
+        const nextDepth = Math.round(Math.max(revealDistance, 0) / 2) * 2;
         setStickyScrollDepth((previous) => (previous === nextDepth ? previous : nextDepth));
       },
     );

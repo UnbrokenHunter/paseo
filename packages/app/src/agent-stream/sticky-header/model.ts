@@ -62,7 +62,7 @@ export function stickyBlockRevealProgress(revealDistance: number): number {
  * pinned. Unlike the surface, the rule replays for each response as it becomes
  * the pinned one, so this is per-response scroll, not scroll from the top.
  */
-export const STICKY_BLOCK_BAR_REVEAL_DISTANCE = STICKY_PIN_LINE_HEIGHT * 5;
+export const STICKY_BLOCK_BAR_REVEAL_DISTANCE = STICKY_PIN_LINE_HEIGHT * 3;
 
 /**
  * Rule extension, 0..1, for how far the pinned response has scrolled past the
