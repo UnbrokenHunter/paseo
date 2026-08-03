@@ -32,51 +32,27 @@ export const STICKY_CONVERSATION_ROW_HEIGHT =
 export const STICKY_PIN_TEXT_INSET = STICKY_PIN_VERTICAL_PADDING;
 
 /**
- * Scroll the block reveals across once the text has attached. The text is placed
- * coincident with the message and held; across this span the response's rule
- * extends from its edge and the surface fades in, both straight in step with the
- * scroll. The viewport clamps its reported distance to this, so scrolling deeper
- * reports the same value and rerenders nothing.
+ * Scroll a pin reveals across, measured from where that pin took its slot. Each
+ * pin owns its reveal — its background fades in and, on a response, its rule
+ * wipes out — so this is per-pin scroll, from where the pin appeared, not scroll
+ * from the top. A pin that has been up longer than this reads as fully revealed.
  */
-export const STICKY_BLOCK_REVEAL_DISTANCE = STICKY_PIN_LINE_HEIGHT * 2;
+export const STICKY_BLOCK_PIN_REVEAL_DISTANCE = STICKY_CONVERSATION_ROW_HEIGHT;
 
 /**
- * Reveal progress, 0..1, for how far content has scrolled under the fold. Linear
- * with the scroll: the text is already placed, so the surface follows the scroll
- * straight across rather than on a curve of its own. This measures total scroll
- * from the top of the conversation, so it plays once — the surface is a mask,
- * and once it is up it stays.
+ * Reveal progress, 0..1, for how far the conversation has scrolled since a pin
+ * appeared. Linear with the scroll, so the background fades and the rule wipes
+ * straight in step with reading down the pinned message, and every pin takes the
+ * same scroll to reach full regardless of how long its own line is.
  */
-export function stickyBlockRevealProgress(revealDistance: number): number {
-  if (!Number.isFinite(revealDistance) || revealDistance <= 0) {
-    return 0;
-  }
-  if (revealDistance >= STICKY_BLOCK_REVEAL_DISTANCE) {
-    return 1;
-  }
-  return revealDistance / STICKY_BLOCK_REVEAL_DISTANCE;
-}
-
-/**
- * Scroll a response's rule wipes across, measured from where that response
- * pinned. Unlike the surface, the rule replays for each response as it becomes
- * the pinned one, so this is per-response scroll, not scroll from the top.
- */
-export const STICKY_BLOCK_BAR_REVEAL_DISTANCE = STICKY_PIN_LINE_HEIGHT * 3;
-
-/**
- * Rule extension, 0..1, for how far the pinned response has scrolled past the
- * fold since it pinned. Linear with the scroll, so the underline wipes out from
- * the text's edge in step with reading down the response.
- */
-export function stickyBlockBarRevealProgress(distanceSincePinned: number): number {
+export function stickyBlockPinRevealProgress(distanceSincePinned: number): number {
   if (!Number.isFinite(distanceSincePinned) || distanceSincePinned <= 0) {
     return 0;
   }
-  if (distanceSincePinned >= STICKY_BLOCK_BAR_REVEAL_DISTANCE) {
+  if (distanceSincePinned >= STICKY_BLOCK_PIN_REVEAL_DISTANCE) {
     return 1;
   }
-  return distanceSincePinned / STICKY_BLOCK_BAR_REVEAL_DISTANCE;
+  return distanceSincePinned / STICKY_BLOCK_PIN_REVEAL_DISTANCE;
 }
 
 /**
