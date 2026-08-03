@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet as RNStyleSheet, Text, View } from "react-native
 import { StyleSheet } from "react-native-unistyles";
 import Animated, {
   Easing,
+  cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -12,8 +13,7 @@ import { EdgeFade } from "./edge-fade";
 
 /** Reading pace, not attention-grabbing pace. */
 const SPEED_PX_PER_SECOND = 22;
-/** Blank run between the end of one pass and the start of the next. */
-const GAP_PX = 40;
+
 /** Ignore sub-pixel overflow, which would otherwise scroll a label that already fits. */
 const OVERFLOW_EPSILON = 1;
 
@@ -48,15 +48,14 @@ export function UsageMarquee({
   const [labelWidth, setLabelWidth] = useState(0);
   const scrolling =
     viewportWidth > 0 && labelWidth > 0 && labelWidth - viewportWidth > OVERFLOW_EPSILON;
-  const cycleWidth = labelWidth + GAP_PX;
+  const cycleWidth = Math.ceil(labelWidth);
 
   const translate = useSharedValue(0);
   useEffect(() => {
-    if (!scrolling) {
-      translate.value = 0;
-      return;
-    }
+    cancelAnimation(translate);
     translate.value = 0;
+    if (!scrolling) return;
+
     translate.value = withRepeat(
       withTiming(-cycleWidth, {
         duration: (cycleWidth / SPEED_PX_PER_SECOND) * 1000,
@@ -65,7 +64,16 @@ export function UsageMarquee({
       -1,
       false,
     );
+    return () => cancelAnimation(translate);
   }, [scrolling, cycleWidth, translate]);
+
+  useEffect(() => {
+    // A new label has a new natural width. Drop the old measurement before starting
+    // its loop so an old cycle cannot flash for a frame during rotation.
+    cancelAnimation(translate);
+    translate.value = 0;
+    setLabelWidth(0);
+  }, [label, translate]);
 
   const marqueeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translate.value }],
@@ -102,18 +110,22 @@ export function UsageMarquee({
           contentContainerStyle={styles.track}
           pointerEvents="none"
         >
-          <Animated.View style={[styles.run, fadeStyle, scrolling ? marqueeStyle : undefined]}>
-            <Text style={textStyle} numberOfLines={1} onLayout={handleLabelLayout} testID={testID}>
-              {label}
-            </Text>
-            {scrolling ? (
-              <>
-                <View style={styles.gap} />
+          <Animated.View style={fadeStyle}>
+            <Animated.View style={[styles.run, scrolling ? marqueeStyle : undefined]}>
+              <Text
+                style={textStyle}
+                numberOfLines={1}
+                onLayout={handleLabelLayout}
+                testID={testID}
+              >
+                {label}
+              </Text>
+              {scrolling ? (
                 <Text style={textStyle} numberOfLines={1}>
                   {label}
                 </Text>
-              </>
-            ) : null}
+              ) : null}
+            </Animated.View>
           </Animated.View>
         </ScrollView>
       </View>
@@ -138,8 +150,5 @@ const styles = StyleSheet.create(() => ({
   run: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  gap: {
-    width: GAP_PX,
   },
 }));
