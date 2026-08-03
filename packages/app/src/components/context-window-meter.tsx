@@ -334,6 +334,7 @@ export function ContextWindowMeter({
   const { settings } = useAppSettings();
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const [rotationIndex, setRotationIndex] = useState(0);
+  const [displayedRotationIndex, setDisplayedRotationIndex] = useState(0);
 
   const { view: providerUsageView, refresh: refreshProviderUsage } = useProviderUsage(
     serverId ?? null,
@@ -354,7 +355,7 @@ export function ContextWindowMeter({
   );
 
   const shouldRotate = settings.providerUsageRotation && limits.length > 1;
-  const activeLimit = shouldRotate ? limits[rotationIndex % limits.length] : limits[0];
+  const activeLimit = shouldRotate ? limits[displayedRotationIndex % limits.length] : limits[0];
 
   useEffect(() => {
     if (!shouldRotate) {
@@ -367,14 +368,19 @@ export function ContextWindowMeter({
     return () => clearInterval(id);
   }, [shouldRotate, limits.length]);
 
-  // Fade the outgoing sentence out and the incoming one back in. Skipped on the very
-  // first limit so the bar does not blink into view on mount.
+  // Keep the outgoing sentence mounted until its fade-out completes, then swap the
+  // limit and fade the incoming sentence in. This avoids an abrupt text replacement.
   const textOpacity = useSharedValue(1);
   useEffect(() => {
-    if (rotationIndex === 0) return;
-    textOpacity.value = 0;
-    textOpacity.value = withTiming(1, { duration: FADE_DURATION_MS });
-  }, [rotationIndex, textOpacity]);
+    if (rotationIndex === displayedRotationIndex) return;
+
+    textOpacity.value = withTiming(0, { duration: FADE_DURATION_MS });
+    const id = setTimeout(() => {
+      setDisplayedRotationIndex(rotationIndex);
+      textOpacity.value = withTiming(1, { duration: FADE_DURATION_MS });
+    }, FADE_DURATION_MS);
+    return () => clearTimeout(id);
+  }, [displayedRotationIndex, rotationIndex, textOpacity]);
 
   const fadeStyle = useAnimatedStyle(() => ({ opacity: textOpacity.value }));
 
