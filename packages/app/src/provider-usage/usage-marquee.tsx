@@ -28,8 +28,9 @@ const OVERFLOW_EPSILON = 1;
  * max-width the parent imposes), with a horizontal ScrollView laid over it: ScrollView
  * content is measured unbounded along its scroll axis on every platform.
  *
- * The label travels to the clipped end and then reverses. This avoids a visible reset
- * at a loop boundary while still exposing every character on each pass.
+ * The scroll is a ticker, not a back-and-forth: a second copy follows the first a gap
+ * behind, and the track resets the instant that second copy reaches the first one's
+ * starting point, so the loop has no seam and the text always reads left to right.
  */
 export function UsageMarquee({
   label,
@@ -47,7 +48,8 @@ export function UsageMarquee({
   const [labelWidth, setLabelWidth] = useState(0);
   const scrolling =
     viewportWidth > 0 && labelWidth > 0 && labelWidth - viewportWidth > OVERFLOW_EPSILON;
-  const overflow = Math.max(0, labelWidth - viewportWidth);
+  // The duplicate starts at the measured fractional width, so the loop must travel the same exact distance.
+  const cycleWidth = labelWidth;
 
   const translate = useSharedValue(0);
   useEffect(() => {
@@ -56,15 +58,15 @@ export function UsageMarquee({
     if (!scrolling) return;
 
     translate.value = withRepeat(
-      withTiming(-overflow, {
-        duration: (overflow / SPEED_PX_PER_SECOND) * 1000,
+      withTiming(-cycleWidth, {
+        duration: (cycleWidth / SPEED_PX_PER_SECOND) * 1000,
         easing: Easing.linear,
       }),
       -1,
-      true,
+      false,
     );
     return () => cancelAnimation(translate);
-  }, [overflow, scrolling, translate]);
+  }, [scrolling, cycleWidth, translate]);
 
   useEffect(() => {
     // A new label has a new natural width. Drop the old measurement before starting
@@ -119,6 +121,11 @@ export function UsageMarquee({
               >
                 {label}
               </Text>
+              {scrolling ? (
+                <Text style={textStyle} numberOfLines={1}>
+                  {label}
+                </Text>
+              ) : null}
             </Animated.View>
           </Animated.View>
         </ScrollView>
