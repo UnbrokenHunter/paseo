@@ -48,7 +48,8 @@ export function UsageMarquee({
   const [labelWidth, setLabelWidth] = useState(0);
   const scrolling =
     viewportWidth > 0 && labelWidth > 0 && labelWidth - viewportWidth > OVERFLOW_EPSILON;
-  const cycleWidth = Math.ceil(labelWidth);
+  // The duplicate starts at the measured fractional width, so the loop must travel the same exact distance.
+  const cycleWidth = labelWidth;
 
   const translate = useSharedValue(0);
   useEffect(() => {
