@@ -192,6 +192,33 @@ describe("buildBrowserKeyboardPolicy", () => {
     });
   });
 
+  it("forwards Escape only while Settings is active", () => {
+    const bindings = buildEffectiveBindings({});
+    const inactivePolicy = buildBrowserKeyboardPolicy({
+      bindings,
+      isMac: false,
+      isDesktop: true,
+    });
+    const settingsPolicy = buildBrowserKeyboardPolicy({
+      bindings,
+      forwardEscape: true,
+      isMac: false,
+      isDesktop: true,
+    });
+
+    const escapePrefix = {
+      alt: false,
+      code: "Escape",
+      control: false,
+      editable: false,
+      meta: false,
+      repeat: false,
+      shift: false,
+    };
+    expect(inactivePolicy.prefixes).not.toContainEqual(escapePrefix);
+    expect(settingsPolicy.prefixes).toContainEqual(escapePrefix);
+  });
+
   it("does not publish plain browser keys", () => {
     const bindings = buildEffectiveBindings({});
     const policy = buildBrowserKeyboardPolicy({ bindings, isMac: false, isDesktop: true });
