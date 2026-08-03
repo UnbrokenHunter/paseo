@@ -103,8 +103,14 @@ export function StickyConversationHeader({
     [],
   );
   const blockStyle = useMemo(
-    () => [styles.block, { opacity: revealOpacity, transform: [{ translateY: -pushOffset }] }],
-    [pushOffset, revealOpacity],
+    () => [styles.block, { transform: [{ translateY: -pushOffset }] }],
+    [pushOffset],
+  );
+  // Only the surface, its rule, and the wash rise with the scroll; the pinned
+  // text is placed and held, so it is never tied to this opacity.
+  const surfaceStyle = useMemo(
+    () => [styles.barBackground, { opacity: revealOpacity }],
+    [revealOpacity],
   );
   const overlayStyle = useMemo(() => [styles.overlay, { right: gutterWidth }], [gutterWidth]);
 
@@ -135,6 +141,9 @@ export function StickyConversationHeader({
           onPointerEnter={handlePointerEnter}
           onPointerLeave={handlePointerLeave}
         >
+          {/* The surface sits behind the rows and carries the reveal; the pinned
+              text paints on top of it at full strength. */}
+          <View style={surfaceStyle} pointerEvents="none" />
           {/* Both rows are always laid out, even with nothing to pin on that side,
               so the fold stays where the strategies put it. A row that pins
               nothing paints nothing. */}
@@ -147,13 +156,14 @@ export function StickyConversationHeader({
                   role={role}
                   preview={preview}
                   arrowsVisible={isHovered}
+                  revealOpacity={revealOpacity}
                   onPress={onPressPreview}
                 />
               </StickyLine>
             ),
           )}
         </View>
-        <StickyBlockFade color={styles.fade.color} />
+        <StickyBlockFade color={styles.fade.color} opacity={revealOpacity} />
       </View>
     </View>
   );
@@ -182,10 +192,20 @@ interface StickyRowProps {
   role: "user" | "assistant";
   preview: StickyConversationPreview | null;
   arrowsVisible: boolean;
+  /** Opacity of the row's own chrome — its rule or bubble — never its text. */
+  revealOpacity: number;
   onPress: (itemId: string) => void;
 }
 
-function StickyRow({ agentId, align, role, preview, arrowsVisible, onPress }: StickyRowProps) {
+function StickyRow({
+  agentId,
+  align,
+  role,
+  preview,
+  arrowsVisible,
+  revealOpacity,
+  onPress,
+}: StickyRowProps) {
   const { t } = useTranslation();
   const isCompact = useIsCompactFormFactor();
   const itemId = preview?.itemId;
@@ -245,9 +265,20 @@ function StickyRow({ agentId, align, role, preview, arrowsVisible, onPress }: St
         )}
         testID={`sticky-conversation-preview-${role}`}
       >
-        {/* The text is the pin's only child, so the pin hugs it up to the cap
-            and the rule comes out the length of the line. A line too long to
-            pin whole ends in an ellipsis, the way any cut line does. */}
+        {/* The chrome sits behind the text and carries the reveal: a prompt's
+            bubble, or a response's rule at the fold. The text hugs the pin, so
+            both come out the length of the line. */}
+        <View
+          style={[
+            align === "right" ? styles.pinBubble : styles.pinRule,
+            { opacity: revealOpacity },
+          ]}
+          pointerEvents="none"
+        />
+        {/* The text is the pin's only laid-out child, so the pin hugs it up to
+            the cap and the chrome behind it comes out the length of the line. A
+            line too long to pin whole ends in an ellipsis, the way any cut line
+            does. */}
         <Text style={styles.previewText} numberOfLines={1} ellipsizeMode="tail">
           {spans.map((span) => (
             <Text
@@ -297,12 +328,23 @@ const styles = StyleSheet.create((theme) => ({
     width: "100%",
   },
   /**
-   * Painted in the conversation's own surface, the way VS Code's widget is
-   * painted in the editor's colours. It carries no border or shadow of its own:
-   * the background is only there to stop content scrolling through the pinned
-   * text, and the rule under each line is the whole of the treatment.
+   * Groups the pinned rows and the wash. It carries no surface of its own — the
+   * surface is a separate layer behind the rows (`barBackground`) so it can rise
+   * with the scroll while the text stays at full strength.
    */
-  bar: {
+  bar: {},
+  /**
+   * The conversation's own surface, the way VS Code's widget is painted in the
+   * editor's colours. It carries no border or shadow: the surface is only there
+   * to stop content scrolling through the pinned text, and it eases in behind
+   * that text rather than snapping on with it.
+   */
+  barBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: theme.colors.surface0,
   },
   // Matches the list's own content padding.
@@ -337,9 +379,9 @@ const styles = StyleSheet.create((theme) => ({
   /**
    * A response is its own text on the page, no surface of its own. It takes the
    * box the message takes, up to the column, so the text lands in the same place
-   * and the rule comes out the length of the message rather than of some box
-   * drawn around it. The padding is the prompt bubble's, which the response has
-   * no use for except to put its text at the same depth — see
+   * and its rule (`pinRule`) comes out the length of the message rather than of
+   * some box drawn around it. The padding is the prompt bubble's, which the
+   * response has no use for except to put its text at the same depth — see
    * `STICKY_PIN_VERTICAL_PADDING`.
    */
   pin: {
@@ -347,8 +389,20 @@ const styles = StyleSheet.create((theme) => ({
     flexShrink: 1,
     minWidth: 0,
     paddingVertical: STICKY_PIN_VERTICAL_PADDING,
-    borderBottomWidth: theme.borderWidth[1],
-    borderBottomColor: theme.colors.border,
+  },
+  /**
+   * The response's rule at the fold, drawn as its own layer behind the text so
+   * it can rise with the scroll. The pin fills the row, so the rule lands on the
+   * row's boundary — the last row's rule is then exactly the fold the strategies
+   * offset the swap to.
+   */
+  pinRule: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: theme.borderWidth[1],
+    backgroundColor: theme.colors.border,
   },
   /**
    * A prompt keeps its bubble, at the size the conversation draws it —
@@ -357,15 +411,23 @@ const styles = StyleSheet.create((theme) => ({
    * so a pin without one turns a long prompt into something that looks like a
    * response, and a pin with a thinner one reads as a different element again.
    *
-   * The rule belongs to the response side only. Under a rounded bubble it reads
-   * as a box that has been cut, not as the mark of the fold.
+   * `pinUser` keeps only the padding that places the text; the bubble itself is
+   * a layer behind it (`pinBubble`) so it can rise with the scroll. The rule
+   * belongs to the response side only — under a rounded bubble it reads as a box
+   * that has been cut, not as the mark of the fold.
    */
   pinUser: {
     paddingHorizontal: theme.spacing[4],
+  },
+  pinBubble: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: theme.colors.surface3,
     borderRadius: theme.borderRadius["2xl"],
     borderTopRightRadius: theme.borderRadius.sm,
-    borderBottomWidth: 0,
   },
   pinHovered: {
     opacity: 0.7,

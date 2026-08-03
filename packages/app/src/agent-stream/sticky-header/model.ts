@@ -32,26 +32,39 @@ export const STICKY_CONVERSATION_ROW_HEIGHT =
 export const STICKY_PIN_TEXT_INSET = STICKY_PIN_VERTICAL_PADDING;
 
 /**
- * Scroll distance a freshly attached block takes to reach full strength. The
- * block covers no content when the conversation sits still, so it rises with the
- * scroll instead of the surface and its rule snapping in at once. One line of
- * scroll is enough to be over before the pinned text has moved far.
+ * Scroll the pinned text leads by before its surface begins to show. The text
+ * attaches coincident with the message and holds; the surface only starts to
+ * come up once the message has pulled this far off it, so the two are not tied
+ * to the same instant.
  */
-export const STICKY_BLOCK_REVEAL_DISTANCE = STICKY_PIN_LINE_HEIGHT;
+const STICKY_BLOCK_REVEAL_DELAY = STICKY_PIN_LINE_HEIGHT;
+
+/** Scroll the surface eases across, from clear to full, once it starts. */
+const STICKY_BLOCK_REVEAL_RAMP = STICKY_PIN_LINE_HEIGHT * 2;
 
 /**
- * Block opacity for how far content has scrolled under the fold. 0 at rest, so a
- * still conversation shows no block over its own top message, ramping to 1 once
- * a line of scroll has passed.
+ * Total scroll the reveal spans. The viewport clamps its reported distance to
+ * this, so scrolling deeper reports the same value and rerenders nothing.
+ */
+export const STICKY_BLOCK_REVEAL_DISTANCE = STICKY_BLOCK_REVEAL_DELAY + STICKY_BLOCK_REVEAL_RAMP;
+
+/**
+ * Surface opacity for how far content has scrolled under the fold. 0 until the
+ * delay is past, then a smoothstep to 1 across the ramp, so the surface eases in
+ * behind the already-placed text rather than snapping on with it.
  */
 export function stickyBlockRevealOpacity(revealDistance: number): number {
-  if (!Number.isFinite(revealDistance) || revealDistance <= 0) {
+  if (!Number.isFinite(revealDistance)) {
     return 0;
   }
-  if (revealDistance >= STICKY_BLOCK_REVEAL_DISTANCE) {
+  const t = (revealDistance - STICKY_BLOCK_REVEAL_DELAY) / STICKY_BLOCK_REVEAL_RAMP;
+  if (t <= 0) {
+    return 0;
+  }
+  if (t >= 1) {
     return 1;
   }
-  return revealDistance / STICKY_BLOCK_REVEAL_DISTANCE;
+  return t * t * (3 - 2 * t);
 }
 
 /**

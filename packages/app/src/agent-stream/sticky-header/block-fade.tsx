@@ -11,10 +11,10 @@ export const STICKY_BLOCK_FADE_HEIGHT = 16;
  * mid-glyph. Over this strip it thins out instead, so the message fades as it
  * goes under.
  */
-export function StickyBlockFade({ color }: { color: string }) {
+export function StickyBlockFade({ color, opacity = 1 }: { color: string; opacity?: number }) {
   return (
     <Svg
-      style={fadeStyles.bottom}
+      style={[fadeStyles.bottom, { opacity }]}
       width="100%"
       height={STICKY_BLOCK_FADE_HEIGHT}
       preserveAspectRatio="none"
