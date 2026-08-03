@@ -25,6 +25,7 @@ import {
   STICKY_PIN_LINE_HEIGHT,
   STICKY_PIN_VERTICAL_PADDING,
   STICKY_PREVIEW_MAX_LINES,
+  STICKY_USER_PIN_VERTICAL_PADDING,
   type StickyConversationPreview,
   type StickyConversationPreviews,
 } from "./model";
@@ -184,7 +185,6 @@ export function StickyConversationHeader({
                   role={role}
                   preview={preview}
                   arrowsVisible={isHovered}
-                  revealProgress={revealProgress}
                   barProgress={barProgress}
                   onPress={onPressPreview}
                   onHeightChange={onRowHeightChange}
@@ -221,8 +221,6 @@ interface StickyRowProps {
   role: "user" | "assistant";
   preview: StickyConversationPreview | null;
   arrowsVisible: boolean;
-  /** How far the surface has revealed, 0..1 — the prompt bubble fades on it. */
-  revealProgress: number;
   /** How far the response rule has extended, 0..1 — it wipes out on this. */
   barProgress: number;
   onPress: (itemId: string) => void;
@@ -235,7 +233,6 @@ function StickyRow({
   role,
   preview,
   arrowsVisible,
-  revealProgress,
   barProgress,
   onPress,
   onHeightChange,
@@ -304,22 +301,10 @@ function StickyRow({
         )}
         testID={`sticky-conversation-preview-${role}`}
       >
-        {/* The chrome sits behind the text and hugs the pin. A response's
-            background comes from the block mask behind it, so it only needs its
-            rule — which wipes out along the text edge as you read down it. A
-            prompt keeps its own bubble, revealed top-to-bottom with the block. */}
-        {align === "right" ? (
-          <View
-            style={[
-              styles.pinBubble,
-              {
-                transform: [{ scaleY: revealProgress }],
-                transformOrigin: "top",
-              },
-            ]}
-            pointerEvents="none"
-          />
-        ) : (
+        {/* A response's background comes from the block mask, so only its rule
+            is separate. The prompt bubble is the pin itself, which keeps its
+            background, text, and rounded outline moving as one object. */}
+        {align === "left" ? (
           <View
             style={[
               styles.pinRule,
@@ -330,7 +315,7 @@ function StickyRow({
             ]}
             pointerEvents="none"
           />
-        )}
+        ) : null}
         {/* The text is the pin's only laid-out child, so the pin hugs it up to
             the cap and the chrome behind it comes out the length of the line. A
             line too long to pin whole ends in an ellipsis, the way any cut line
@@ -473,20 +458,13 @@ const styles = StyleSheet.create((theme) => ({
    * so a pin without one turns a long prompt into something that looks like a
    * response, and a pin with a thinner one reads as a different element again.
    *
-   * `pinUser` keeps only the padding that places the text; the bubble itself is
-   * a layer behind it (`pinBubble`) so it can rise with the scroll. The rule
-   * belongs to the response side only — under a rounded bubble it reads as a box
-   * that has been cut, not as the mark of the fold.
+   * The bubble is painted on the pin itself so its background, outline, and text
+   * translate and clip together. The rule belongs to the response side only —
+   * under a rounded bubble it reads as a box that has been cut.
    */
   pinUser: {
     paddingHorizontal: theme.spacing[4],
-  },
-  pinBubble: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    paddingVertical: STICKY_USER_PIN_VERTICAL_PADDING,
     backgroundColor: theme.colors.surface3,
     borderRadius: theme.borderRadius["2xl"],
     borderTopRightRadius: theme.borderRadius.sm,

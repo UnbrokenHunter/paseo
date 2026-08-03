@@ -11,6 +11,7 @@ import {
   STICKY_CONVERSATION_MAX_ROW_HEIGHT,
   STICKY_CONVERSATION_ROW_HEIGHT,
   STICKY_PIN_TEXT_INSET,
+  STICKY_USER_PIN_VERTICAL_PADDING,
   stickyBlockBarRevealProgress,
   stickyBlockRevealProgress,
   stickyConversationPushOffset,
@@ -274,6 +275,17 @@ describe("stickyConversationFoldOffset", () => {
         user: STICKY_CONVERSATION_MAX_ROW_HEIGHT,
       }),
     ).toBe(STICKY_CONVERSATION_MAX_ROW_HEIGHT + STICKY_PIN_TEXT_INSET);
+  });
+
+  it("uses the full prompt bubble inset when the user row is lower", () => {
+    const previews = {
+      assistant: { itemId: "a", text: "answer", timestamp: 1, sequence: 1 },
+      user: { itemId: "u", text: "one", timestamp: 2, sequence: 2 },
+    };
+    expect(stickyConversationFoldOffset("user-and-ai", previews)).toBe(
+      STICKY_CONVERSATION_ROW_HEIGHT + STICKY_USER_PIN_VERTICAL_PADDING,
+    );
+    expect(stickyConversationFoldOffset("user", previews)).toBe(STICKY_USER_PIN_VERTICAL_PADDING);
   });
 });
 

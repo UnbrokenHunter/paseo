@@ -5,19 +5,10 @@ import { buildStreamMessageGroups } from "../message-groups";
 /** Line height of a pinned line. Matches the message text it stands in for. */
 export const STICKY_PIN_LINE_HEIGHT = 22;
 export const STICKY_PREVIEW_MAX_LINES = 2;
-/**
- * Space above and below a pinned line, which is the prompt bubble's own padding
- * (`userMessageStylesheet.bubble` in components/message.tsx). A pinned prompt is
- * shown in its bubble, and the bubble has to be the size it is in the
- * conversation or the pin reads as a different, thinner thing.
- *
- * The response side takes the same padding even though it has no bubble to
- * fill. Both rows have to put their text at the same depth: the fold is a text
- * position, and it decides which message pins, which decides which side takes
- * the lower row. A depth that varied by side would feed back into itself and
- * oscillate across the handoff.
- */
+/** Compact spacing kept around a pinned assistant line. */
 export const STICKY_PIN_VERTICAL_PADDING = 8;
+/** Matches `userMessageStylesheet.bubble` so a pinned prompt keeps its whole bubble. */
+export const STICKY_USER_PIN_VERTICAL_PADDING = 16;
 
 /**
  * Height of one pinned row — one line in its bubble. A row keeps it even when
@@ -27,7 +18,7 @@ export const STICKY_PIN_VERTICAL_PADDING = 8;
 export const STICKY_CONVERSATION_ROW_HEIGHT =
   STICKY_PIN_LINE_HEIGHT + STICKY_PIN_VERTICAL_PADDING * 2;
 export const STICKY_CONVERSATION_MAX_ROW_HEIGHT =
-  STICKY_PIN_LINE_HEIGHT * STICKY_PREVIEW_MAX_LINES + STICKY_PIN_VERTICAL_PADDING * 2;
+  STICKY_PIN_LINE_HEIGHT * STICKY_PREVIEW_MAX_LINES + STICKY_USER_PIN_VERTICAL_PADDING * 2;
 
 export type StickyConversationRowHeights = Partial<Record<"user" | "assistant", number>>;
 
@@ -49,6 +40,10 @@ function stickyConversationRowHeight(
  * text sits its own padding down from the row's top.
  */
 export const STICKY_PIN_TEXT_INSET = STICKY_PIN_VERTICAL_PADDING;
+
+function stickyConversationTextInset(role: "user" | "assistant"): number {
+  return role === "user" ? STICKY_USER_PIN_VERTICAL_PADDING : STICKY_PIN_TEXT_INSET;
+}
 
 /**
  * Scroll the block reveals across once the text has attached. The text is placed
@@ -122,13 +117,20 @@ export function stickyConversationFoldOffset(
   if (mode === "off") {
     return 0;
   }
+  const lastRowRole = mode === "user-and-ai" ? newestRole(previews) : "user";
   const lastRowTop =
     mode === "user-and-ai" ? stickyConversationRowHeight(oldestRole(previews), rowHeights) : 0;
-  return lastRowTop + STICKY_PIN_TEXT_INSET;
+  return lastRowTop + stickyConversationTextInset(lastRowRole);
 }
 
 function oldestRole(previews: StickyConversationPreviews): "user" | "assistant" {
   return (previews.user?.sequence ?? -1) <= (previews.assistant?.sequence ?? -1)
+    ? "user"
+    : "assistant";
+}
+
+function newestRole(previews: StickyConversationPreviews): "user" | "assistant" {
+  return (previews.user?.sequence ?? -1) >= (previews.assistant?.sequence ?? -1)
     ? "user"
     : "assistant";
 }
@@ -155,9 +157,7 @@ function willDisplaceTopLine(input: {
   if (mode !== "user-and-ai") {
     return incomingRole === "user";
   }
-  const newest =
-    (previews.user?.sequence ?? -1) >= (previews.assistant?.sequence ?? -1) ? "user" : "assistant";
-  return incomingRole !== newest;
+  return incomingRole !== newestRole(previews);
 }
 
 /**
