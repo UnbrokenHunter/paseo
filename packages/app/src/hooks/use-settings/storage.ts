@@ -394,3 +394,4 @@ async function loadRendererSettingsPayload(
   }
   return JSON.parse(legacy) as Record<string, unknown>;
 }
+
