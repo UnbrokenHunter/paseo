@@ -1176,7 +1176,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             mode={stickyHeaderMode}
             previews={stickyPreviews}
             pushOffset={stickyPushOffset}
-            revealOpacity={stickyBlockRevealOpacity(stickyRevealDistance)}
+            revealProgress={stickyBlockRevealOpacity(stickyRevealDistance)}
             gutterWidth={contentGutter}
             onPressPreview={handleStickyPreviewPress}
           />

@@ -40,11 +40,12 @@ interface StickyConversationHeaderProps {
    */
   pushOffset: number;
   /**
-   * Block opacity as it attaches, from `stickyBlockRevealOpacity`. 0 with the
-   * conversation at rest, so the surface and its rule rise with the scroll
-   * rather than popping in.
+   * How far the chrome has revealed as the block attaches, 0..1 from
+   * `stickyBlockRevealOpacity`. 0 with the conversation at rest. The surface
+   * fades in on it; the rule and bubble extend on it from their aligned edge,
+   * so each side wipes in from the side its text sits on.
    */
-  revealOpacity: number;
+  revealProgress: number;
   /**
    * Width the conversation's scrollbar takes out of its own box. The block is
    * laid out over the whole pane, so it has to give the same width back or its
@@ -70,7 +71,7 @@ export function StickyConversationHeader({
   mode,
   previews,
   pushOffset,
-  revealOpacity,
+  revealProgress,
   gutterWidth,
   onPressPreview,
 }: StickyConversationHeaderProps) {
@@ -106,11 +107,12 @@ export function StickyConversationHeader({
     () => [styles.block, { transform: [{ translateY: -pushOffset }] }],
     [pushOffset],
   );
-  // Only the surface, its rule, and the wash rise with the scroll; the pinned
-  // text is placed and held, so it is never tied to this opacity.
+  // Only the surface and the wash rise with the scroll; the pinned text is
+  // placed and held, so it is never tied to this opacity. The rule and bubble
+  // ride the same progress but extend rather than fade — see StickyRow.
   const surfaceStyle = useMemo(
-    () => [styles.barBackground, { opacity: revealOpacity }],
-    [revealOpacity],
+    () => [styles.barBackground, { opacity: revealProgress }],
+    [revealProgress],
   );
   const overlayStyle = useMemo(() => [styles.overlay, { right: gutterWidth }], [gutterWidth]);
 
@@ -156,14 +158,14 @@ export function StickyConversationHeader({
                   role={role}
                   preview={preview}
                   arrowsVisible={isHovered}
-                  revealOpacity={revealOpacity}
+                  revealProgress={revealProgress}
                   onPress={onPressPreview}
                 />
               </StickyLine>
             ),
           )}
         </View>
-        <StickyBlockFade color={styles.fade.color} opacity={revealOpacity} />
+        <StickyBlockFade color={styles.fade.color} opacity={revealProgress} />
       </View>
     </View>
   );
@@ -192,8 +194,11 @@ interface StickyRowProps {
   role: "user" | "assistant";
   preview: StickyConversationPreview | null;
   arrowsVisible: boolean;
-  /** Opacity of the row's own chrome — its rule or bubble — never its text. */
-  revealOpacity: number;
+  /**
+   * How far the row's own chrome — its rule or bubble, never its text — has
+   * revealed, 0..1. The chrome extends on it from the row's aligned edge.
+   */
+  revealProgress: number;
   onPress: (itemId: string) => void;
 }
 
@@ -203,7 +208,7 @@ function StickyRow({
   role,
   preview,
   arrowsVisible,
-  revealOpacity,
+  revealProgress,
   onPress,
 }: StickyRowProps) {
   const { t } = useTranslation();
@@ -267,11 +272,16 @@ function StickyRow({
       >
         {/* The chrome sits behind the text and carries the reveal: a prompt's
             bubble, or a response's rule at the fold. The text hugs the pin, so
-            both come out the length of the line. */}
+            both come out the length of the line, and both extend on the reveal
+            from the row's aligned edge — a response wipes in left-to-right, a
+            prompt right-to-left, each from the side its text sits on. */}
         <View
           style={[
             align === "right" ? styles.pinBubble : styles.pinRule,
-            { opacity: revealOpacity },
+            {
+              transform: [{ scaleX: revealProgress }],
+              transformOrigin: align === "right" ? "center right" : "center left",
+            },
           ]}
           pointerEvents="none"
         />
