@@ -86,7 +86,7 @@ import {
   shouldTrackStickyPreviews,
   STICKY_BLOCK_REVEAL_DISTANCE,
   STICKY_CONVERSATION_ROW_HEIGHT,
-  stickyBlockRevealOpacity,
+  stickyBlockRevealProgress,
   stickyConversationFoldOffset,
   stickyConversationPushOffset,
   trackStickyPreviewGenerationStarts,
@@ -1176,7 +1176,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             mode={stickyHeaderMode}
             previews={stickyPreviews}
             pushOffset={stickyPushOffset}
-            revealProgress={stickyBlockRevealOpacity(stickyRevealDistance)}
+            revealProgress={stickyBlockRevealProgress(stickyRevealDistance)}
             gutterWidth={contentGutter}
             onPressPreview={handleStickyPreviewPress}
           />

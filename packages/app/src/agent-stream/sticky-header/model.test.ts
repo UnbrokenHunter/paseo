@@ -8,8 +8,7 @@ import {
   shouldTrackStickyPreviews,
   STICKY_BLOCK_REVEAL_DISTANCE,
   STICKY_CONVERSATION_ROW_HEIGHT,
-  STICKY_PIN_LINE_HEIGHT,
-  stickyBlockRevealOpacity,
+  stickyBlockRevealProgress,
   stickyConversationPushOffset,
   toStickyPreviewText,
   trackStickyPreviewGenerationStarts,
@@ -356,32 +355,19 @@ describe("stickyConversationPushOffset", () => {
   });
 });
 
-describe("stickyBlockRevealOpacity", () => {
-  it("keeps the surface off through the lead delay", () => {
-    expect(stickyBlockRevealOpacity(0)).toBe(0);
-    expect(stickyBlockRevealOpacity(-5)).toBe(0);
-    expect(stickyBlockRevealOpacity(Number.NaN)).toBe(0);
-    // Still nothing partway in, while only the text is placed.
-    expect(stickyBlockRevealOpacity(STICKY_BLOCK_REVEAL_DISTANCE / 4)).toBe(0);
+describe("stickyBlockRevealProgress", () => {
+  it("is nothing at rest, before any content has scrolled under the fold", () => {
+    expect(stickyBlockRevealProgress(0)).toBe(0);
+    expect(stickyBlockRevealProgress(-5)).toBe(0);
+    expect(stickyBlockRevealProgress(Number.NaN)).toBe(0);
   });
 
-  it("eases in after the delay and holds full past the ramp", () => {
-    const opacity = stickyBlockRevealOpacity(STICKY_BLOCK_REVEAL_DISTANCE / 2);
-    expect(opacity).toBeGreaterThan(0);
-    expect(opacity).toBeLessThan(1);
-    expect(stickyBlockRevealOpacity(STICKY_BLOCK_REVEAL_DISTANCE)).toBe(1);
-    expect(stickyBlockRevealOpacity(STICKY_BLOCK_REVEAL_DISTANCE * 4)).toBe(1);
-  });
-
-  it("eases in rather than ramping linearly", () => {
-    // A quarter of the way across the ramp, smoothstep sits below the straight
-    // line — the fade starts gentle.
-    const rampStart = STICKY_PIN_LINE_HEIGHT;
-    const quarter = stickyBlockRevealOpacity(
-      rampStart + (STICKY_BLOCK_REVEAL_DISTANCE - rampStart) * 0.25,
-    );
-    expect(quarter).toBeGreaterThan(0);
-    expect(quarter).toBeLessThan(0.25);
+  it("tracks the scroll straight across and holds full past the span", () => {
+    // Linear: a quarter of the way is a quarter of the way.
+    expect(stickyBlockRevealProgress(STICKY_BLOCK_REVEAL_DISTANCE / 4)).toBeCloseTo(0.25);
+    expect(stickyBlockRevealProgress(STICKY_BLOCK_REVEAL_DISTANCE / 2)).toBeCloseTo(0.5);
+    expect(stickyBlockRevealProgress(STICKY_BLOCK_REVEAL_DISTANCE)).toBe(1);
+    expect(stickyBlockRevealProgress(STICKY_BLOCK_REVEAL_DISTANCE * 4)).toBe(1);
   });
 });
 

@@ -40,10 +40,10 @@ interface StickyConversationHeaderProps {
    */
   pushOffset: number;
   /**
-   * How far the chrome has revealed as the block attaches, 0..1 from
-   * `stickyBlockRevealOpacity`. 0 with the conversation at rest. The surface
-   * fades in on it; the rule and bubble extend on it from their aligned edge,
-   * so each side wipes in from the side its text sits on.
+   * How far the block has revealed as it attaches, 0..1 from
+   * `stickyBlockRevealProgress`. 0 with the conversation at rest. The surface and
+   * the prompt bubble fade in on it; the response rule extends on it from the
+   * text's own edge. The pinned text is placed and held, never tied to it.
    */
   revealProgress: number;
   /**
@@ -107,9 +107,9 @@ export function StickyConversationHeader({
     () => [styles.block, { transform: [{ translateY: -pushOffset }] }],
     [pushOffset],
   );
-  // Only the surface and the wash rise with the scroll; the pinned text is
-  // placed and held, so it is never tied to this opacity. The rule and bubble
-  // ride the same progress but extend rather than fade — see StickyRow.
+  // The surface and the wash fade in on the scroll; the pinned text is placed
+  // and held, so it is never tied to this opacity. The response rule rides the
+  // same progress but extends rather than fades — see StickyRow.
   const surfaceStyle = useMemo(
     () => [styles.barBackground, { opacity: revealProgress }],
     [revealProgress],
@@ -272,19 +272,20 @@ function StickyRow({
       >
         {/* The chrome sits behind the text and carries the reveal: a prompt's
             bubble, or a response's rule at the fold. The text hugs the pin, so
-            both come out the length of the line, and both extend on the reveal
-            from the row's aligned edge — a response wipes in left-to-right, a
-            prompt right-to-left, each from the side its text sits on. */}
-        <View
-          style={[
-            align === "right" ? styles.pinBubble : styles.pinRule,
-            {
-              transform: [{ scaleX: revealProgress }],
-              transformOrigin: align === "right" ? "center right" : "center left",
-            },
-          ]}
-          pointerEvents="none"
-        />
+            both come out the length of the line. The rule extends from the text's
+            own edge with the scroll; the bubble, being a surface, fades in with
+            it instead. */}
+        {align === "right" ? (
+          <View style={[styles.pinBubble, { opacity: revealProgress }]} pointerEvents="none" />
+        ) : (
+          <View
+            style={[
+              styles.pinRule,
+              { transform: [{ scaleX: revealProgress }], transformOrigin: "center left" },
+            ]}
+            pointerEvents="none"
+          />
+        )}
         {/* The text is the pin's only laid-out child, so the pin hugs it up to
             the cap and the chrome behind it comes out the length of the line. A
             line too long to pin whole ends in an ellipsis, the way any cut line

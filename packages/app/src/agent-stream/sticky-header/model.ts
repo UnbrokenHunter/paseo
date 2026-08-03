@@ -32,39 +32,27 @@ export const STICKY_CONVERSATION_ROW_HEIGHT =
 export const STICKY_PIN_TEXT_INSET = STICKY_PIN_VERTICAL_PADDING;
 
 /**
- * Scroll the pinned text leads by before its surface begins to show. The text
- * attaches coincident with the message and holds; the surface only starts to
- * come up once the message has pulled this far off it, so the two are not tied
- * to the same instant.
+ * Scroll the block reveals across once the text has attached. The text is placed
+ * coincident with the message and held; across this span the response's rule
+ * extends from its edge and the surface fades in, both straight in step with the
+ * scroll. The viewport clamps its reported distance to this, so scrolling deeper
+ * reports the same value and rerenders nothing.
  */
-const STICKY_BLOCK_REVEAL_DELAY = STICKY_PIN_LINE_HEIGHT;
-
-/** Scroll the surface eases across, from clear to full, once it starts. */
-const STICKY_BLOCK_REVEAL_RAMP = STICKY_PIN_LINE_HEIGHT * 2;
+export const STICKY_BLOCK_REVEAL_DISTANCE = STICKY_PIN_LINE_HEIGHT * 2;
 
 /**
- * Total scroll the reveal spans. The viewport clamps its reported distance to
- * this, so scrolling deeper reports the same value and rerenders nothing.
+ * Reveal progress, 0..1, for how far content has scrolled under the fold. Linear
+ * with the scroll: the text is already placed, so the rule and surface follow
+ * the scroll straight across rather than on a curve of their own.
  */
-export const STICKY_BLOCK_REVEAL_DISTANCE = STICKY_BLOCK_REVEAL_DELAY + STICKY_BLOCK_REVEAL_RAMP;
-
-/**
- * Surface opacity for how far content has scrolled under the fold. 0 until the
- * delay is past, then a smoothstep to 1 across the ramp, so the surface eases in
- * behind the already-placed text rather than snapping on with it.
- */
-export function stickyBlockRevealOpacity(revealDistance: number): number {
-  if (!Number.isFinite(revealDistance)) {
+export function stickyBlockRevealProgress(revealDistance: number): number {
+  if (!Number.isFinite(revealDistance) || revealDistance <= 0) {
     return 0;
   }
-  const t = (revealDistance - STICKY_BLOCK_REVEAL_DELAY) / STICKY_BLOCK_REVEAL_RAMP;
-  if (t <= 0) {
-    return 0;
-  }
-  if (t >= 1) {
+  if (revealDistance >= STICKY_BLOCK_REVEAL_DISTANCE) {
     return 1;
   }
-  return t * t * (3 - 2 * t);
+  return revealDistance / STICKY_BLOCK_REVEAL_DISTANCE;
 }
 
 /**

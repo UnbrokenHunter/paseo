@@ -98,8 +98,8 @@ export interface StreamRenderInput {
    * reader — see `stickyConversationPushOffset`.
    *
    * `revealDistance` is how far content has scrolled under the fold. The header
-   * fades the block in over the first stretch of it, so the surface and its rule
-   * rise with the scroll instead of popping in — see `stickyBlockRevealOpacity`.
+   * reveals the block across it — the surface fades in and the response rule
+   * extends — straight in step with the scroll, see `stickyBlockRevealProgress`.
    */
   onAboveViewportItemChange: (
     itemId: string | null,
