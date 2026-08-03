@@ -38,7 +38,7 @@ export const STICKY_PIN_TEXT_INSET = STICKY_PIN_VERTICAL_PADDING;
  * scroll. The viewport clamps its reported distance to this, so scrolling deeper
  * reports the same value and rerenders nothing.
  */
-export const STICKY_BLOCK_REVEAL_DISTANCE = STICKY_PIN_LINE_HEIGHT * 5;
+export const STICKY_BLOCK_REVEAL_DISTANCE = STICKY_PIN_LINE_HEIGHT * 2;
 
 /**
  * Reveal progress, 0..1, for how far content has scrolled under the fold. Linear

@@ -9,7 +9,6 @@ import {
   STICKY_BLOCK_BAR_REVEAL_DISTANCE,
   STICKY_BLOCK_REVEAL_DISTANCE,
   STICKY_CONVERSATION_ROW_HEIGHT,
-  STICKY_PIN_LINE_HEIGHT,
   stickyBlockBarRevealProgress,
   stickyBlockRevealProgress,
   stickyConversationPushOffset,
@@ -381,10 +380,10 @@ describe("stickyBlockBarRevealProgress", () => {
     expect(stickyBlockBarRevealProgress(Number.NaN)).toBe(0);
   });
 
-  it("wipes across its own span as a gradual wipe rather than a flash", () => {
-    // Per-response, spanning several lines so the underline eases across rather
-    // than snapping on.
-    expect(STICKY_BLOCK_BAR_REVEAL_DISTANCE).toBeGreaterThan(STICKY_PIN_LINE_HEIGHT);
+  it("wipes across its own span, slower than the surface reveal", () => {
+    // Per-response, and a good deal longer than the surface span so the underline
+    // is a gradual wipe rather than a flash.
+    expect(STICKY_BLOCK_BAR_REVEAL_DISTANCE).toBeGreaterThan(STICKY_BLOCK_REVEAL_DISTANCE);
     expect(stickyBlockBarRevealProgress(STICKY_BLOCK_BAR_REVEAL_DISTANCE / 2)).toBeCloseTo(0.5);
     expect(stickyBlockBarRevealProgress(STICKY_BLOCK_BAR_REVEAL_DISTANCE)).toBe(1);
     expect(stickyBlockBarRevealProgress(STICKY_BLOCK_BAR_REVEAL_DISTANCE * 4)).toBe(1);
