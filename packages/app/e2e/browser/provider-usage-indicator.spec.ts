@@ -2,10 +2,7 @@ import type { ProviderUsage } from "@getpaseo/protocol/messages";
 import { expect, test, type Page } from "../support/fixtures";
 import { gotoAppShell, openSettings } from "../support/helpers/app";
 import { expectComposerVisible } from "../support/helpers/composer";
-import {
-  openAgentRoute,
-  seedMockAgentWorkspace,
-} from "../support/helpers/mock-agent";
+import { openAgentRoute, seedMockAgentWorkspace } from "../support/helpers/mock-agent";
 import { installProviderUsageFixture } from "../support/helpers/provider-usage";
 import { openSettingsSection } from "../support/helpers/settings";
 
@@ -38,37 +35,25 @@ async function openMockAgent(page: Page) {
   const session = await seedMockAgentWorkspace({
     repoPrefix: "provider-usage-indicator-",
     title: "Provider usage indicator e2e",
-    initialPrompt:
-      "emit 1 coalesced agent stream update for the provider usage indicator.",
+    initialPrompt: "emit 1 coalesced agent stream update for the provider usage indicator.",
   });
   await openAgentRoute(page, session);
   await expectComposerVisible(page);
-  await expect(page.getByTestId("context-window-meter")).toBeVisible({
-    timeout: 30_000,
-  });
+  await expect(page.getByTestId("context-window-meter")).toBeVisible({ timeout: 30_000 });
   return session;
 }
 
 const barLabel = (page: Page) => page.getByTestId("provider-usage-bar-label");
 
 test.describe("provider usage indicator", () => {
-  test("reads out the remaining percentage and the reset countdown", async ({
-    page,
-  }) => {
+  test("reads out the remaining percentage and the reset countdown", async ({ page }) => {
     test.setTimeout(180_000);
     await installProviderUsageFixture(page, [
       {
         fetchedAt: new Date().toISOString(),
         providers: [
           mockProvider({
-            windows: [
-              {
-                id: "session",
-                label: "Session",
-                usedPct: 42,
-                resetsAt: inHours(3),
-              },
-            ],
+            windows: [{ id: "session", label: "Session", usedPct: 42, resetsAt: inHours(3) }],
           }),
         ],
       },
@@ -84,9 +69,7 @@ test.describe("provider usage indicator", () => {
     }
   });
 
-  test("rotates through the limits, closest to exhaustion first", async ({
-    page,
-  }) => {
+  test("rotates through the limits, closest to exhaustion first", async ({ page }) => {
     test.setTimeout(180_000);
     await installProviderUsageFixture(page, [
       {
@@ -105,9 +88,7 @@ test.describe("provider usage indicator", () => {
 
     const session = await openMockAgent(page);
     try {
-      await expect(barLabel(page)).toHaveText("20% remaining", {
-        timeout: 30_000,
-      });
+      await expect(barLabel(page)).toHaveText("20% remaining", { timeout: 30_000 });
       await expect(barLabel(page)).toHaveText("70% remaining", {
         timeout: ROTATION_INTERVAL_MS * 2,
       });
@@ -120,9 +101,7 @@ test.describe("provider usage indicator", () => {
     }
   });
 
-  test("holds the limit closest to exhaustion once rotation is switched off", async ({
-    page,
-  }) => {
+  test("holds the limit closest to exhaustion once rotation is switched off", async ({ page }) => {
     test.setTimeout(180_000);
     await installProviderUsageFixture(page, [
       {
@@ -141,9 +120,7 @@ test.describe("provider usage indicator", () => {
     await gotoAppShell(page);
     await openSettings(page);
     await openSettingsSection(page, "appearance");
-    const toggle = page.getByRole("switch", {
-      name: "Rotate provider usage limits",
-    });
+    const toggle = page.getByRole("switch", { name: "Rotate provider usage limits" });
     await expect(toggle).toBeVisible();
     await expect(toggle).toBeChecked();
     await toggle.click();
@@ -151,9 +128,7 @@ test.describe("provider usage indicator", () => {
 
     const session = await openMockAgent(page);
     try {
-      await expect(barLabel(page)).toHaveText("20% remaining", {
-        timeout: 30_000,
-      });
+      await expect(barLabel(page)).toHaveText("20% remaining", { timeout: 30_000 });
       // Long enough that a rotation would have fired twice over.
       await page.waitForTimeout(ROTATION_INTERVAL_MS * 2);
       await expect(barLabel(page)).toHaveText("20% remaining");
@@ -162,9 +137,7 @@ test.describe("provider usage indicator", () => {
     }
   });
 
-  test("says a locally hosted model has no limits to report", async ({
-    page,
-  }) => {
+  test("says a locally hosted model has no limits to report", async ({ page }) => {
     test.setTimeout(180_000);
     await installProviderUsageFixture(page, [
       {
@@ -183,56 +156,42 @@ test.describe("provider usage indicator", () => {
 
     const session = await openMockAgent(page);
     try {
-      await expect(barLabel(page)).toHaveText("No usage limits", {
-        timeout: 30_000,
-      });
+      await expect(barLabel(page)).toHaveText("No usage limits", { timeout: 30_000 });
 
       await page.getByTestId("context-window-meter").hover();
       const card = page.getByTestId("provider-usage-tooltip-card");
       await expect(card).toBeVisible({ timeout: 10_000 });
-      await expect(
-        card.getByText("localhost:11434", { exact: false })
-      ).toBeVisible();
+      await expect(card.getByText("localhost:11434", { exact: false })).toBeVisible();
     } finally {
       await session.cleanup();
     }
   });
 
-  test("says usage is unavailable when the provider reports no limits", async ({
-    page,
-  }) => {
+  test("says usage is unavailable when the provider reports no limits", async ({ page }) => {
     test.setTimeout(180_000);
     await installProviderUsageFixture(page, [
       {
         fetchedAt: new Date().toISOString(),
         providers: [
-          mockProvider({
-            status: "unavailable",
-            planLabel: null,
-            error: "No quota API",
-          }),
+          mockProvider({ status: "unavailable", planLabel: null, error: "No quota API" }),
         ],
       },
     ]);
 
     const session = await openMockAgent(page);
     try {
-      await expect(barLabel(page)).toHaveText("Usage unavailable", {
-        timeout: 30_000,
-      });
+      await expect(barLabel(page)).toHaveText("Usage unavailable", { timeout: 30_000 });
     } finally {
       await session.cleanup();
     }
   });
 
-  test("shows usage is unavailable when the host cannot report usage", async ({
-    page,
-  }) => {
+  test("shows usage is unavailable when the host cannot report usage", async ({ page }) => {
     test.setTimeout(180_000);
     const usageFixture = await installProviderUsageFixture(
       page,
       [{ fetchedAt: new Date().toISOString(), providers: [mockProvider()] }],
-      { supported: false }
+      { supported: false },
     );
 
     const session = await openMockAgent(page);
@@ -240,27 +199,19 @@ test.describe("provider usage indicator", () => {
       // The meter stays — it is still the context-window ring — and reports that
       // usage is unavailable without asking a host that cannot answer.
       await expect(page.getByTestId("context-window-meter")).toBeVisible();
-      await expect(barLabel(page)).toHaveText(
-        "Update the host to see provider usage"
-      );
+      await expect(barLabel(page)).toHaveText("Update the host to see provider usage");
       expect(usageFixture.requestCount()).toBe(0);
     } finally {
       await session.cleanup();
     }
   });
 
-  test("keeps the context-window numbers at the top of the popover", async ({
-    page,
-  }) => {
+  test("keeps the context-window numbers at the top of the popover", async ({ page }) => {
     test.setTimeout(180_000);
     await installProviderUsageFixture(page, [
       {
         fetchedAt: new Date().toISOString(),
-        providers: [
-          mockProvider({
-            windows: [{ id: "session", label: "Session", usedPct: 42 }],
-          }),
-        ],
+        providers: [mockProvider({ windows: [{ id: "session", label: "Session", usedPct: 42 }] })],
       },
     ]);
 
@@ -271,9 +222,7 @@ test.describe("provider usage indicator", () => {
       await expect(card).toBeVisible({ timeout: 30_000 });
 
       // The popover is the context tooltip with usage appended, not usage alone.
-      await expect(
-        page.getByText("Context window", { exact: true })
-      ).toBeVisible();
+      await expect(page.getByText("Context window", { exact: true })).toBeVisible();
       await expect(page.getByText(/% used$/)).toBeVisible();
       await expect(page.getByText(/tokens$/)).toBeVisible();
     } finally {
@@ -281,18 +230,12 @@ test.describe("provider usage indicator", () => {
     }
   });
 
-  test("pins the popover open on press and releases it on a second press", async ({
-    page,
-  }) => {
+  test("pins the popover open on press and releases it on a second press", async ({ page }) => {
     test.setTimeout(180_000);
     await installProviderUsageFixture(page, [
       {
         fetchedAt: new Date().toISOString(),
-        providers: [
-          mockProvider({
-            windows: [{ id: "session", label: "Session", usedPct: 42 }],
-          }),
-        ],
+        providers: [mockProvider({ windows: [{ id: "session", label: "Session", usedPct: 42 }] })],
       },
     ]);
 
@@ -300,9 +243,7 @@ test.describe("provider usage indicator", () => {
     try {
       const meter = page.getByTestId("context-window-meter");
       const card = page.getByTestId("provider-usage-tooltip-card");
-      await expect(barLabel(page)).toHaveText("58% remaining", {
-        timeout: 30_000,
-      });
+      await expect(barLabel(page)).toHaveText("58% remaining", { timeout: 30_000 });
 
       await meter.click();
       await expect(card).toBeVisible({ timeout: 10_000 });
