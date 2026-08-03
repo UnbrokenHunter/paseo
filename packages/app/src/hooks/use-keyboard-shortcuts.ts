@@ -5,8 +5,6 @@ import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
 import { setCommandCenterFocusRestoreElement } from "@/utils/command-center-focus-restore";
 import { getResidentBrowserWebview } from "@/desktop/browser/resident-webviews";
 import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
-import { buildOpenProjectRoute } from "@/utils/host-routes";
-
 import { keyboardActionDispatcher } from "@/keyboard/keyboard-action-dispatcher";
 import {
   type ChordState,
@@ -59,7 +57,6 @@ export function useKeyboardShortcuts({
   cycleTheme?: () => void;
 }) {
   const pathname = usePathname();
-  const isSettingsRoute = pathname.startsWith("/settings");
   const router = useRouter();
   const resetModifiers = useKeyboardShortcutsStore((s) => s.resetModifiers);
   const { overrides } = useKeyboardShortcutOverrides();
@@ -83,14 +80,13 @@ export function useKeyboardShortcuts({
           ? buildBrowserKeyboardPolicy({
               bindings,
               chordState,
-              forwardEscape: isSettingsRoute,
               isMac,
               isDesktop: isDesktopApp,
             })
           : { menuPrefixes: [], prefixes: [] };
       void getDesktopHost()?.browser?.setShortcutPolicy?.(policy);
     },
-    [bindings, enabled, isDesktopApp, isMac, isMobile, isSettingsRoute],
+    [bindings, enabled, isDesktopApp, isMac, isMobile],
   );
 
   useEffect(() => {
@@ -251,20 +247,6 @@ export function useKeyboardShortcuts({
       domEvent: KeyboardEvent | null;
       browserFocusRestoreElement?: HTMLElement | null;
     }) => {
-      const isSettingsEscape = input.event.key === "Escape" && isSettingsRoute;
-      if (isSettingsEscape) {
-        const canDismissSettings = input.focusScope === "other" || input.focusScope === "browser";
-        if (!canDismissSettings || hasOpenWebOverlay() || hasEscapeDismissHandler()) {
-          return;
-        }
-        if (!navigateToLastWorkspace()) {
-          router.replace(buildOpenProjectRoute());
-        }
-        input.domEvent?.preventDefault();
-        input.domEvent?.stopPropagation();
-        return;
-      }
-
       const store = useKeyboardShortcutsStore.getState();
       const previousChordState = chordStateRef.current;
       const result = resolveKeyboardShortcut({
@@ -422,7 +404,6 @@ export function useKeyboardShortcuts({
     isDesktopApp,
     isMac,
     isMobile,
-    isSettingsRoute,
     isWorkspaceFocusModeEnabled,
     openProjectPickerAction,
     pathname,

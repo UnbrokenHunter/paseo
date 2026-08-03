@@ -31,7 +31,6 @@ export interface BrowserKeyboardPolicy {
 interface BrowserShortcutPolicyInput {
   bindings: readonly ParsedShortcutBinding[];
   chordState?: ChordState;
-  forwardEscape?: boolean;
   isMac: boolean;
   isDesktop: boolean;
 }
@@ -194,18 +193,6 @@ export function buildBrowserKeyboardPolicy(
     input.chordState && input.chordState.step > 0
       ? buildBrowserShortcutPrefixes(input)
       : idlePrefixes;
-  if (input.forwardEscape) {
-    prefixes.push({
-      alt: false,
-      code: "Escape",
-      control: false,
-      editable: false,
-      meta: false,
-      repeat: false,
-      shift: false,
-    });
-  }
-
   const menuPrefixes = [...idlePrefixes];
   if (!input.isMac) {
     const closeWindowGuard: BrowserShortcutPrefix = {
