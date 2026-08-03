@@ -186,7 +186,7 @@ test.describe("provider usage indicator", () => {
     }
   });
 
-  test("shows no usage bar at all when the host cannot report usage", async ({ page }) => {
+  test("shows usage is unavailable when the host cannot report usage", async ({ page }) => {
     test.setTimeout(180_000);
     const usageFixture = await installProviderUsageFixture(
       page,
@@ -196,10 +196,10 @@ test.describe("provider usage indicator", () => {
 
     const session = await openMockAgent(page);
     try {
-      // The meter stays — it is still the context-window ring — but it says nothing
-      // about usage, and never asks a host that cannot answer.
+      // The meter stays — it is still the context-window ring — and reports that
+      // usage is unavailable without asking a host that cannot answer.
       await expect(page.getByTestId("context-window-meter")).toBeVisible();
-      await expect(barLabel(page)).toHaveCount(0);
+      await expect(barLabel(page)).toHaveText("Update the host to see provider usage");
       expect(usageFixture.requestCount()).toBe(0);
     } finally {
       await session.cleanup();

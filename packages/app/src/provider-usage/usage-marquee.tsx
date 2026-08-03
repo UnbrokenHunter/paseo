@@ -1,20 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, StyleSheet as RNStyleSheet, Text, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet as RNStyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import Animated, {
   Easing,
   cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
+  withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { EdgeFade } from "./edge-fade";
 
 /** Reading pace, not attention-grabbing pace. */
 const SPEED_PX_PER_SECOND = 22;
-/** Readable separation between consecutive copies of a long label. */
-const GAP_PX = 24;
+/** Let readers take in each end of a long label before it reverses. */
+const EDGE_PAUSE_MS = 1_000;
 
 /** Ignore sub-pixel overflow, which would otherwise scroll a label that already fits. */
 const OVERFLOW_EPSILON = 1;
@@ -30,9 +36,8 @@ const OVERFLOW_EPSILON = 1;
  * max-width the parent imposes), with a horizontal ScrollView laid over it: ScrollView
  * content is measured unbounded along its scroll axis on every platform.
  *
- * The scroll is a ticker, not a back-and-forth: a second copy follows the first a gap
- * behind, and the track resets the instant that second copy reaches the first one's
- * starting point, so the loop has no seam and the text always reads left to right.
+ * The motion travels between the two readable endpoints and pauses at each one. Unlike
+ * a ticker, it uses one copy of the label and never wraps through a duplicated seam.
  */
 export function UsageMarquee({
   label,
@@ -48,28 +53,40 @@ export function UsageMarquee({
 }) {
   const [viewportWidth, setViewportWidth] = useState(0);
   const [labelWidth, setLabelWidth] = useState(0);
-  const [cycleWidth, setCycleWidth] = useState(0);
   const scrolling =
-    viewportWidth > 0 && labelWidth > 0 && labelWidth - viewportWidth > OVERFLOW_EPSILON;
-  // The duplicate starts at the measured fractional width, so the loop must travel the same exact distance.
-  const canAnimate = scrolling && cycleWidth > 0;
+    viewportWidth > 0 &&
+    labelWidth > 0 &&
+    labelWidth - viewportWidth > OVERFLOW_EPSILON;
+  const travelDistance = Math.max(0, labelWidth - viewportWidth);
 
   const translate = useSharedValue(0);
   useEffect(() => {
     cancelAnimation(translate);
     translate.value = 0;
-    if (!canAnimate) return;
+    if (!scrolling) return;
 
     translate.value = withRepeat(
-      withTiming(-cycleWidth, {
-        duration: (cycleWidth / SPEED_PX_PER_SECOND) * 1000,
-        easing: Easing.linear,
-      }),
+      withSequence(
+        withDelay(
+          EDGE_PAUSE_MS,
+          withTiming(-travelDistance, {
+            duration: (travelDistance / SPEED_PX_PER_SECOND) * 1000,
+            easing: Easing.linear,
+          })
+        ),
+        withDelay(
+          EDGE_PAUSE_MS,
+          withTiming(0, {
+            duration: (travelDistance / SPEED_PX_PER_SECOND) * 1000,
+            easing: Easing.linear,
+          })
+        )
+      ),
       -1,
-      false,
+      false
     );
     return () => cancelAnimation(translate);
-  }, [canAnimate, cycleWidth, translate]);
+  }, [scrolling, travelDistance, translate]);
 
   const marqueeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translate.value }],
@@ -79,19 +96,18 @@ export function UsageMarquee({
     (event: { nativeEvent: { layout: { width: number } } }) => {
       setViewportWidth(event.nativeEvent.layout.width);
     },
-    [],
+    []
   );
 
-  const handleLabelLayout = useCallback((event: { nativeEvent: { layout: { width: number } } }) => {
-    setLabelWidth(event.nativeEvent.layout.width);
-  }, []);
-
-  const handleDuplicateLayout = useCallback((event: { nativeEvent: { layout: { x: number } } }) => {
-    setCycleWidth(event.nativeEvent.layout.x);
-  }, []);
+  const handleLabelLayout = useCallback(
+    (event: { nativeEvent: { layout: { width: number } } }) => {
+      setLabelWidth(event.nativeEvent.layout.width);
+    },
+    []
+  );
 
   return (
-    <EdgeFade active={scrolling} style={styles.viewport}>
+    <View style={styles.viewport}>
       <View
         style={styles.viewportInner}
         onLayout={handleViewportLayout}
@@ -111,7 +127,9 @@ export function UsageMarquee({
           pointerEvents="none"
         >
           <Animated.View style={fadeStyle}>
-            <Animated.View style={[styles.run, scrolling ? marqueeStyle : undefined]}>
+            <Animated.View
+              style={[styles.run, scrolling ? marqueeStyle : undefined]}
+            >
               <Text
                 style={textStyle}
                 numberOfLines={1}
@@ -120,22 +138,11 @@ export function UsageMarquee({
               >
                 {label}
               </Text>
-              {scrolling ? <View style={styles.gap} /> : null}
-              {scrolling ? (
-                <Text style={textStyle} numberOfLines={1} onLayout={handleDuplicateLayout}>
-                  {label}
-                </Text>
-              ) : null}
-              {scrolling ? (
-                <Text style={textStyle} numberOfLines={1}>
-                  {label}
-                </Text>
-              ) : null}
             </Animated.View>
           </Animated.View>
         </ScrollView>
       </View>
-    </EdgeFade>
+    </View>
   );
 }
 
@@ -156,8 +163,5 @@ const styles = StyleSheet.create(() => ({
   run: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  gap: {
-    width: GAP_PX,
   },
 }));
