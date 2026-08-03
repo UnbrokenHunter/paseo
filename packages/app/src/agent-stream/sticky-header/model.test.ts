@@ -6,8 +6,10 @@ import {
   selectStickyConversationPreviews,
   selectStickyIncomingRole,
   shouldTrackStickyPreviews,
+  STICKY_BLOCK_BAR_REVEAL_DISTANCE,
   STICKY_BLOCK_REVEAL_DISTANCE,
   STICKY_CONVERSATION_ROW_HEIGHT,
+  stickyBlockBarRevealProgress,
   stickyBlockRevealProgress,
   stickyConversationPushOffset,
   toStickyPreviewText,
@@ -368,6 +370,23 @@ describe("stickyBlockRevealProgress", () => {
     expect(stickyBlockRevealProgress(STICKY_BLOCK_REVEAL_DISTANCE / 2)).toBeCloseTo(0.5);
     expect(stickyBlockRevealProgress(STICKY_BLOCK_REVEAL_DISTANCE)).toBe(1);
     expect(stickyBlockRevealProgress(STICKY_BLOCK_REVEAL_DISTANCE * 4)).toBe(1);
+  });
+});
+
+describe("stickyBlockBarRevealProgress", () => {
+  it("is nothing until the response has scrolled past the fold", () => {
+    expect(stickyBlockBarRevealProgress(0)).toBe(0);
+    expect(stickyBlockBarRevealProgress(-5)).toBe(0);
+    expect(stickyBlockBarRevealProgress(Number.NaN)).toBe(0);
+  });
+
+  it("wipes across its own span, slower than the surface reveal", () => {
+    // Per-response, and a good deal longer than the surface span so the underline
+    // is a gradual wipe rather than a flash.
+    expect(STICKY_BLOCK_BAR_REVEAL_DISTANCE).toBeGreaterThan(STICKY_BLOCK_REVEAL_DISTANCE);
+    expect(stickyBlockBarRevealProgress(STICKY_BLOCK_BAR_REVEAL_DISTANCE / 2)).toBeCloseTo(0.5);
+    expect(stickyBlockBarRevealProgress(STICKY_BLOCK_BAR_REVEAL_DISTANCE)).toBe(1);
+    expect(stickyBlockBarRevealProgress(STICKY_BLOCK_BAR_REVEAL_DISTANCE * 4)).toBe(1);
   });
 });
 
