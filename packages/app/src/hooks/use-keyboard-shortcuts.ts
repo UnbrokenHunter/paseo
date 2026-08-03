@@ -34,7 +34,6 @@ import { isNative } from "@/constants/platform";
 import { getDesktopHost, isElectronRuntime } from "@/desktop/host";
 import { isImeComposingKeyboardEvent } from "@/utils/keyboard-ime";
 import { buildOpenProjectRoute } from "@/utils/host-routes";
-import { hasActiveWebOverlay } from "@/lib/overlay-root";
 import {
   type ActiveWorkspaceSelection,
   navigateToLastWorkspace,
@@ -74,6 +73,8 @@ export function useKeyboardShortcuts({
   const activeWorkspaceSelection = useActiveWorkspaceSelection();
   const keyboardWorkspaceSelectionRef = useRef<ActiveWorkspaceSelection | null>(null);
   const badgeModifierKeyRef = useRef<string | null | undefined>(undefined);
+
+  const isSettingsRoute = pathname.startsWith("/settings");
 
   const publishBrowserShortcutPolicy = useCallback(
     (chordState?: ChordState) => {
@@ -253,6 +254,20 @@ export function useKeyboardShortcuts({
       domEvent: KeyboardEvent | null;
       browserFocusRestoreElement?: HTMLElement | null;
     }) => {
+      const isSettingsEscape = input.event.key === "Escape" && isSettingsRoute;
+      if (isSettingsEscape) {
+        const canDismissSettings = input.focusScope === "other" || input.focusScope === "browser";
+        if (!canDismissSettings || hasOpenWebOverlay() || hasEscapeDismissHandler()) {
+          return;
+        }
+        if (!navigateToLastWorkspace()) {
+          router.replace(buildOpenProjectRoute());
+        }
+        input.domEvent?.preventDefault();
+        input.domEvent?.stopPropagation();
+        return;
+      }
+
       const store = useKeyboardShortcutsStore.getState();
       const previousChordState = chordStateRef.current;
       const result = resolveKeyboardShortcut({
@@ -331,14 +346,6 @@ export function useKeyboardShortcuts({
       }
 
       const key = event.key ?? "";
-      if (
-        key === "Escape" &&
-        pathname.startsWith("/settings") &&
-        !isMobile &&
-        hasActiveWebOverlay()
-      ) {
-        return;
-      }
       if (key === badgeModifierKey && !event.shiftKey) {
         setBadgeModifierDown(true);
       }
@@ -416,6 +423,7 @@ export function useKeyboardShortcuts({
     exitFocusMode,
     activeWorkspaceSelection,
     isDesktopApp,
+    isSettingsRoute,
     isMac,
     isMobile,
     isWorkspaceFocusModeEnabled,
