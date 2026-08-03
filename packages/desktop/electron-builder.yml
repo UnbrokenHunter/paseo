@@ -13,6 +13,7 @@ directories:
 files:
   - dist/**/*
   - "!**/*.map"
+  - "!node_modules/@getpaseo/**/AGENTS.md"
   - "!node_modules/@getpaseo/*/src/**"
   - "!node_modules/@getpaseo/**/*.test.*"
   - "!node_modules/@getpaseo/**/*.spec.*"
