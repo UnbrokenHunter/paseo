@@ -16,6 +16,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
+import { EdgeFade } from "./edge-fade";
 
 /** Reading pace, not attention-grabbing pace. */
 const SPEED_PX_PER_SECOND = 22;
@@ -107,7 +108,7 @@ export function UsageMarquee({
   );
 
   return (
-    <View style={styles.viewport}>
+    <EdgeFade active={scrolling} style={styles.viewport}>
       <View
         style={styles.viewportInner}
         onLayout={handleViewportLayout}
@@ -142,7 +143,7 @@ export function UsageMarquee({
           </Animated.View>
         </ScrollView>
       </View>
-    </View>
+    </EdgeFade>
   );
 }
 
