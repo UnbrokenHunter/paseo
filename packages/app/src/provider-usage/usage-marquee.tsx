@@ -13,6 +13,8 @@ import { EdgeFade } from "./edge-fade";
 
 /** Reading pace, not attention-grabbing pace. */
 const SPEED_PX_PER_SECOND = 22;
+/** Readable separation between consecutive copies of a long label. */
+const GAP_PX = 24;
 
 /** Ignore sub-pixel overflow, which would otherwise scroll a label that already fits. */
 const OVERFLOW_EPSILON = 1;
@@ -46,16 +48,17 @@ export function UsageMarquee({
 }) {
   const [viewportWidth, setViewportWidth] = useState(0);
   const [labelWidth, setLabelWidth] = useState(0);
+  const [cycleWidth, setCycleWidth] = useState(0);
   const scrolling =
     viewportWidth > 0 && labelWidth > 0 && labelWidth - viewportWidth > OVERFLOW_EPSILON;
   // The duplicate starts at the measured fractional width, so the loop must travel the same exact distance.
-  const cycleWidth = labelWidth;
+  const canAnimate = scrolling && cycleWidth > 0;
 
   const translate = useSharedValue(0);
   useEffect(() => {
     cancelAnimation(translate);
     translate.value = 0;
-    if (!scrolling) return;
+    if (!canAnimate) return;
 
     translate.value = withRepeat(
       withTiming(-cycleWidth, {
@@ -66,15 +69,7 @@ export function UsageMarquee({
       false,
     );
     return () => cancelAnimation(translate);
-  }, [scrolling, cycleWidth, translate]);
-
-  useEffect(() => {
-    // A new label has a new natural width. Drop the old measurement before starting
-    // its loop so an old cycle cannot flash for a frame during rotation.
-    cancelAnimation(translate);
-    translate.value = 0;
-    setLabelWidth(0);
-  }, [label, translate]);
+  }, [canAnimate, cycleWidth, translate]);
 
   const marqueeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translate.value }],
@@ -89,6 +84,10 @@ export function UsageMarquee({
 
   const handleLabelLayout = useCallback((event: { nativeEvent: { layout: { width: number } } }) => {
     setLabelWidth(event.nativeEvent.layout.width);
+  }, []);
+
+  const handleDuplicateLayout = useCallback((event: { nativeEvent: { layout: { x: number } } }) => {
+    setCycleWidth(event.nativeEvent.layout.x);
   }, []);
 
   return (
@@ -121,6 +120,12 @@ export function UsageMarquee({
               >
                 {label}
               </Text>
+              {scrolling ? <View style={styles.gap} /> : null}
+              {scrolling ? (
+                <Text style={textStyle} numberOfLines={1} onLayout={handleDuplicateLayout}>
+                  {label}
+                </Text>
+              ) : null}
               {scrolling ? (
                 <Text style={textStyle} numberOfLines={1}>
                   {label}
@@ -151,5 +156,8 @@ const styles = StyleSheet.create(() => ({
   run: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  gap: {
+    width: GAP_PX,
   },
 }));
