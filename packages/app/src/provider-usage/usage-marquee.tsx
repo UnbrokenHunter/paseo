@@ -16,7 +16,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { EdgeFade } from "./edge-fade";
+import { EDGE_FADE_WIDTH, EdgeFade } from "./edge-fade";
 
 /** Reading pace, not attention-grabbing pace. */
 const SPEED_PX_PER_SECOND = 22;
@@ -58,7 +58,9 @@ export function UsageMarquee({
     viewportWidth > 0 &&
     labelWidth > 0 &&
     labelWidth - viewportWidth > OVERFLOW_EPSILON;
-  const travelDistance = Math.max(0, labelWidth - viewportWidth);
+  const travelDistance = scrolling
+    ? Math.max(0, labelWidth + EDGE_FADE_WIDTH * 2 - viewportWidth)
+    : 0;
 
   const translate = useSharedValue(0);
   useEffect(() => {
@@ -131,6 +133,7 @@ export function UsageMarquee({
             <Animated.View
               style={[styles.run, scrolling ? marqueeStyle : undefined]}
             >
+              {scrolling ? <View style={styles.edgeSpacer} /> : null}
               <Text
                 style={textStyle}
                 numberOfLines={1}
@@ -139,6 +142,7 @@ export function UsageMarquee({
               >
                 {label}
               </Text>
+              {scrolling ? <View style={styles.edgeSpacer} /> : null}
             </Animated.View>
           </Animated.View>
         </ScrollView>
@@ -164,5 +168,8 @@ const styles = StyleSheet.create(() => ({
   run: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  edgeSpacer: {
+    width: EDGE_FADE_WIDTH,
   },
 }));
