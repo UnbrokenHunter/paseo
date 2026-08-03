@@ -608,6 +608,7 @@ export class VoiceAssistantWebSocketServer {
     serviceProxyPublicBaseUrl?: string | null,
     browserToolsBroker?: BrowserToolsBroker | null,
     hubRelationships?: HubRelationshipManagement | null,
+    providerUsageService?: ProviderUsageService,
   ) {
     this.logger = logger.child({ module: "websocket-server" });
     this.advertiseDaemonStatusRpc = wsConfig.daemonStatusRpc !== false;
@@ -666,12 +667,18 @@ export class VoiceAssistantWebSocketServer {
       this.speech?.onReadinessChange((snapshot) => {
         this.publishSpeechReadiness(snapshot);
       }) ?? null;
+    this.providerUsageService =
+      providerUsageService ?? new ProviderUsageService({ logger: this.logger });
     this.unsubscribeDaemonConfigChange = this.daemonConfigStore.onChange((config, details) => {
       const nextAgentManagerState = this.providerSnapshotManager.applyMutableProviderConfig(
         config.providers,
-        { removeProviders: details.removedProviders },
+        {
+          removeProviders: details.removedProviders,
+          replaceProviders: details.replacedProviders,
+        },
       );
       this.agentManager.updateProviderRegistry(nextAgentManagerState);
+      this.providerUsageService.updateProviderConfigs(config.providers);
       this.broadcastDaemonConfigChanged(config);
     });
 
@@ -1594,6 +1601,8 @@ export class VoiceAssistantWebSocketServer {
         commitBaseClassification: true,
         // COMPAT(providerRemoval): added in v0.1.105, drop the gate when floor >= v0.1.105.
         providerRemoval: true,
+        // COMPAT(providerConfigReplace): added in v0.2.X, remove after 2027-02-02 when old daemons are unsupported.
+        providerConfigReplace: true,
         // COMPAT(importSessionWorkspaceTarget): added in v0.1.110, remove gate after 2027-01-16.
         importSessionWorkspaceTarget: true,
         // COMPAT(forgeProviders): added in v0.1.106, drop the gate when daemon floor >= v0.1.106.

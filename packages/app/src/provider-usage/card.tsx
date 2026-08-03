@@ -76,7 +76,11 @@ export function ProviderUsageCard({
   return (
     <View style={containerStyle} testID={testID}>
       <View style={styles.header}>
-        <ThemedProviderUsageIcon iconKey={usage.providerId} size={14} uniProps={mutedIconColor} />
+        <ThemedProviderUsageIcon
+          iconKey={usage.baseProviderId ?? usage.providerId}
+          size={14}
+          uniProps={mutedIconColor}
+        />
         <Text style={styles.name} numberOfLines={1}>
           {usage.displayName}
         </Text>

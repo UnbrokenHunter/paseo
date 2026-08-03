@@ -1,9 +1,5 @@
 import { useCallback, useState, type ReactNode } from "react";
-import {
-  type LayoutChangeEvent,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
 import MaskedView from "@react-native-masked-view/masked-view";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
@@ -61,13 +57,7 @@ function EdgeFadeMask({ active, width }: { active: boolean; width: number }) {
           <Stop offset="1" stopColor="#000" stopOpacity={0} />
         </LinearGradient>
       </Defs>
-      <Rect
-        x="0"
-        y="0"
-        width="100%"
-        height="100%"
-        fill="url(#usage-edge-fade)"
-      />
+      <Rect x="0" y="0" width="100%" height="100%" fill="url(#usage-edge-fade)" />
     </Svg>
   );
 }

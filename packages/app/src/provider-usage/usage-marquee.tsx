@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ScrollView,
-  StyleSheet as RNStyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet as RNStyleSheet, Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import Animated, {
   Easing,
@@ -55,9 +50,7 @@ export function UsageMarquee({
   const [viewportWidth, setViewportWidth] = useState(0);
   const [labelWidth, setLabelWidth] = useState(0);
   const scrolling =
-    viewportWidth > 0 &&
-    labelWidth > 0 &&
-    labelWidth - viewportWidth > OVERFLOW_EPSILON;
+    viewportWidth > 0 && labelWidth > 0 && labelWidth - viewportWidth > OVERFLOW_EPSILON;
   const travelDistance = scrolling
     ? Math.max(0, labelWidth + EDGE_FADE_WIDTH * 2 - viewportWidth)
     : 0;
@@ -75,18 +68,18 @@ export function UsageMarquee({
           withTiming(-travelDistance, {
             duration: (travelDistance / SPEED_PX_PER_SECOND) * 1000,
             easing: Easing.linear,
-          })
+          }),
         ),
         withDelay(
           EDGE_PAUSE_MS,
           withTiming(0, {
             duration: (travelDistance / SPEED_PX_PER_SECOND) * 1000,
             easing: Easing.linear,
-          })
-        )
+          }),
+        ),
       ),
       -1,
-      false
+      false,
     );
     return () => cancelAnimation(translate);
   }, [scrolling, travelDistance, translate]);
@@ -99,15 +92,12 @@ export function UsageMarquee({
     (event: { nativeEvent: { layout: { width: number } } }) => {
       setViewportWidth(event.nativeEvent.layout.width);
     },
-    []
+    [],
   );
 
-  const handleLabelLayout = useCallback(
-    (event: { nativeEvent: { layout: { width: number } } }) => {
-      setLabelWidth(event.nativeEvent.layout.width);
-    },
-    []
-  );
+  const handleLabelLayout = useCallback((event: { nativeEvent: { layout: { width: number } } }) => {
+    setLabelWidth(event.nativeEvent.layout.width);
+  }, []);
 
   return (
     <EdgeFade active={scrolling} style={styles.viewport}>
@@ -130,9 +120,7 @@ export function UsageMarquee({
           pointerEvents="none"
         >
           <Animated.View style={fadeStyle}>
-            <Animated.View
-              style={[styles.run, scrolling ? marqueeStyle : undefined]}
-            >
+            <Animated.View style={[styles.run, scrolling ? marqueeStyle : undefined]}>
               {scrolling ? <View style={styles.edgeSpacer} /> : null}
               <Text
                 style={textStyle}

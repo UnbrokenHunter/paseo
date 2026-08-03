@@ -118,6 +118,7 @@ export async function fanOutReconciledWorkspaceUpdates(input: {
 
 import { VoiceAssistantWebSocketServer } from "./websocket-server.js";
 import { createGitHubService } from "../services/github-service.js";
+import { ProviderUsageService } from "../services/quota-fetcher/service.js";
 import { createPaseoWorktree as createRegisteredPaseoWorktree } from "./paseo-worktree-service.js";
 import { createWorkspaceProvisioningService } from "./session/workspace-provisioning/workspace-provisioning-service.js";
 import { createPaseoWorktreeWorkflow } from "./worktree-session.js";
@@ -506,18 +507,12 @@ function resolveExpressTrustProxySetting(config: PaseoDaemonConfig): true | stri
   return config.trustedProxies ?? ["loopback"];
 }
 
-function createInitialMutableDaemonConfig(config: PaseoDaemonConfig): MutableDaemonConfig {
+export function createInitialMutableDaemonConfig(config: PaseoDaemonConfig): MutableDaemonConfig {
   const providers: MutableDaemonConfig["providers"] = Object.fromEntries(
-    Object.entries(config.providerOverrides ?? {}).map(([providerId, override]) => {
-      const providerConfig: MutableDaemonConfig["providers"][string] = {};
-      if (override.enabled !== undefined) {
-        providerConfig.enabled = override.enabled;
-      }
-      if (override.additionalModels) {
-        providerConfig.additionalModels = override.additionalModels;
-      }
-      return [providerId, providerConfig];
-    }),
+    Object.entries(config.providerOverrides ?? {}).map(([providerId, override]) => [
+      providerId,
+      { ...override },
+    ]),
   );
 
   const initialConfig: MutableDaemonConfig = {
@@ -1564,6 +1559,10 @@ export async function createPaseoDaemon(
               serviceProxyPublicBaseUrl,
               browserToolsBroker,
               hubRelationships,
+              new ProviderUsageService({
+                logger,
+                providerConfigs: daemonConfigStore.get().providers,
+              }),
             );
             relayRuntime = createRelayRuntime({
               config: {
