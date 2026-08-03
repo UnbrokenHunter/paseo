@@ -113,6 +113,17 @@ export function StickyConversationHeader({
     () => [styles.block, { transform: [{ translateY: -pushOffset }] }],
     [pushOffset],
   );
+  // The mask grows down from the top of the block as the scroll reveals it, so
+  // it comes in top-to-bottom rather than snapping on. It stays at full strength
+  // once revealed — it is a mask, not a decoration, so it must not thin out and
+  // let content scroll through the pinned text.
+  const backgroundStyle = useMemo(
+    () => [
+      styles.barBackground,
+      { transform: [{ scaleY: revealProgress }], transformOrigin: "top" as const },
+    ],
+    [revealProgress],
+  );
   const overlayStyle = useMemo(() => [styles.overlay, { right: gutterWidth }], [gutterWidth]);
 
   if (mode === "off" || (!assistant && !user)) {
@@ -142,14 +153,21 @@ export function StickyConversationHeader({
           onPointerEnter={handlePointerEnter}
           onPointerLeave={handlePointerLeave}
         >
+          {/* The background masks everything above the fold, so the conversation
+              scrolling behind the block never shows through between or around the
+              pinned lines. It sits at the back and reveals top-to-bottom with the
+              scroll; the pinned rows paint on top of it, so it never writes over
+              the messages it stands behind. It stops at the bar's bottom — the
+              fold — so the live conversation below is untouched. */}
+          <View style={backgroundStyle} pointerEvents="none" />
           {/* Both rows are always laid out, even with nothing to pin on that side,
               so the fold stays where the strategies put it. A row that pins
-              nothing paints nothing. Each row carries its own background hugging
-              its own text, and the lower row stacks on top of the upper, so a
-              pin's surface never shows around or under the other pin. */}
+              nothing paints nothing. The rows stack above the background, and the
+              lower row stacks above the upper, so a prompt's bubble never shows
+              under the other pin. */}
           {slots.map(({ role, preview }, index) =>
             role === "assistant" && !showAssistantSide ? null : (
-              <StickyLine key={role} zIndex={index}>
+              <StickyLine key={role} zIndex={index + 1}>
                 <StickyRow
                   agentId={agentId}
                   align={role === "user" ? "right" : "left"}
@@ -268,11 +286,10 @@ function StickyRow({
         )}
         testID={`sticky-conversation-preview-${role}`}
       >
-        {/* The chrome sits behind the text and hugs the pin, so it comes out the
-            length of the line and never reaches over the other pin. A response's
-            surface and a prompt's bubble both reveal top-to-bottom on the block's
-            reveal; a response also gets a rule that wipes out along the text edge
-            as you read down it. */}
+        {/* The chrome sits behind the text and hugs the pin. A response's
+            background comes from the block mask behind it, so it only needs its
+            rule — which wipes out along the text edge as you read down it. A
+            prompt keeps its own bubble, revealed top-to-bottom with the block. */}
         {align === "right" ? (
           <View
             style={[
@@ -282,22 +299,13 @@ function StickyRow({
             pointerEvents="none"
           />
         ) : (
-          <>
-            <View
-              style={[
-                styles.pinSurface,
-                { transform: [{ scaleY: revealProgress }], transformOrigin: "top" },
-              ]}
-              pointerEvents="none"
-            />
-            <View
-              style={[
-                styles.pinRule,
-                { transform: [{ scaleX: barProgress }], transformOrigin: "center left" },
-              ]}
-              pointerEvents="none"
-            />
-          </>
+          <View
+            style={[
+              styles.pinRule,
+              { transform: [{ scaleX: barProgress }], transformOrigin: "center left" },
+            ]}
+            pointerEvents="none"
+          />
         )}
         {/* The text is the pin's only laid-out child, so the pin hugs it up to
             the cap and the chrome behind it comes out the length of the line. A
@@ -352,11 +360,27 @@ const styles = StyleSheet.create((theme) => ({
     width: "100%",
   },
   /**
-   * Groups the pinned rows. It carries no surface of its own — each pin paints
-   * its own background hugging its own text (`pinSurface`/`pinBubble`), so a
-   * pin's surface never shows around or under the other pin.
+   * Groups the mask and the pinned rows. It carries no surface of its own — the
+   * mask is a separate layer behind the rows (`barBackground`) so it can reveal
+   * on the scroll while the pinned text stays at full strength.
    */
   bar: {},
+  /**
+   * The mask behind the pinned lines: the conversation's own surface, full width,
+   * covering the block down to the fold so nothing scrolling behind shows through
+   * between or around the pins. It sits at the back (`zIndex: 0`, below the rows'
+   * `zIndex >= 1`) and reveals top-to-bottom, so the pinned text always paints on
+   * top of it and the live conversation below the fold is left alone.
+   */
+  barBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+    backgroundColor: theme.colors.surface0,
+  },
   // Matches the list's own content padding.
   content: {
     paddingHorizontal: {
@@ -399,20 +423,6 @@ const styles = StyleSheet.create((theme) => ({
     flexShrink: 1,
     minWidth: 0,
     paddingVertical: STICKY_PIN_VERTICAL_PADDING,
-  },
-  /**
-   * A response's own surface behind its text, so content does not scroll through
-   * it. It hugs the pin — only the length of the line — so it never reaches over
-   * the other pin, and it reveals top-to-bottom on the scroll (scaleY from the
-   * top) rather than snapping on with the text.
-   */
-  pinSurface: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: theme.colors.surface0,
   },
   /**
    * The response's rule at the fold, drawn as its own layer behind the text so

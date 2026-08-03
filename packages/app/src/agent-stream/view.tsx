@@ -293,9 +293,9 @@ function shouldShowJumpToBottom(isNearBottom: boolean, isTimelineDetached: boole
 }
 
 /**
- * Per-pin reveal progress, 0..1. A pin's background and rule reveal from where it
- * took its slot, so this measures scroll depth from the baseline captured when a
- * new message took that slot, and resets when the next one does.
+ * Per-response progress for the pinned response's rule, 0..1. The rule wipes from
+ * where its response pinned, so this measures scroll depth from the baseline
+ * captured when a new response took the pin, and resets when the next one does.
  */
 function useStickyBarProgress(assistant: { itemId: string } | null, scrollDepth: number): number {
   const assistantItemId = assistant?.itemId ?? null;
