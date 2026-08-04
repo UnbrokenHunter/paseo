@@ -91,12 +91,15 @@ describe("desktop packaging", () => {
 
   it("uses fork-owned PaseoPlus desktop identifiers", () => {
     const config = readFileSync(join(packageRoot, "electron-builder.yml"), "utf8");
+    const smokeHarness = readFileSync(join(packageRoot, "e2e", "packaged-app-smoke.js"), "utf8");
 
     expect(config).toContain("appId: com.unbrokenhunter.paseoplus");
     expect(config).toContain("productName: PaseoPlus");
     expect(config).toContain("name: PaseoPlus agent link");
     expect(config).toContain("- paseoplus");
     expect(config).toContain("owner: UnbrokenHunter");
+    expect(smokeHarness).toContain('startsWith("paseoplus://app/")');
+    expect(smokeHarness).not.toContain('startsWith("paseo://app/")');
   });
 
   // electron-builder packs production dependencies declared in package.json into
