@@ -33,10 +33,15 @@ Rules that apply to both steps:
 
 ## Two paths
 
-There are two supported ways to ship from `main`:
+There are two supported ways to ship:
 
-1. **Direct stable release**: you are ready to ship the current `main` commit to everyone immediately.
-2. **Beta flow**: release candidates on the `beta` channel. Betas carry an in-place changelog entry (beta users check it), publish npm only on the explicit `beta` dist-tag, and never move the website download target off the latest stable.
+1. **Direct stable release**: ship from `main` to everyone immediately.
+2. **Beta flow**: ship from `custom` as release candidates on the `beta` channel. Betas carry an in-place changelog entry (beta users check it), publish npm only on the explicit `beta` dist-tag, and never move the website download target off the latest stable.
+
+The release scripts enforce that split:
+
+- stable release commands only run from `main`
+- beta release commands only run from `custom`
 
 Paseo has one linear release track even though npm dist-tags are independent
 pointers. The npm invariant is:
