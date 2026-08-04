@@ -43,6 +43,8 @@ if (toScope === FROM_SCOPE) {
 
 const SKIP = new Set(["package-lock.json"]);
 
+const PUBLISHABLE = ["highlight", "relay", "protocol", "client", "server", "cli"];
+
 const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: rootDir, encoding: "utf8" })
   .split("\0")
   .filter(Boolean)
@@ -103,4 +105,28 @@ if (toCommand && toCommand !== FROM_COMMAND) {
   writeFileSync(cliEntryPath, renamed);
 
   console.log(`Renamed CLI command ${FROM_COMMAND} -> ${toCommand}`);
+}
+
+// Trusted publishing signs a provenance statement, and the registry rejects the
+// upload unless each package's repository.url matches the repo that built it.
+// None of the workspace packages declare one, so point them at the building repo.
+const githubRepository = (process.env.GITHUB_REPOSITORY || "").trim();
+
+if (githubRepository) {
+  const serverUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
+
+  for (const workspace of PUBLISHABLE) {
+    const packagePath = path.join(rootDir, "packages", workspace, "package.json");
+    const manifest = JSON.parse(readFileSync(packagePath, "utf8"));
+    manifest.repository = {
+      type: "git",
+      url: `git+${serverUrl}/${githubRepository}.git`,
+      directory: `packages/${workspace}`,
+    };
+    writeFileSync(packagePath, `${JSON.stringify(manifest, null, 2)}\n`);
+  }
+
+  console.log(
+    `Set repository to ${serverUrl}/${githubRepository} on ${PUBLISHABLE.length} packages`,
+  );
 }
