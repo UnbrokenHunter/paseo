@@ -1,5 +1,10 @@
 # Mobile Testing
 
+This doc covers testing on real devices and simulators. Compact-layout regressions reproduce in
+a narrow browser viewport without a device — see
+[browser-ui-testing.md](browser-ui-testing.md#responsive-and-mobile-layout) for what that does
+and does not cover.
+
 ## Agent Device
 
 Agent Device `.ad` scripts are the primary mobile E2E format. An agent discovers a working flow interactively, saves the successful commands, then the replay runner executes the same typed plan locally or in CI.
