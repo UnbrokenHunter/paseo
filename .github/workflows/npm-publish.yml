@@ -50,8 +50,9 @@ jobs:
           package-manager-cache: false
 
       # Node 22.14.0 ships npm 10.9.2; trusted publishing (OIDC) needs npm >= 11.5.1.
+      # Pinned to 11.x because npm 12 requires a newer Node than this job uses.
       - name: Upgrade npm for trusted publishing
-        run: npm install -g npm@latest
+        run: npm install -g npm@^11
 
       - name: Install JS dependencies
         run: npm ci
