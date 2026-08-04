@@ -207,6 +207,7 @@ npm run release:promote          # Promote X.Y.Z-beta.N to stable X.Y.Z
 - Betas publish desktop assets and APKs for testing, but they do not trigger the production web/mobile release flows
 - `release:promote` creates a fresh stable tag like `v0.1.41`; the final release never reuses the beta tag
 - Desktop assets now come from the Electron package at `packages/desktop`
+- This fork's desktop artifacts, installed application, executable, app ID, deep-link scheme, updater repository, and optional CLI integration are branded `PaseoPlus`/`paseoplus`; internal `@getpaseo/*` workspace names remain unchanged for upstream compatibility
 - Beta releases use Electron's `beta` update channel. Users on the stable channel only receive stable releases; users on the beta channel receive beta releases and the final stable release when it is published.
 - **Betas carry a changelog entry.** Beta users read release notes, so each beta updates an in-place `CHANGELOG.md` entry (`## X.Y.Z-beta.N`) that `Release Notes Sync` mirrors into the prerelease body on the tag push. The entry is intermediary: promotion overwrites it in place with the final stable entry, so no `-beta.N` heading is ever left behind. See the Changelog policy section.
 

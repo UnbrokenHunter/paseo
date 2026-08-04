@@ -7,7 +7,7 @@ describe("cli-install-path", () => {
       resolveCliInstallSourcePath({
         platform: "darwin",
         isPackaged: true,
-        executablePath: "/Applications/Paseo.app/Contents/MacOS/Paseo",
+        executablePath: "/Applications/PaseoPlus.app/Contents/MacOS/PaseoPlus",
         shimPath: "/Applications/Paseo.app/Contents/Resources/bin/paseo",
       }),
     ).toBe("/Applications/Paseo.app/Contents/Resources/bin/paseo");
@@ -30,7 +30,7 @@ describe("cli-install-path", () => {
       resolveCliInstallSourcePath({
         platform: "win32",
         isPackaged: true,
-        executablePath: "C:\\Users\\user\\AppData\\Local\\Programs\\Paseo\\Paseo.exe",
+        executablePath: "C:\\Users\\user\\AppData\\Local\\Programs\\PaseoPlus\\PaseoPlus.exe",
         shimPath: "C:\\Users\\user\\AppData\\Local\\Programs\\Paseo\\resources\\bin\\paseo.cmd",
       }),
     ).toBe("C:\\Users\\user\\AppData\\Local\\Programs\\Paseo\\resources\\bin\\paseo.cmd");
@@ -39,7 +39,7 @@ describe("cli-install-path", () => {
       resolveCliInstallSourcePath({
         platform: "linux",
         isPackaged: false,
-        executablePath: "/opt/Paseo/paseo",
+        executablePath: "/opt/PaseoPlus/paseoplus",
         shimPath: "/opt/Paseo/resources/bin/paseo",
       }),
     ).toBe("/opt/Paseo/resources/bin/paseo");

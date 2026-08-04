@@ -25,18 +25,18 @@ function createFakeMacBundle(options: { includeHelper: boolean }): {
   shimPath: string;
 } {
   const root = mkdtempSync(join(tmpdir(), "paseo-cli-shim-test-"));
-  const appPath = join(root, "Paseo.app");
+  const appPath = join(root, "PaseoPlus.app");
   const contentsPath = join(appPath, "Contents");
   const resourcesPath = join(contentsPath, "Resources");
   const shimPath = join(resourcesPath, "bin", "paseo");
-  const mainPath = join(contentsPath, "MacOS", "Paseo");
+  const mainPath = join(contentsPath, "MacOS", "PaseoPlus");
   const helperPath = join(
     contentsPath,
     "Frameworks",
-    "Paseo Helper.app",
+    "PaseoPlus Helper.app",
     "Contents",
     "MacOS",
-    "Paseo Helper",
+    "PaseoPlus Helper",
   );
 
   mkdirSync(dirname(shimPath), { recursive: true });
@@ -89,11 +89,14 @@ describe("desktop packaging", () => {
     expect(config).toContain("!node_modules/@getpaseo/server/dist/server/web-ui/**");
   });
 
-  it("registers Paseo agent links with the operating system", () => {
+  it("uses fork-owned PaseoPlus desktop identifiers", () => {
     const config = readFileSync(join(packageRoot, "electron-builder.yml"), "utf8");
 
-    expect(config).toContain("name: Paseo agent link");
-    expect(config).toContain("- paseo");
+    expect(config).toContain("appId: com.unbrokenhunter.paseoplus");
+    expect(config).toContain("productName: PaseoPlus");
+    expect(config).toContain("name: PaseoPlus agent link");
+    expect(config).toContain("- paseoplus");
+    expect(config).toContain("owner: UnbrokenHunter");
   });
 
   // electron-builder packs production dependencies declared in package.json into
@@ -140,7 +143,7 @@ describe("desktop packaging", () => {
       const result = spawnSync(bundle.shimPath, ["--version"], { encoding: "utf8" });
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain("Bundled Paseo Helper executable not found");
+      expect(result.stderr).toContain("Bundled PaseoPlus Helper executable not found");
       expect(result.stdout).not.toContain("main-executable");
     } finally {
       rmSync(bundle.root, { recursive: true, force: true });

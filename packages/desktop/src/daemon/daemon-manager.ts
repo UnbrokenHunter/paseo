@@ -398,6 +398,9 @@ async function startDaemon(): Promise<DesktopDaemonStatus> {
       PASEO_DESKTOP_MANAGED: "1",
       PASEO_CLI: getBundledCliShimPath(),
       PASEO_WEB_UI_ENABLED: "false",
+      PASEO_CORS_ORIGINS: [process.env.PASEO_CORS_ORIGINS, "paseoplus://app"]
+        .filter(Boolean)
+        .join(","),
     },
     stdio: ["ignore", "ignore", "ignore"],
   });

@@ -7,7 +7,7 @@ export function getLocalBinDir(): string {
 }
 
 export function getCliTargetPath(): string {
-  const filename = process.platform === "win32" ? "paseo.cmd" : "paseo";
+  const filename = process.platform === "win32" ? "paseoplus.cmd" : "paseoplus";
   return path.join(getLocalBinDir(), filename);
 }
 
