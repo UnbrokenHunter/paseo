@@ -23,6 +23,10 @@ asarUnpack:
 extraResources:
   - from: ../app/dist
     to: app-dist
+  - from: ../app/public/app-icons
+    to: app-icons
+  - from: assets/icon.png
+    to: icon.png
   - from: ../../skills
     to: skills
   - from: assets/editor-targets
@@ -42,8 +46,6 @@ mac:
   extraResources:
     - from: bin/paseo
       to: bin/paseo
-    - from: assets/icon.png
-      to: icon.png
   target:
     - dmg
     - zip

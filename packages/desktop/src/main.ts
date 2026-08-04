@@ -78,6 +78,11 @@ import { PendingOpenProjectStore } from "./pending-open-project-store.js";
 import { getDesktopSettingsStore } from "./settings/desktop-settings-electron.js";
 import { clampWindowStateToWorkAreas, createWindowStateStore } from "./settings/window-state.js";
 import {
+  createAppIconCache,
+  parseAppIconAssetName,
+  type AppIconCache,
+} from "./window/app-icon-cache.js";
+import {
   isDesktopManagedDaemonRunningSync,
   stopDesktopDaemonViaCli,
 } from "./daemon/daemon-manager.js";
@@ -105,6 +110,9 @@ const APP_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || "Paseo";
 const UPDATE_QUIT_DEADLINE_MS = 5_000;
 const pendingBrowserWindowOpenRequests = new PendingBrowserWindowOpenRequests();
 const agentNavigationInbox = new AgentNavigationInbox();
+const loggedAppIconFailures = new Set<string>();
+let appIconCache: AppIconCache | null = null;
+let activeAppIcon: Electron.NativeImage | null = null;
 
 // A second-instance launch can arrive before the packaged protocol handler,
 // IPC handlers, and first window exist. Wait for full bootstrap, not just
@@ -646,22 +654,76 @@ function getWindowIconPath(): string | null {
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
 
-function applyAppIcon(): void {
-  if (process.platform !== "darwin") {
-    return;
-  }
-
-  const iconPath = getWindowIconPath();
-  if (!iconPath) {
-    return;
-  }
-
+function loadAppIconPath(iconPath: string | null): Electron.NativeImage | null {
+  if (!iconPath) return null;
   const icon = nativeImage.createFromPath(iconPath);
-  if (icon.isEmpty()) {
-    return;
+  return icon.isEmpty() ? null : icon;
+}
+
+function getThemedAppIconPath(assetName: string): string | null {
+  const parsedAssetName = parseAppIconAssetName(assetName);
+  if (!parsedAssetName) return null;
+
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, "app-icons", parsedAssetName)
+    : path.resolve(__dirname, "../../app/public/app-icons", parsedAssetName);
+  return existsSync(iconPath) ? iconPath : null;
+}
+
+function resolveAppIcon(assetName?: string | null): {
+  icon: Electron.NativeImage | null;
+  resolvedRequestedAsset: boolean;
+} {
+  if (assetName) {
+    const requestedIcon = loadAppIconPath(getThemedAppIconPath(assetName));
+    if (requestedIcon) {
+      return { icon: requestedIcon, resolvedRequestedAsset: true };
+    }
+    if (!loggedAppIconFailures.has(assetName)) {
+      loggedAppIconFailures.add(assetName);
+      log.warn("[app-icon] Failed to load themed icon; using the standard icon", { assetName });
+    }
   }
 
-  app.dock?.setIcon(icon);
+  return {
+    icon: loadAppIconPath(getWindowIconPath()),
+    resolvedRequestedAsset: false,
+  };
+}
+
+function applyRuntimeAppIcon(icon: Electron.NativeImage | null): void {
+  if (!icon) return;
+
+  try {
+    if (process.platform === "darwin") {
+      app.dock?.setIcon(icon);
+      return;
+    }
+    for (const win of BrowserWindow.getAllWindows()) {
+      win.setIcon(icon);
+    }
+  } catch (error) {
+    const key = `${process.platform}:runtime`;
+    if (!loggedAppIconFailures.has(key)) {
+      loggedAppIconFailures.add(key);
+      log.warn("[app-icon] Failed to apply runtime icon", error);
+    }
+  }
+}
+
+async function setRuntimeAppIcon(assetName: unknown): Promise<void> {
+  const parsedAssetName = parseAppIconAssetName(assetName);
+  const resolved = resolveAppIcon(parsedAssetName);
+  activeAppIcon = resolved.icon;
+  applyRuntimeAppIcon(activeAppIcon);
+
+  if (parsedAssetName && resolved.resolvedRequestedAsset) {
+    try {
+      await appIconCache?.save(parsedAssetName);
+    } catch (error) {
+      log.warn("[app-icon] Failed to persist startup icon cache", error);
+    }
+  }
 }
 
 // Work areas with the primary display first, so window-state clamping treats
@@ -679,7 +741,6 @@ async function createWindow(
     restoreWindowState?: boolean;
   } = {},
 ): Promise<BrowserWindow> {
-  const iconPath = getWindowIconPath();
   const systemTheme = resolveSystemWindowTheme();
 
   // Only the first window of a session restores and persists saved geometry.
@@ -701,7 +762,7 @@ async function createWindow(
     ...resolveWindowBounds(restoredWindowState),
     show: false,
     backgroundColor: getWindowBackgroundColor(systemTheme),
-    ...(iconPath ? { icon: iconPath } : {}),
+    ...(activeAppIcon ? { icon: activeAppIcon } : {}),
     ...getMainWindowChromeOptions({
       platform: process.platform,
       theme: systemTheme,
@@ -960,7 +1021,19 @@ async function bootstrap(): Promise<void> {
     return net.fetch(pathToFileURL(filePath).toString());
   });
 
-  applyAppIcon();
+  appIconCache = createAppIconCache({ userDataPath: app.getPath("userData") });
+  let cachedAppIconAssetName: string | null = null;
+  try {
+    cachedAppIconAssetName = await appIconCache.load();
+  } catch (error) {
+    log.warn("[app-icon] Failed to load startup icon cache", error);
+  }
+  activeAppIcon = resolveAppIcon(cachedAppIconAssetName).icon;
+  applyRuntimeAppIcon(activeAppIcon);
+
+  ipcMain.handle("paseo:window:setAppIcon", (_event, assetName: unknown) =>
+    setRuntimeAppIcon(assetName),
+  );
   setupApplicationMenu({
     onNewWindow: () => {
       void createWindow().catch((error) => {
