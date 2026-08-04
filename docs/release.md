@@ -155,9 +155,19 @@ OIDC for every release after that:
 
 ```bash
 for package in highlight relay protocol client server cli; do
-  npm trust github "@your-scope/$package" --file npm-publish.yml --repo <owner>/paseo --yes
+  npm trust github "@your-scope/$package" --file npm-publish.yml --repo <owner>/paseo \
+    --allow-publish --yes
 done
 ```
+
+`--allow-publish` needs npm 12 or newer locally. Configurations created after
+May 20, 2026 must name at least one allowed action, and npm 11's `npm trust` has
+no flag for it, so it posts a config the registry rejects with a bare
+`E400 Bad Request` that names nothing. npm 12 fails loudly instead. Trusted
+publishing errors are misleading in general
+([npm/cli#9088](https://github.com/npm/cli/issues/9088)) — a publish that hits
+`ENEEDAUTH` in CI usually means no trusted publisher is registered, not a
+credential problem.
 
 Prefer this over storing a long-lived automation token: those bypass 2FA, and
 npm's own guidance is to use trusted publishing for CI. The workflow still reads
