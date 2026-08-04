@@ -169,16 +169,26 @@ async function stopProcess(child: ChildProcess | null): Promise<void> {
 
 function startMetro(port: number, buffer: ReturnType<typeof createLineBuffer>): ChildProcess {
   const appDir = path.resolve(__dirname, "../..");
-  const child = spawn("npx", ["expo", "start", "--web", "--port", String(port)], {
-    cwd: appDir,
-    env: {
-      ...process.env,
-      BROWSER: "none",
-      ...(process.env.E2E_DESKTOP_RUNTIME === "1" ? { PASEO_WEB_PLATFORM: "electron" } : {}),
+  const child = spawn(
+    process.execPath,
+    [
+      path.resolve(appDir, "../../node_modules/expo/bin/cli"),
+      "start",
+      "--web",
+      "--port",
+      String(port),
+    ],
+    {
+      cwd: appDir,
+      env: {
+        ...process.env,
+        BROWSER: "none",
+        ...(process.env.E2E_DESKTOP_RUNTIME === "1" ? { PASEO_WEB_PLATFORM: "electron" } : {}),
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+      detached: false,
     },
-    stdio: ["ignore", "pipe", "pipe"],
-    detached: false,
-  });
+  );
   const log = (chunk: Buffer, stream: "stdout" | "stderr") => {
     for (const line of chunk.toString().split("\n").filter(Boolean)) {
       buffer.add(`[${stream}] ${line}`);

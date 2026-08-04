@@ -1,11 +1,5 @@
 import { once } from "node:events";
-import {
-  spawn,
-  execFileSync,
-  execSync,
-  type ChildProcess,
-  type SpawnOptions,
-} from "node:child_process";
+import { spawn, execFileSync, type ChildProcess, type SpawnOptions } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import { tmpdir } from "node:os";
@@ -155,7 +149,7 @@ export async function startIsolatedHostDaemon(
   const serverDir = publishedPackageRoot
     ? path.join(publishedPackageRoot, "node_modules", "@getpaseo", "server")
     : path.resolve(__dirname, "../../../../server");
-  const tsxBin = execSync("which tsx").toString().trim();
+  const tsxCli = path.resolve(serverDir, "../../node_modules/tsx/dist/cli.mjs");
   const spawnDaemon = async (): Promise<ChildProcess> => {
     const spawnOptions: SpawnOptions = {
       cwd: serverDir,
@@ -175,7 +169,11 @@ export async function startIsolatedHostDaemon(
     };
     const child = publishedPackageRoot
       ? spawn(process.execPath, ["dist/scripts/supervisor-entrypoint.js"], spawnOptions)
-      : spawn(tsxBin, ["scripts/supervisor-entrypoint.ts", "--dev"], spawnOptions);
+      : spawn(
+          process.execPath,
+          [tsxCli, "scripts/supervisor-entrypoint.ts", "--dev"],
+          spawnOptions,
+        );
 
     let stderr = "";
     child.stderr?.on("data", (chunk: Buffer) => {
