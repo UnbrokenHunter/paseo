@@ -7,6 +7,7 @@ import { computeNextReleaseVersion } from "./release-version-utils.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 const rootPackagePath = path.join(rootDir, "package.json");
+const NPM_CLI = process.env.npm_execpath;
 
 function usageAndExit(code = 1) {
   process.stderr.write(`Usage: node scripts/set-release-version.mjs --mode <mode> [--print]\n`);
@@ -61,8 +62,12 @@ if (args.print) {
   process.exit(0);
 }
 
-execFileSync(
-  "npm",
-  ["version", nextVersion, "--include-workspace-root", "--message", "chore(release): cut %s"],
-  { cwd: rootDir, stdio: "inherit" },
-);
+const npmCommand = NPM_CLI ? process.execPath : process.platform === "win32" ? "npm.cmd" : "npm";
+const npmArgs = NPM_CLI
+  ? [NPM_CLI, "version", nextVersion, "--include-workspace-root", "--message", "chore(release): cut %s"]
+  : ["version", nextVersion, "--include-workspace-root", "--message", "chore(release): cut %s"];
+
+execFileSync(npmCommand, npmArgs, {
+  cwd: rootDir,
+  stdio: "inherit",
+});
