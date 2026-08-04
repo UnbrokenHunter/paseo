@@ -24,6 +24,9 @@ env:
   # This fork publishes under a scope it owns; @getpaseo belongs to upstream.
   # See scripts/rewrite-npm-scope.mjs.
   PASEO_NPM_SCOPE: "@unbrokenhunter_"
+  # Published CLI installs as `paseoplus`, so it does not collide with upstream's
+  # `paseo` on the same machine. Local dev keeps using `paseo`.
+  PASEO_CLI_COMMAND: "paseoplus"
 
 jobs:
   publish:

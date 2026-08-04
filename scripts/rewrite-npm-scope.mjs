@@ -74,3 +74,33 @@ if (existsSync(fromScopeDir)) {
 }
 
 console.log(`Rewrote ${FROM_SCOPE}/ -> ${toScope}/ in ${changedFiles} files`);
+
+// Rename the installed command, so this fork's CLI does not collide with an
+// upstream `paseo` on the same machine. Left alone by default: local dev, the
+// docs, and the tests all keep using `paseo`.
+const FROM_COMMAND = "paseo";
+const toCommand = (process.env.PASEO_CLI_COMMAND || "").trim();
+
+if (toCommand && toCommand !== FROM_COMMAND) {
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(toCommand)) {
+    process.stderr.write(`Invalid CLI command name: ${toCommand}\n`);
+    process.exit(1);
+  }
+
+  const cliPackagePath = path.join(rootDir, "packages", "cli", "package.json");
+  const cliPackage = JSON.parse(readFileSync(cliPackagePath, "utf8"));
+  cliPackage.bin = { [toCommand]: cliPackage.bin[FROM_COMMAND] };
+  writeFileSync(cliPackagePath, `${JSON.stringify(cliPackage, null, 2)}\n`);
+
+  // commander derives every generated usage/help line from the program name.
+  const cliEntryPath = path.join(rootDir, "packages", "cli", "src", "cli.ts");
+  const cliEntry = readFileSync(cliEntryPath, "utf8");
+  const renamed = cliEntry.replace(`.name("${FROM_COMMAND}")`, `.name("${toCommand}")`);
+  if (renamed === cliEntry) {
+    process.stderr.write(`Could not find .name("${FROM_COMMAND}") in packages/cli/src/cli.ts\n`);
+    process.exit(1);
+  }
+  writeFileSync(cliEntryPath, renamed);
+
+  console.log(`Renamed CLI command ${FROM_COMMAND} -> ${toCommand}`);
+}

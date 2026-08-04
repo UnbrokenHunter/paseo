@@ -126,6 +126,13 @@ The publish step therefore selects workspaces by path, not by name.
 
 Set `PASEO_NPM_SCOPE` in the workflow to change the published scope.
 
+The same rewrite renames the CLI command via `PASEO_CLI_COMMAND`, so the
+published package installs as `paseoplus` and does not collide with upstream's
+`paseo` on the same machine. It rewrites the `bin` key and the commander program
+name, which is what every generated usage line is derived from; a few hardcoded
+`Usage: paseo ...` strings still say `paseo`. Local dev, `npm run cli`, and the
+tests are untouched and keep using `paseo`.
+
 ### Bootstrapping a new scope
 
 `NPM Publish` authenticates with trusted publishing (OIDC) and needs no stored
