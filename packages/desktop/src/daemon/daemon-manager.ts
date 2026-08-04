@@ -40,6 +40,7 @@ import { getDesktopSettingsStore } from "../settings/desktop-settings-electron.j
 import { isRunningUnderARM64Translation } from "../system/arm64-translation.js";
 import { getDesktopAppLogs } from "../diagnostics/app-logs.js";
 import { tailFile } from "../diagnostics/tail-file.js";
+import { getDesktopBranding } from "../branding.js";
 
 const DAEMON_LOG_FILENAME = "daemon.log";
 const STARTUP_POLL_INTERVAL_MS = 200;
@@ -60,6 +61,7 @@ export type DesktopDaemonStopReason = (typeof DESKTOP_DAEMON_STOP_REASON_VALUES)
 
 const DESKTOP_DAEMON_STOP_REASONS = new Set<string>(DESKTOP_DAEMON_STOP_REASON_VALUES);
 const DEFAULT_DESKTOP_DAEMON_STOP_REASON: DesktopDaemonStopReason = "manual_ipc";
+const { appOrigin: DESKTOP_APP_ORIGIN } = getDesktopBranding();
 
 export interface DesktopDaemonStatus {
   serverId: string;
@@ -204,6 +206,17 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function mergeCorsAllowedOrigins(existing: string | undefined, required: string): string {
+  const origins = new Set(
+    (existing ?? "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter((origin) => origin.length > 0),
+  );
+  origins.add(required);
+  return Array.from(origins).join(",");
 }
 
 function logDesktopDaemonLifecycle(message: string, details?: Record<string, unknown>): void {
@@ -398,6 +411,8 @@ async function startDaemon(): Promise<DesktopDaemonStatus> {
       PASEO_DESKTOP_MANAGED: "1",
       PASEO_CLI: getBundledCliShimPath(),
       PASEO_WEB_UI_ENABLED: "false",
+      PASEO_CORS_ORIGINS: mergeCorsAllowedOrigins(process.env.PASEO_CORS_ORIGINS, DESKTOP_APP_ORIGIN),
+      PASEO_DAEMON_VERSION: resolveDesktopAppVersion(),
     },
     stdio: ["ignore", "ignore", "ignore"],
   });

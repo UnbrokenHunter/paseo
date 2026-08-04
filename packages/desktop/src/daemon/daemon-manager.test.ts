@@ -455,6 +455,8 @@ describe("daemon-manager commands", () => {
         envOverlay: expect.objectContaining({
           PASEO_CLI: getBundledCliShimPath(),
           PASEO_WEB_UI_ENABLED: "false",
+          PASEO_CORS_ORIGINS: "paseo://app",
+          PASEO_DAEMON_VERSION: "1.2.3",
         }),
       }),
     );

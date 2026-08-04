@@ -36,9 +36,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Prepare PaseoPlus identity and version
-        run: node scripts/prepare-paseoplus-build.mjs "${{ inputs.version }}"
-
       - name: Build internal desktop dependencies
         run: npm run build:server
 
@@ -49,7 +46,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EP_GH_IGNORE_TIME: true
-        run: npm run build:desktop -- --publish never --win --x64
+        run: >
+          npm run build:desktop -- --publish never --win --x64
+          --config.extraMetadata.version=${{ inputs.version }}
+          --config.extraMetadata.paseoDesktop.appName=PaseoPlus
+          --config.extraMetadata.paseoDesktop.appScheme=paseoplus
 
       - name: Verify updater files
         shell: pwsh
