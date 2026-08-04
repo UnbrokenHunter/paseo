@@ -64,8 +64,16 @@ if (args.print) {
 
 const npmCommand = NPM_CLI ? process.execPath : process.platform === "win32" ? "npm.cmd" : "npm";
 const npmArgs = NPM_CLI
-  ? [NPM_CLI, "version", nextVersion, "--include-workspace-root", "--message", "chore(release): cut %s"]
-  : ["version", nextVersion, "--include-workspace-root", "--message", "chore(release): cut %s"];
+  ? [
+      NPM_CLI,
+      "version",
+      nextVersion,
+      "--include-workspace-root",
+      "--no-commit-hooks",
+      "--message",
+      "chore(release): cut %s",
+    ]
+  : ["version", nextVersion, "--include-workspace-root", "--no-commit-hooks", "--message", "chore(release): cut %s"];
 
 execFileSync(npmCommand, npmArgs, {
   cwd: rootDir,
