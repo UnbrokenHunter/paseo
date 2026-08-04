@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0-beta.1 - 2026-08-04
+
+### Added
+
+- Provider usage now shows in the model selector, context meter, and settings, with clearer cards, tooltips, and unmetered local models ([#13](https://github.com/getpaseo/paseo/pull/13))
+- Provider accounts can now be created, edited, renamed, and tracked with usage across the app and CLI ([#2785](https://github.com/getpaseo/paseo/pull/2785))
+- Chat timelines now keep sticky conversation headers and collapsed message previews while you scroll ([#14](https://github.com/getpaseo/paseo/pull/14), [#18](https://github.com/getpaseo/paseo/pull/18))
+
+### Improved
+
+- Workspace and chat navigation stay steadier across scrolls and workspace switches ([#2791](https://github.com/getpaseo/paseo/pull/2791), [#2838](https://github.com/getpaseo/paseo/pull/2838), [#2842](https://github.com/getpaseo/paseo/pull/2842))
+
 ## 0.2.5 - 2026-07-30
 
 ### Fixed
