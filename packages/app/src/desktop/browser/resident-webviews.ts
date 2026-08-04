@@ -176,7 +176,11 @@ export function prepareBrowserWebview(
   webview.setAttribute("partition", browser.profilePartition);
   webview.setAttribute("allowpopups", "true");
   webview.setAttribute("spellcheck", "false");
-  webview.setAttribute("autosize", "on");
+  // No `autosize`: it sizes the guest from the minwidth/minheight/maxwidth/maxheight
+  // attributes, which are never set here, so a later CSS resize leaves the guest's
+  // compositor surface out of sync with the element box and every frame copy after it
+  // fails with "no painted frame". Sizing is owned by CSS width/height in
+  // applyResidentWebviewStyle and resizeResidentBrowserWebview.
   if (input.initialUrl) {
     (webview as BrowserWebviewElement).src = input.initialUrl;
   }
