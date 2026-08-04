@@ -4,7 +4,6 @@ import {
   type PersistedConfig,
 } from "./persisted-config.js";
 import {
-  applyMutableProviderConfigToOverrides,
   mergeProviderMutableStateIntoPersistedAgents,
   planProviderConfigMutations,
   reconcileMutableProviderConfig,
@@ -16,10 +15,8 @@ import {
 } from "@getpaseo/protocol/messages";
 
 export type { MutableDaemonConfig, MutableDaemonConfigPatch } from "@getpaseo/protocol/messages";
-export {
-  applyMutableProviderConfigToOverrides,
-  type ProviderRename,
-} from "./daemon-config-provider-mutations.js";
+export { applyMutableProviderConfigToOverrides } from "./daemon-config-provider-mutations.js";
+export { type ProviderRename } from "./daemon-config-provider-mutations.js";
 
 type MutableDaemonConfig = import("@getpaseo/protocol/messages").MutableDaemonConfig;
 type MutableDaemonConfigPatch = import("@getpaseo/protocol/messages").MutableDaemonConfigPatch;
@@ -116,12 +113,8 @@ export class DaemonConfigStore {
         "Relay is controlled by a daemon launch override. Remove PASEO_RELAY_ENABLED or the relay CLI flag before changing it here.",
       );
     }
-    const {
-      mergePatch,
-      removedProviders,
-      replacedProviders,
-      renamedProviders,
-    } = planProviderConfigMutations(parsedPatch);
+    const { mergePatch, removedProviders, replacedProviders, renamedProviders } =
+      planProviderConfigMutations(parsedPatch);
     const merged = deepMerge(
       reconcileMutableProviderConfig({
         config: this.current,

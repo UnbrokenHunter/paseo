@@ -249,5 +249,3 @@ export async function loadAppSettingsFromStorage(deps?: SettingsDeps): Promise<A
 export async function loadSettingsFromStorage(deps?: SettingsDeps): Promise<Settings> {
   return loadSettingsFromStoragePure(deps ?? productionDeps);
 }
-
-

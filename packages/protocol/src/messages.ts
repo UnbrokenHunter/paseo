@@ -1354,6 +1354,7 @@ export const ProviderDiagnosticRequestMessageSchema = z.object({
 
 export const ProviderUsageListRequestMessageSchema = z.object({
   type: z.literal("provider.usage.list.request"),
+  forceRefresh: z.boolean().optional(),
   requestId: z.string(),
 });
 
@@ -5036,6 +5037,8 @@ export const ProviderUsageSchema = z.object({
   baseProviderId: z.string().optional(),
   displayName: z.string(),
   status: ProviderUsageStatusSchema,
+  // COMPAT(providerUsageUnmetered): added in v0.2.X, remove after 2027-02-02 when old clients are unsupported.
+  unmetered: z.boolean().optional(),
   planLabel: z.string().nullable(),
   sourceLabel: z.string().nullable().optional(),
   fetchedAt: z.string().nullable().optional(),

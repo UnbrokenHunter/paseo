@@ -40,6 +40,7 @@ function userMessage(index: number): StreamItem {
 }
 
 const VIRTUAL_ROW_STYLE = { height: 24 };
+const ROW_HEIGHT = 24;
 
 function createRenderers(onRowRender: () => void): StreamSegmentRenderers {
   return {
@@ -1396,4 +1397,3 @@ describe("createWebStreamStrategy", () => {
     expect(scrollTo).toHaveBeenCalledWith({ top: 2200, behavior: "auto" });
   });
 });
-

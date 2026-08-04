@@ -80,7 +80,7 @@ export interface StreamRenderInput {
   hasOlderHistory: boolean;
   olderHistoryProgressKey: string | null;
   /** Skip above-viewport bookkeeping entirely when the sticky header is off. */
-  stickyPreviewEnabled: boolean;
+  stickyPreviewEnabled?: boolean;
   /** IDs of actual message starts; renderer fragments and tool-call sections are excluded. */
   stickyPreviewItemIds?: ReadonlySet<string>;
   /**
@@ -88,7 +88,7 @@ export interface StreamRenderInput {
    * block covers, from `stickyConversationFoldOffset`. A message hands off to
    * its pin as it slides under the block rather than as it leaves the viewport.
    */
-  stickyFoldOffset: number;
+  stickyFoldOffset?: number;
   /**
    * Latest user/assistant message the viewport has scrolled entirely past, or
    * null when none has. Viewports track only those two kinds.
@@ -103,7 +103,7 @@ export interface StreamRenderInput {
    * reveals the block across it — the surface fades in and the response rule
    * extends — straight in step with the scroll, see `stickyBlockRevealProgress`.
    */
-  onAboveViewportItemChange: (
+  onAboveViewportItemChange?: (
     itemId: string | null,
     distanceToFold: number | null,
     revealDistance: number,
@@ -115,7 +115,7 @@ export interface StreamRenderInput {
    * conversation centres against, and every pinned line sits half a scrollbar
    * inboard of the message it stands for.
    */
-  onContentGutterChange: (width: number) => void;
+  onContentGutterChange?: (width: number) => void;
   scrollEnabled: boolean;
   listStyle: StyleProp<ViewStyle>;
   baseListContentContainerStyle: StyleProp<ViewStyle>;

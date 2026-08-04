@@ -135,10 +135,10 @@ function NativeStreamViewport(props: StreamRenderInput & { strategy: StreamStrat
     listStyle,
     baseListContentContainerStyle,
     strategy,
-    stickyPreviewEnabled,
+    stickyPreviewEnabled = false,
     stickyPreviewItemIds,
-    onAboveViewportItemChange,
-    stickyFoldOffset,
+    onAboveViewportItemChange = () => {},
+    stickyFoldOffset = 0,
   } = props;
   const { renderHistoryMountedRow, renderLiveHeadRow, renderLiveAuxiliary } = renderers;
   const flatListRef = useRef<FlatList<StreamItem>>(null);

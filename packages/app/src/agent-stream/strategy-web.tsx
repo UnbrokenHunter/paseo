@@ -297,11 +297,11 @@ function WebStreamViewport(props: StreamRenderInput & { isMobileBreakpoint: bool
     olderHistoryProgressKey,
     scrollEnabled,
     isMobileBreakpoint,
-    stickyPreviewEnabled,
+    stickyPreviewEnabled = false,
     stickyPreviewItemIds,
-    onAboveViewportItemChange,
-    onContentGutterChange,
-    stickyFoldOffset,
+    onAboveViewportItemChange = () => {},
+    onContentGutterChange = () => {},
+    stickyFoldOffset = 0,
   } = props;
   const isActive = useRetainedPanelActive();
   const isActiveRef = useRef(isActive);
@@ -1399,5 +1399,3 @@ export function createWebStreamStrategy(input: CreateWebStreamStrategyInput): St
     getBottomOffset: (metrics) => Math.max(0, metrics.contentHeight - metrics.viewportHeight),
   });
 }
-
-

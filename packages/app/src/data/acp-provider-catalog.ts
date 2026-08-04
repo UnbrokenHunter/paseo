@@ -173,10 +173,10 @@ const CATALOG_DATA = [
     id: "fast-agent",
     title: "fast-agent",
     description: "Code and build agents with comprehensive multi-provider support",
-    version: "0.9.22",
+    version: "0.9.30",
     iconId: "fast-agent",
     installLink: "https://fast-agent.ai/acp/",
-    command: ["uvx", "--from", "fast-agent-acp==0.9.22", "fast-agent-acp", "-x"],
+    command: ["uvx", "--from", "fast-agent-acp==0.9.30", "fast-agent-acp", "-x"],
   },
   {
     id: "gemini",

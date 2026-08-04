@@ -1,6 +1,10 @@
 import { isSyntaxThemeId, type SyntaxThemeId } from "@getpaseo/highlight";
 import type { QueryClient } from "@tanstack/react-query";
 import type { DesktopSettings } from "@/desktop/settings/desktop-settings";
+import {
+  parseSidebarRowItems,
+  type SidebarRowItems,
+} from "@/components/sidebar/display-preferences/row-items";
 import { parseAppLanguage, type AppLanguage } from "@/i18n/locales";
 import { THEME_TO_UNISTYLES, type ThemeName } from "@/styles/theme";
 
@@ -12,12 +16,18 @@ export type SendBehavior = "interrupt" | "queue";
 export type ReleaseChannel = "stable" | "beta";
 export type ServiceUrlBehavior = "ask" | "in-app" | "external";
 export type WorkspaceTitleSource = "title" | "branch";
+export type SidebarWorkspaceTrailing = "none" | "diff" | "timestamp";
 export type ToolCallDetailLevel = "overview" | "detailed";
 export type StickyConversationHeaderMode = "off" | "user" | "user-and-ai";
 
 const VALID_THEMES = new Set<string>([...Object.keys(THEME_TO_UNISTYLES), "auto"]);
 const VALID_SERVICE_URL_BEHAVIORS = new Set<ServiceUrlBehavior>(["ask", "in-app", "external"]);
 const VALID_WORKSPACE_TITLE_SOURCES = new Set<WorkspaceTitleSource>(["title", "branch"]);
+const VALID_SIDEBAR_WORKSPACE_TRAILINGS = new Set<SidebarWorkspaceTrailing>([
+  "none",
+  "diff",
+  "timestamp",
+]);
 const VALID_TOOL_CALL_DETAIL_LEVELS = new Set<ToolCallDetailLevel>(["overview", "detailed"]);
 const VALID_STICKY_CONVERSATION_HEADER_MODES = new Set<StickyConversationHeaderMode>([
   "off",
@@ -48,6 +58,8 @@ export interface AppSettings {
   codeFontSize: number; // clamped px, default 12
   syntaxTheme: SyntaxThemeId; // default "one"
   workspaceTitleSource: WorkspaceTitleSource;
+  sidebarWorkspaceTrailing: SidebarWorkspaceTrailing;
+  sidebarRowItems: SidebarRowItems;
   autoExpandReasoning: boolean;
   toolCallDetailLevel: ToolCallDetailLevel;
   stickyConversationHeader: StickyConversationHeaderMode;
@@ -76,6 +88,8 @@ export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
   codeFontSize: DEFAULT_CODE_FONT_SIZE,
   syntaxTheme: "one",
   workspaceTitleSource: "title",
+  sidebarWorkspaceTrailing: "none",
+  sidebarRowItems: parseSidebarRowItems(undefined),
   autoExpandReasoning: false,
   toolCallDetailLevel: "detailed",
   stickyConversationHeader: "user-and-ai",
@@ -216,7 +230,7 @@ function pickBooleanAppSettings(stored: StoredAppSettings): Partial<AppSettings>
   return result;
 }
 
-function pickAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
+function pickTextAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
   const result: Partial<AppSettings> = {};
   if (typeof stored.theme === "string" && VALID_THEMES.has(stored.theme)) {
     result.theme = stored.theme;
@@ -224,19 +238,6 @@ function pickAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
   const language = parseAppLanguage(stored.language);
   if (language !== null) {
     result.language = language;
-  }
-  if (stored.sendBehavior === "interrupt" || stored.sendBehavior === "queue") {
-    result.sendBehavior = stored.sendBehavior;
-  }
-  if (
-    typeof stored.serviceUrlBehavior === "string" &&
-    VALID_SERVICE_URL_BEHAVIORS.has(stored.serviceUrlBehavior)
-  ) {
-    result.serviceUrlBehavior = stored.serviceUrlBehavior;
-  }
-  const terminalScrollbackLines = parseTerminalScrollbackLines(stored.terminalScrollbackLines);
-  if (terminalScrollbackLines !== null) {
-    result.terminalScrollbackLines = terminalScrollbackLines;
   }
   const uiFontFamily = sanitizeFontFamily(stored.uiFontFamily);
   if (uiFontFamily !== null) {
@@ -263,7 +264,29 @@ function pickAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
   if (typeof stored.syntaxTheme === "string" && isSyntaxThemeId(stored.syntaxTheme)) {
     result.syntaxTheme = stored.syntaxTheme;
   }
-  Object.assign(result, pickBooleanAppSettings(stored));
+  return result;
+}
+
+function pickChoiceAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
+  const result: Partial<AppSettings> = {};
+  if (stored.sendBehavior === "interrupt" || stored.sendBehavior === "queue") {
+    result.sendBehavior = stored.sendBehavior;
+  }
+  if (
+    typeof stored.serviceUrlBehavior === "string" &&
+    VALID_SERVICE_URL_BEHAVIORS.has(stored.serviceUrlBehavior)
+  ) {
+    result.serviceUrlBehavior = stored.serviceUrlBehavior;
+  }
+  const terminalScrollbackLines = parseTerminalScrollbackLines(stored.terminalScrollbackLines);
+  if (terminalScrollbackLines !== null) {
+    result.terminalScrollbackLines = terminalScrollbackLines;
+  }
+  return result;
+}
+
+function pickSidebarAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
+  const result: Partial<AppSettings> = {};
   if (
     typeof stored.workspaceTitleSource === "string" &&
     VALID_WORKSPACE_TITLE_SOURCES.has(stored.workspaceTitleSource)
@@ -271,11 +294,30 @@ function pickAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
     result.workspaceTitleSource = stored.workspaceTitleSource;
   }
   if (
+    typeof stored.sidebarWorkspaceTrailing === "string" &&
+    VALID_SIDEBAR_WORKSPACE_TRAILINGS.has(stored.sidebarWorkspaceTrailing)
+  ) {
+    result.sidebarWorkspaceTrailing = stored.sidebarWorkspaceTrailing;
+  }
+  if (stored.sidebarRowItems !== undefined) {
+    result.sidebarRowItems = parseSidebarRowItems(stored.sidebarRowItems);
+  }
+  if (
     typeof stored.stickyConversationHeader === "string" &&
     VALID_STICKY_CONVERSATION_HEADER_MODES.has(stored.stickyConversationHeader)
   ) {
     result.stickyConversationHeader = stored.stickyConversationHeader;
   }
+  return result;
+}
+
+function pickAppSettings(stored: StoredAppSettings): Partial<AppSettings> {
+  const result: Partial<AppSettings> = {
+    ...pickTextAppSettings(stored),
+    ...pickChoiceAppSettings(stored),
+    ...pickSidebarAppSettings(stored),
+    ...pickBooleanAppSettings(stored),
+  };
   assignBooleanAppSettings(result, stored);
   const toolCallDetailLevel = parseToolCallDetailLevel(stored);
   if (toolCallDetailLevel !== null) {
@@ -394,4 +436,3 @@ async function loadRendererSettingsPayload(
   }
   return JSON.parse(legacy) as Record<string, unknown>;
 }
-
