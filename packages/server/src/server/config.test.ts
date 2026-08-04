@@ -26,17 +26,6 @@ describe("server config", () => {
     expect(standaloneConfig.desktopManaged).toBe(false);
   });
 
-  test("accepts an explicit daemon version override for desktop-managed builds", async () => {
-    const paseoHome = await mkdtemp(path.join(os.tmpdir(), "paseo-config-daemon-version-"));
-    roots.push(paseoHome);
-
-    const config = loadConfig(paseoHome, {
-      env: { PASEO_DAEMON_VERSION: "1.0.0" },
-    });
-
-    expect(config.daemonVersion).toBe("1.0.0");
-  });
-
   test("resolves bundled web UI path from source-tree modules", () => {
     const root = path.parse(process.cwd()).root;
     expect(

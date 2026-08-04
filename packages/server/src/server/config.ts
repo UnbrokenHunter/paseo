@@ -507,7 +507,6 @@ export function loadConfig(
   return {
     listen,
     paseoHome,
-    daemonVersion: env.PASEO_DAEMON_VERSION?.trim() || undefined,
     desktopManaged: env.PASEO_DESKTOP_MANAGED === "1",
     worktreesRoot: resolveWorktreesRoot(paseoHome, persisted),
     corsAllowedOrigins: resolveCorsAllowedOrigins(env, persisted),

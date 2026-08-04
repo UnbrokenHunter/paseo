@@ -13,10 +13,6 @@
     "type": "git",
     "url": "https://github.com/getpaseo/paseo.git"
   },
-  "paseoDesktop": {
-    "appName": "Paseo",
-    "appScheme": "paseo"
-  },
   "main": "dist/main.js",
   "scripts": {
     "build": "npm --prefix ../.. run build:server:clean && npm run build:main && electron-builder --config electron-builder.yml",

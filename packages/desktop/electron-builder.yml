@@ -1,11 +1,11 @@
 npmRebuild: false
-appId: com.unbrokenhunter.paseoplus
-productName: PaseoPlus
-executableName: PaseoPlus
+appId: sh.paseo.desktop
+productName: Paseo
+executableName: Paseo
 protocols:
-  - name: PaseoPlus agent link
+  - name: Paseo agent link
     schemes:
-      - paseoplus
+      - paseo
 afterPack: ./scripts/after-pack.js
 afterSign: ./scripts/after-sign.js
 directories:
@@ -13,7 +13,6 @@ directories:
 files:
   - dist/**/*
   - "!**/*.map"
-  - "!node_modules/@getpaseo/**/AGENTS.md"
   - "!node_modules/@getpaseo/*/src/**"
   - "!node_modules/@getpaseo/**/*.test.*"
   - "!node_modules/@getpaseo/**/*.spec.*"
@@ -30,10 +29,10 @@ extraResources:
     to: editor-target-icons
 publish:
   provider: github
-  owner: UnbrokenHunter
+  owner: getpaseo
   repo: paseo
 mac:
-  artifactName: "PaseoPlus-${version}-${arch}.${ext}"
+  artifactName: "Paseo-${version}-${arch}.${ext}"
   category: public.app-category.developer-tools
   icon: assets/icon.icns
   hardenedRuntime: true
@@ -51,9 +50,9 @@ mac:
 linux:
   category: Development
   icon: assets
-  artifactName: "PaseoPlus-${version}-${arch}.${ext}"
-  maintainer: "Hunter Frederick"
-  vendor: "PaseoPlus"
+  artifactName: "Paseo-${version}-${arch}.${ext}"
+  maintainer: "Mohamed Boudra <hello@moboudra.com>"
+  vendor: "Paseo"
   extraResources:
     - from: bin/paseo
       to: bin/paseo
@@ -63,9 +62,14 @@ linux:
     - rpm
     - tar.gz
 appImage:
-  artifactName: "PaseoPlus-${arch}.${ext}"
+  # Keep the AppImage filename stable across versions (no ${version}) so
+  # electron-updater overwrites the file in place instead of renaming it to a new
+  # versioned path. A rename orphans the old binary, breaks desktop shortcuts, and
+  # dangles the ~/.local/bin/paseo CLI symlink, which points at $APPIMAGE. The
+  # version stays discoverable via the release tag and the in-app version.
+  artifactName: "Paseo-${arch}.${ext}"
 win:
-  artifactName: "PaseoPlus-Setup-${version}-${arch}.${ext}"
+  artifactName: "Paseo-Setup-${version}-${arch}.${ext}"
   icon: assets/icon.ico
   extraResources:
     - from: bin/paseo.cmd
