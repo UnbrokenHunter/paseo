@@ -1,0 +1,63 @@
+name: NPM Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to publish (e.g. v0.3.0-beta.1)"
+        required: true
+        type: string
+
+concurrency:
+  group: npm-publish-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  SOURCE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
+
+      - name: Resolve release metadata
+        shell: bash
+        run: node scripts/emit-release-env.mjs --source-tag "$SOURCE_TAG" >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.14.0"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Publish packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          publish_args=()
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            publish_args=(--tag beta)
+          fi
+
+          npm publish --workspace=@getpaseo/highlight --access public "${publish_args[@]}"
+          npm publish --workspace=@getpaseo/relay --access public "${publish_args[@]}"
+          npm publish --workspace=@getpaseo/protocol --access public "${publish_args[@]}"
+          npm publish --workspace=@getpaseo/client --access public "${publish_args[@]}"
+          npm publish --workspace=@getpaseo/server --access public "${publish_args[@]}"
+          npm publish --workspace=@getpaseo/cli --access public "${publish_args[@]}"

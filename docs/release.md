@@ -87,7 +87,9 @@ npm run release:patch
 npm run release:minor
 ```
 
-This bumps the version across all workspaces, runs checks, publishes to npm, and pushes the branch + tag. The tag push triggers `Desktop Release`, `Android APK Release`, `Docker`, and `Release Notes Sync` on GitHub Actions. EAS picks up the same tag via the EAS GitHub app and starts the iOS + Android store builds in parallel (see "Mobile builds (EAS)" below) — there is no `release-mobile.yml` in this repo.
+This bumps the version across all workspaces, runs checks, and pushes the branch + tag. The tag push triggers `NPM Publish`, `Desktop Release`, `Android APK Release`, `Docker`, and `Release Notes Sync` on GitHub Actions. EAS picks up the same tag via the EAS GitHub app and starts the iOS + Android store builds in parallel (see "Mobile builds (EAS)" below) — there is no `release-mobile.yml` in this repo.
+
+`NPM Publish` uses npm trusted publishing from `.github/workflows/npm-publish.yml`. Configure that workflow as the package's trusted publisher in npm settings, then the publish step no longer needs a local npm login or token.
 
 After the stable release succeeds, move npm's `beta` pointer to the new stable
 version for every published package. This changes dist-tags only; do not
@@ -117,8 +119,8 @@ npm run release:check        # Typecheck, build, dry-run pack
 # Run exactly one approved version command:
 npm run version:all:patch
 npm run version:all:minor
-npm run release:publish      # Publish to npm
 npm run release:push         # Push HEAD + tag (triggers CI workflows)
+# GitHub Actions publishes npm packages from the tag push via trusted publishing.
 # Then move npm's beta dist-tag to this stable version using the command above.
 ```
 
@@ -133,7 +135,7 @@ npm run release:promote          # Promote X.Y.Z-beta.N to stable X.Y.Z
 ```
 
 - Beta tags are published GitHub prereleases like `v0.1.41-beta.1`
-- Betas publish npm packages with `--tag beta`, so `npm install @getpaseo/cli@beta` opts in while plain `npm install @getpaseo/cli` stays on `latest`
+- Betas publish npm packages with `--tag beta` from `NPM Publish`, so `npm install @getpaseo/cli@beta` opts in while plain `npm install @getpaseo/cli` stays on `latest`
 - Betas publish desktop assets and APKs for testing, but they do not trigger the production web/mobile release flows
 - `release:promote` creates a fresh stable tag like `v0.1.41`; the final release never reuses the beta tag
 - Desktop assets now come from the Electron package at `packages/desktop`
@@ -162,7 +164,7 @@ Updater clients only discover a release through those `.yml` manifests, so there
 
 ### Default behavior
 
-`npm run release:patch` or `npm run release:minor` → tag push → 36h ramp. No extra action needed.
+`npm run release:patch` or `npm run release:minor` → tag push → 36h ramp. No extra action needed. The npm publish happens in GitHub Actions through trusted publishing.
 
 The `rollout_hours` input on `desktop-release.yml` is **only read on `workflow_dispatch`** — tag-push runs always default to 36. To get any other rollout duration on a fresh release, use the post-publish flip below.
 
@@ -387,8 +389,8 @@ This ensures the checkout ref matches the actual code on `main` with the fix inc
 - `version:all:*` bumps root + syncs workspace versions and `@getpaseo/*` dependency versions
 - `release:prepare` refreshes workspace `node_modules` links to prevent stale types
 - `npm run dev:desktop` and `npm run build:desktop` target the Electron desktop package in `packages/desktop`
-- If `release:publish` partially fails, re-run it — npm skips already-published versions
-- If `release:publish:beta` partially fails, re-run it — npm skips already-published versions and keeps prereleases off `latest` because every publish uses `--tag beta`
+- If `NPM Publish` partially fails, rerun the workflow or push the same tag again — npm skips already-published versions
+- If `NPM Publish` partially fails for a beta, rerun the workflow or push the same tag again — npm skips already-published versions and keeps prereleases off `latest` because beta publishes use `--tag beta`
 - The website uses GitHub's latest published release API for download links, so published beta prereleases do not replace the stable download target.
 
 ## Changelog format
