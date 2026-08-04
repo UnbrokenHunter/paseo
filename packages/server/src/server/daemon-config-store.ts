@@ -3,26 +3,30 @@ import {
   savePersistedConfig,
   type PersistedConfig,
 } from "./persisted-config.js";
-import { ProviderOverrideSchema } from "./agent/provider-launch-config.js";
+import {
+  applyMutableProviderConfigToOverrides,
+  mergeProviderMutableStateIntoPersistedAgents,
+  planProviderConfigMutations,
+  reconcileMutableProviderConfig,
+  type ProviderRename,
+} from "./daemon-config-provider-mutations.js";
 import {
   MutableDaemonConfigSchema,
   MutableDaemonConfigPatchSchema,
 } from "@getpaseo/protocol/messages";
 
 export type { MutableDaemonConfig, MutableDaemonConfigPatch } from "@getpaseo/protocol/messages";
+export {
+  applyMutableProviderConfigToOverrides,
+  type ProviderRename,
+} from "./daemon-config-provider-mutations.js";
 
 type MutableDaemonConfig = import("@getpaseo/protocol/messages").MutableDaemonConfig;
 type MutableDaemonConfigPatch = import("@getpaseo/protocol/messages").MutableDaemonConfigPatch;
-type ProviderOverride = import("./agent/provider-launch-config.js").ProviderOverride;
 
 interface LoggerLike {
   child(bindings: Record<string, unknown>): LoggerLike;
   info(...args: unknown[]): void;
-}
-
-export interface ProviderRename {
-  from: string;
-  to: string;
 }
 
 export interface DaemonConfigChangeDetails {
@@ -68,77 +72,6 @@ function deepMerge<T extends Record<string, unknown>>(
   return next as T;
 }
 
-function omitProvidersFromConfig<T extends { providers?: Record<string, unknown> }>(
-  config: T,
-  providers: readonly string[],
-): T {
-  if (providers.length === 0 || !config.providers) {
-    return config;
-  }
-
-  let changed = false;
-  const nextProviders = { ...config.providers };
-  for (const provider of providers) {
-    if (provider in nextProviders) {
-      delete nextProviders[provider];
-      changed = true;
-    }
-  }
-
-  return changed ? ({ ...config, providers: nextProviders } as T) : config;
-}
-
-function omitMetadataGenerationProvidersFromConfig<
-  T extends { metadataGeneration?: { providers?: Array<{ provider?: unknown }> } },
->(config: T, providers: readonly string[]): T {
-  if (providers.length === 0 || !config.metadataGeneration?.providers) {
-    return config;
-  }
-
-  const removedProviderIds = new Set(providers);
-  const nextProviders = config.metadataGeneration.providers.filter((entry) => {
-    return typeof entry.provider !== "string" || !removedProviderIds.has(entry.provider);
-  });
-  if (nextProviders.length === config.metadataGeneration.providers.length) {
-    return config;
-  }
-
-  return {
-    ...config,
-    metadataGeneration: {
-      ...config.metadataGeneration,
-      providers: nextProviders,
-    },
-  } as T;
-}
-
-function omitProvidersFromOverrides(
-  overrides: Record<string, ProviderOverride> | undefined,
-  providers: readonly string[],
-): Record<string, ProviderOverride> | undefined {
-  if (!overrides) {
-    return undefined;
-  }
-
-  const nextOverrides = { ...overrides };
-  for (const provider of providers) {
-    delete nextOverrides[provider];
-  }
-
-  return Object.keys(nextOverrides).length > 0 ? nextOverrides : undefined;
-}
-
-function omitProvidersFromPersistedAgents(
-  agents: PersistedConfig["agents"],
-): Record<string, unknown> | undefined {
-  if (!agents) {
-    return undefined;
-  }
-
-  const { providers: _providers, ...rest } = agents as Record<string, unknown>;
-  return Object.keys(rest).length > 0 ? rest : undefined;
-}
-
 function getValueAtPath(config: MutableDaemonConfig, path: string): unknown {
   return path
     .split(".")
@@ -147,56 +80,6 @@ function getValueAtPath(config: MutableDaemonConfig, path: string): unknown {
 
 function isEqualValue(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
-}
-
-export function applyMutableProviderConfigToOverrides(
-  baseOverrides: Record<string, ProviderOverride> | undefined,
-  mutableProviders: MutableDaemonConfig["providers"] | undefined,
-): Record<string, ProviderOverride> | undefined {
-  if (!baseOverrides && (!mutableProviders || Object.keys(mutableProviders).length === 0)) {
-    return undefined;
-  }
-
-  const nextOverrides: Record<string, ProviderOverride> = { ...baseOverrides };
-  for (const [providerId, providerConfig] of Object.entries(mutableProviders ?? {})) {
-    nextOverrides[providerId] = {
-      ...nextOverrides[providerId],
-      ...ProviderOverrideSchema.strip().parse(providerConfig),
-    };
-  }
-
-  return nextOverrides;
-}
-
-/**
- * A rename carries no mutation of its own: the caller already sends the new definition in
- * `replaceProviders` (or `providers`) and the old id in `removeProviders`. Reject renames that
- * don't match that shape rather than half-applying one.
- */
-function assertProviderMutationsAreConsistent(params: {
-  replacedProviders: readonly string[];
-  removedProviderSet: ReadonlySet<string>;
-  renameProviders: Record<string, string>;
-  definedProviders: ReadonlySet<string>;
-}): void {
-  const { replacedProviders, removedProviderSet, renameProviders, definedProviders } = params;
-  const conflictingProvider = replacedProviders.find((providerId) =>
-    removedProviderSet.has(providerId),
-  );
-  if (conflictingProvider) {
-    throw new Error(`Provider ${conflictingProvider} cannot be removed and replaced together`);
-  }
-  for (const [from, to] of Object.entries(renameProviders)) {
-    if (from === to) {
-      throw new Error(`Provider rename for ${from} must change the provider id`);
-    }
-    if (!removedProviderSet.has(from)) {
-      throw new Error(`Provider rename from ${from} must also remove ${from}`);
-    }
-    if (!definedProviders.has(to)) {
-      throw new Error(`Provider rename to ${to} must also define ${to}`);
-    }
-  }
 }
 
 export class DaemonConfigStore {
@@ -234,43 +117,23 @@ export class DaemonConfigStore {
       );
     }
     const {
-      removeProviders = [],
-      replaceProviders = {},
-      renameProviders = {},
-      ...configPatch
-    } = parsedPatch;
-    const renamedProviderMap = renameProviders as Record<string, string>;
-    const removedProviders = Array.from(new Set(removeProviders));
-    const replacedProviders = Object.keys(replaceProviders);
-    const removedProviderSet = new Set(removedProviders);
-    assertProviderMutationsAreConsistent({
+      mergePatch,
+      removedProviders,
       replacedProviders,
-      removedProviderSet,
-      renameProviders: renamedProviderMap,
-      definedProviders: new Set([
-        ...replacedProviders,
-        ...Object.keys(configPatch.providers ?? {}),
-      ]),
-    });
-    const renamedProviders: ProviderRename[] = Object.entries(renamedProviderMap).map(
-      ([from, to]) => ({
-        from,
-        to,
+      renamedProviders,
+    } = planProviderConfigMutations(parsedPatch);
+    const merged = deepMerge(
+      reconcileMutableProviderConfig({
+        config: this.current,
+        removedProviders: replacedProviders,
       }),
+      mergePatch,
     );
-    const mergePatch =
-      replacedProviders.length > 0
-        ? {
-            ...configPatch,
-            providers: { ...configPatch.providers, ...replaceProviders },
-          }
-        : configPatch;
-    const merged = deepMerge(omitProvidersFromConfig(this.current, replacedProviders), mergePatch);
     const next = MutableDaemonConfigSchema.parse(
-      omitMetadataGenerationProvidersFromConfig(
-        omitProvidersFromConfig(merged, removedProviders),
+      reconcileMutableProviderConfig({
+        config: merged,
         removedProviders,
-      ),
+      }),
     );
 
     const changedFieldPaths = Array.from(this.fieldChangeHandlers.keys()).filter((path) => {
@@ -386,37 +249,12 @@ function mergeMutableConfigIntoPersistedConfig(params: {
     throw new Error("Mutable daemon config is missing relay state");
   }
   const browserToolsEnabled = readBrowserToolsEnabled(mutable);
-  const metadataGenerationProviders = readMetadataGenerationProviders(mutable);
-  const persistedProviderOverrides = omitProvidersFromOverrides(
-    persisted.agents?.providers as Record<string, ProviderOverride> | undefined,
-    [...removeProviders, ...replaceProviders],
-  );
-  const providerOverrides = applyMutableProviderConfigToOverrides(
-    persistedProviderOverrides,
-    mutable.providers,
-  );
-  const persistedAgents = omitProvidersFromPersistedAgents(persisted.agents);
-  const persistedMetadataGeneration = {
-    providers: metadataGenerationProviders,
-  };
-  const shouldPersistMetadataGeneration =
-    metadataGenerationProviders.length > 0 || persisted.agents?.metadataGeneration !== undefined;
-
-  let nextAgents = persistedAgents as PersistedConfig["agents"];
-  if (providerOverrides && Object.keys(providerOverrides).length > 0) {
-    nextAgents = {
-      ...persistedAgents,
-      providers: providerOverrides,
-      ...(shouldPersistMetadataGeneration
-        ? { metadataGeneration: persistedMetadataGeneration }
-        : {}),
-    } as PersistedConfig["agents"];
-  } else if (shouldPersistMetadataGeneration) {
-    nextAgents = {
-      ...persistedAgents,
-      metadataGeneration: persistedMetadataGeneration,
-    } as PersistedConfig["agents"];
-  }
+  const nextAgents = mergeProviderMutableStateIntoPersistedAgents({
+    persisted,
+    mutable,
+    removeProviders,
+    replaceProviders,
+  });
 
   return {
     ...persisted,
@@ -455,31 +293,4 @@ function readBrowserToolsEnabled(mutable: MutableDaemonConfig): boolean {
     return false;
   }
   return browserTools["enabled"] === true;
-}
-
-function readMetadataGenerationProviders(
-  mutable: MutableDaemonConfig,
-): Array<{ provider: string; model?: string; thinkingOptionId?: string }> {
-  const metadataGeneration = mutable.metadataGeneration;
-  if (!isRecord(metadataGeneration)) {
-    return [];
-  }
-  const providers = metadataGeneration["providers"];
-  if (!Array.isArray(providers)) {
-    return [];
-  }
-  return providers.flatMap((entry) => {
-    if (!isRecord(entry) || typeof entry["provider"] !== "string") {
-      return [];
-    }
-    return [
-      {
-        provider: entry["provider"],
-        ...(typeof entry["model"] === "string" ? { model: entry["model"] } : {}),
-        ...(typeof entry["thinkingOptionId"] === "string"
-          ? { thinkingOptionId: entry["thinkingOptionId"] }
-          : {}),
-      },
-    ];
-  });
 }
