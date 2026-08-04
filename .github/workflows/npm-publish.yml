@@ -46,6 +46,10 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
 
+      # Node 22.14.0 ships npm 10.9.2; trusted publishing (OIDC) needs npm >= 11.5.1.
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@latest
+
       - name: Install JS dependencies
         run: npm ci
 
@@ -54,9 +58,10 @@ jobs:
 
       - name: Publish packages
         shell: bash
-        # Trusted publishing (OIDC) cannot be registered for a package that does not
-        # exist yet, so the first publish of each package needs NPM_TOKEN. npm prefers
-        # OIDC once a trusted publisher is configured, and the secret becomes unused.
+        # Normally authenticates via OIDC and needs no credential. NPM_TOKEN is an
+        # optional escape hatch: it is only consulted if the secret is set, which is
+        # useful before a package has a trusted publisher registered. See "npm scope"
+        # in docs/release.md for why the first publish of a new package cannot use OIDC.
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |

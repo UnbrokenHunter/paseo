@@ -126,11 +126,39 @@ The publish step therefore selects workspaces by path, not by name.
 
 Set `PASEO_NPM_SCOPE` in the workflow to change the published scope.
 
-Trusted publishing (OIDC) cannot be registered for a package that does not
-exist on npm yet, so the first publish of each package needs an `NPM_TOKEN`
-repository secret. Once each package exists, configure `npm-publish.yml` as its
-trusted publisher in npm settings; npm prefers OIDC from then on and the secret
-goes unused.
+### Bootstrapping a new scope
+
+`NPM Publish` authenticates with trusted publishing (OIDC) and needs no stored
+credential. But npm cannot register a trusted publisher for a package that does
+not exist yet, and the npmjs.com UI has no way to configure one in advance
+([npm/cli#8544](https://github.com/npm/cli/issues/8544)). A brand-new scope
+therefore has to be seeded once from a workstation:
+
+```bash
+npm login                                  # interactive, satisfies 2FA
+node scripts/rewrite-npm-scope.mjs @your-scope
+for package in highlight relay protocol client server cli; do
+  npm publish --workspace="packages/$package" --access public --tag beta
+done
+git checkout -- .                          # discard the rewrite
+```
+
+Then register the workflow as each package's trusted publisher and drop back to
+OIDC for every release after that:
+
+```bash
+for package in highlight relay protocol client server cli; do
+  npm trust github "@your-scope/$package" --file npm-publish.yml --repo <owner>/paseo --yes
+done
+```
+
+Prefer this over storing a long-lived automation token: those bypass 2FA, and
+npm's own guidance is to use trusted publishing for CI. The workflow still reads
+an optional `NPM_TOKEN` secret if one is set, for the window before a package has
+a trusted publisher.
+
+Trusted publishing needs npm >= 11.5.1, which is newer than the npm bundled with
+the pinned Node version, so the workflow upgrades npm before publishing.
 
 **Stable means stable.** If the user says "stable" or "ship stable", do not ask whether they want a beta first. They picked stable; treat it as a direct stable release. Only run the beta flow when the user explicitly says "beta".
 
