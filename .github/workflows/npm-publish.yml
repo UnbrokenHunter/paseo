@@ -21,6 +21,9 @@ permissions:
 
 env:
   SOURCE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+  # This fork publishes under a scope it owns; @getpaseo belongs to upstream.
+  # See scripts/rewrite-npm-scope.mjs.
+  PASEO_NPM_SCOPE: "@unbrokenhunter_"
 
 jobs:
   publish:
@@ -46,8 +49,16 @@ jobs:
       - name: Install JS dependencies
         run: npm ci
 
+      - name: Rewrite npm scope
+        run: node scripts/rewrite-npm-scope.mjs
+
       - name: Publish packages
         shell: bash
+        # Trusted publishing (OIDC) cannot be registered for a package that does not
+        # exist yet, so the first publish of each package needs NPM_TOKEN. npm prefers
+        # OIDC once a trusted publisher is configured, and the secret becomes unused.
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           publish_args=()
@@ -55,9 +66,7 @@ jobs:
             publish_args=(--tag beta)
           fi
 
-          npm publish --workspace=@getpaseo/highlight --access public "${publish_args[@]}"
-          npm publish --workspace=@getpaseo/relay --access public "${publish_args[@]}"
-          npm publish --workspace=@getpaseo/protocol --access public "${publish_args[@]}"
-          npm publish --workspace=@getpaseo/client --access public "${publish_args[@]}"
-          npm publish --workspace=@getpaseo/server --access public "${publish_args[@]}"
-          npm publish --workspace=@getpaseo/cli --access public "${publish_args[@]}"
+          # Selected by path, not by name: the scope rewrite already renamed them.
+          for workspace in highlight relay protocol client server cli; do
+            npm publish --workspace="packages/$workspace" --access public "${publish_args[@]}"
+          done

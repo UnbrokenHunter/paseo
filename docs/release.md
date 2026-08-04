@@ -48,7 +48,7 @@ pointers. The npm invariant is:
 
 - A beta release moves only `beta`; `latest` remains on the newest stable.
 - A stable release moves both `latest` and `beta` to that stable version. This
-  keeps users who install `@getpaseo/cli@beta` on the newest Paseo release after
+  keeps users who install `@unbrokenhunter_/cli@beta` on the newest Paseo release after
   a beta is promoted or superseded by a direct stable release.
 
 ## Release version decision
@@ -89,7 +89,8 @@ npm run release:minor
 
 This bumps the version across all workspaces, runs checks, and pushes the branch + tag. The tag push triggers `NPM Publish`, `Desktop Release`, `Android APK Release`, `Docker`, and `Release Notes Sync` on GitHub Actions. EAS picks up the same tag via the EAS GitHub app and starts the iOS + Android store builds in parallel (see "Mobile builds (EAS)" below) — there is no `release-mobile.yml` in this repo.
 
-`NPM Publish` uses npm trusted publishing from `.github/workflows/npm-publish.yml`. Configure that workflow as the package's trusted publisher in npm settings, then the publish step no longer needs a local npm login or token.
+`NPM Publish` publishes from `.github/workflows/npm-publish.yml`. See
+"npm scope" below for how this fork's packages get their published names.
 
 After the stable release succeeds, move npm's `beta` pointer to the new stable
 version for every published package. This changes dist-tags only; do not
@@ -98,7 +99,7 @@ republish the packages:
 ```bash
 PASEO_VERSION=$(node -p "require('./package.json').version")
 for package in highlight relay protocol client server cli; do
-  npm dist-tag add "@getpaseo/$package@$PASEO_VERSION" beta
+  npm dist-tag add "@unbrokenhunter_/$package@$PASEO_VERSION" beta
 done
 ```
 
@@ -108,6 +109,28 @@ stable release complete.
 The Docker workflow builds images from the checked-out source tree on pull requests and on `main` as non-publishing checks. Stable `vX.Y.Z` tag pushes publish `ghcr.io/getpaseo/paseo:X.Y.Z` and `ghcr.io/getpaseo/paseo:latest`; beta `vX.Y.Z-beta.N` tag pushes publish only `ghcr.io/getpaseo/paseo:X.Y.Z-beta.N` and never move `latest`.
 
 The production relay is the Elixir service in [getpaseo/paseo-relay](https://github.com/getpaseo/paseo-relay), with its own deployment process. Paseo releases and pushes to this repository do not deploy it. The Cloudflare relay code and workflow in this repository are legacy and are not used in production.
+
+## npm scope
+
+The source tree names every package `@getpaseo/*`, but that scope belongs to
+upstream's npm account and this fork cannot publish to it. `NPM Publish` runs
+`scripts/rewrite-npm-scope.mjs` to rename the scope to `$PASEO_NPM_SCOPE`
+(`@unbrokenhunter_`) in the CI checkout, immediately before publishing.
+
+The rewrite happens in CI rather than in the source tree so that merges from
+upstream do not conflict on every file that imports a workspace package. Its
+placement in the job is load-bearing: after `npm ci`, because it renames the
+`node_modules` scope directory instead of reinstalling, and before
+`npm publish`, because each package's `prepack` rebuilds `dist` from source.
+The publish step therefore selects workspaces by path, not by name.
+
+Set `PASEO_NPM_SCOPE` in the workflow to change the published scope.
+
+Trusted publishing (OIDC) cannot be registered for a package that does not
+exist on npm yet, so the first publish of each package needs an `NPM_TOKEN`
+repository secret. Once each package exists, configure `npm-publish.yml` as its
+trusted publisher in npm settings; npm prefers OIDC from then on and the secret
+goes unused.
 
 **Stable means stable.** If the user says "stable" or "ship stable", do not ask whether they want a beta first. They picked stable; treat it as a direct stable release. Only run the beta flow when the user explicitly says "beta".
 
@@ -135,7 +158,7 @@ npm run release:promote          # Promote X.Y.Z-beta.N to stable X.Y.Z
 ```
 
 - Beta tags are published GitHub prereleases like `v0.1.41-beta.1`
-- Betas publish npm packages with `--tag beta` from `NPM Publish`, so `npm install @getpaseo/cli@beta` opts in while plain `npm install @getpaseo/cli` stays on `latest`
+- Betas publish npm packages with `--tag beta` from `NPM Publish`, so `npm install @unbrokenhunter_/cli@beta` opts in while plain `npm install @unbrokenhunter_/cli` stays on `latest`
 - Betas publish desktop assets and APKs for testing, but they do not trigger the production web/mobile release flows
 - `release:promote` creates a fresh stable tag like `v0.1.41`; the final release never reuses the beta tag
 - Desktop assets now come from the Electron package at `packages/desktop`
