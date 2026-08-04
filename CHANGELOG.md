@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0-beta.1 - 2026-08-04
+## 0.3.0-beta.4 - 2026-08-04
 
 ### Added
 
@@ -10,6 +10,7 @@
 
 ### Improved
 
+- Fork desktop installers, application identity, deep links, updates, and CLI integration now use PaseoPlus
 - Workspace and chat navigation stay steadier across scrolls and workspace switches ([#2791](https://github.com/getpaseo/paseo/pull/2791), [#2838](https://github.com/getpaseo/paseo/pull/2838), [#2842](https://github.com/getpaseo/paseo/pull/2842))
 
 ## 0.2.5 - 2026-07-30
