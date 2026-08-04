@@ -1,10 +1,9 @@
 import type { Logger } from "pino";
 import type { MutableDaemonConfig } from "@getpaseo/protocol/messages";
 import type { ProviderUsage } from "../../server/messages.js";
-import type { LocalProviderProfile, ProviderUsageAlias } from "../../server/daemon-config-store.js";
 import { createProviderUsageFetchers } from "./manifest.js";
 import type { ProviderApiFetch, ProviderUsageFetcher } from "./provider.js";
-import { unavailableUsage, unmeteredUsage } from "./usage.js";
+import { unavailableUsage } from "./usage.js";
 
 export interface ProviderUsageServiceOptions {
   logger: Logger;
@@ -14,12 +13,6 @@ export interface ProviderUsageServiceOptions {
   fetcherFactory?: (providers: MutableDaemonConfig["providers"]) => ProviderUsageFetcher[];
   cacheTtlMs?: number;
   now?: () => number;
-  /**
-   * Providers pointed at a locally hosted model. No fetcher covers them, so they are
-   * reported as unmetered rather than left out and shown as a failed lookup.
-   */
-  listLocalProviders?: () => readonly LocalProviderProfile[];
-  listProviderAliases?: () => readonly ProviderUsageAlias[];
 }
 
 export interface ProviderUsageListResult {
@@ -35,8 +28,6 @@ export class ProviderUsageService {
   private readonly rebuildFetchers:
     | ((providers: MutableDaemonConfig["providers"]) => ProviderUsageFetcher[])
     | null;
-  private readonly listLocalProviders: () => readonly LocalProviderProfile[];
-  private readonly listProviderAliases: () => readonly ProviderUsageAlias[];
   private readonly cacheTtlMs: number;
   private readonly now: () => number;
   private cached: { fetchedAtMs: number; result: ProviderUsageListResult } | null = null;
@@ -54,8 +45,6 @@ export class ProviderUsageService {
       : (options.fetcherFactory ??
         ((providers) => createProviderUsageFetchers(factoryOptions, providers)));
     this.fetchers = options.fetchers ?? this.rebuildFetchers?.(options.providerConfigs ?? {}) ?? [];
-    this.listLocalProviders = options.listLocalProviders ?? (() => []);
-    this.listProviderAliases = options.listProviderAliases ?? (() => []);
     this.cacheTtlMs = options.cacheTtlMs ?? DEFAULT_PROVIDER_USAGE_CACHE_TTL_MS;
     this.now = options.now ?? Date.now;
   }
@@ -113,32 +102,7 @@ export class ProviderUsageService {
       });
     });
 
-    // Local providers are appended rather than fetched. A row already produced by a
-    // fetcher wins, so extending a provider that does have a quota API and pointing it
-    // at a proxy on localhost still reports that quota.
-    const reported = new Set(providers.map((usage) => usage.providerId));
-    const localProfiles = this.listLocalProviders();
-    const local = localProfiles
-      .filter((profile) => !reported.has(profile.providerId))
-      .map((profile) =>
-        unmeteredUsage({
-          providerId: profile.providerId,
-          displayName: profile.displayName,
-          sourceLabel: profile.endpointLabel,
-        }),
-      );
-    const aliases = this.listProviderAliases().flatMap((profile) => {
-      if (reported.has(profile.providerId) || !profile.extends) return [];
-      const base = providers.find((usage) => usage.providerId === profile.extends);
-      return base
-        ? [{ ...base, providerId: profile.providerId, displayName: profile.displayName }]
-        : [];
-    });
-
-    const result = {
-      fetchedAt: new Date(nowMs).toISOString(),
-      providers: [...providers, ...aliases, ...local],
-    };
+    const result = { fetchedAt: new Date(nowMs).toISOString(), providers };
     if (revision === this.revision) {
       this.cached = { fetchedAtMs: nowMs, result };
     }

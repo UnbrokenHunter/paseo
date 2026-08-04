@@ -2296,6 +2296,9 @@ export const ru: TranslationResources = {
           addVariable: "Добавить переменную",
           removeVariable: "Удалить переменную",
         },
+        warnings: {
+          renameUnsupported: "This host can't move existing chats to the new ID. Chats using this account will be unavailable until you update the host or restore the old ID.",
+        },
         errors: {
           labelRequired: "Введите название.",
           idRequired: "Введите ID провайдера.",
@@ -2445,3 +2448,5 @@ export const ru: TranslationResources = {
     },
   },
 };
+
+

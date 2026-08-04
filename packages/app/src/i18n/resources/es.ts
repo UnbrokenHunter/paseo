@@ -2309,6 +2309,9 @@ export const es: TranslationResources = {
           addVariable: "Añadir variable",
           removeVariable: "Quitar variable",
         },
+        warnings: {
+          renameUnsupported: "This host can't move existing chats to the new ID. Chats using this account will be unavailable until you update the host or restore the old ID.",
+        },
         errors: {
           labelRequired: "Escribe un nombre.",
           idRequired: "Escribe un ID de proveedor.",
@@ -2457,3 +2460,5 @@ export const es: TranslationResources = {
     },
   },
 };
+
+

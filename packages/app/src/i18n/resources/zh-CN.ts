@@ -2228,6 +2228,9 @@ export const zhCN: TranslationResources = {
           addVariable: "添加变量",
           removeVariable: "移除变量",
         },
+        warnings: {
+          renameUnsupported: "This host can't move existing chats to the new ID. Chats using this account will be unavailable until you update the host or restore the old ID.",
+        },
         errors: {
           labelRequired: "请输入名称。",
           idRequired: "请输入 Provider ID。",
@@ -2374,3 +2377,5 @@ export const zhCN: TranslationResources = {
     },
   },
 };
+
+

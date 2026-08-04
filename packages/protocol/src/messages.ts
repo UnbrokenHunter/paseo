@@ -176,6 +176,10 @@ export const MutableDaemonConfigPatchSchema = z
       .record(z.string(), MutableDaemonProviderConfigSchema.partial().passthrough())
       .optional(),
     removeProviders: z.array(z.string().min(1)).optional(),
+    // Maps an old provider id to the new one it was renamed to. The new definition still
+    // arrives in `replaceProviders` and the old id still arrives in `removeProviders`; this
+    // only tells the daemon the two are the same account so persisted agents can be migrated.
+    renameProviders: z.record(z.string().min(1), z.string().min(1)).optional(),
     metadataGeneration: MutableMetadataGenerationConfigSchema.partial().optional(),
     autoArchiveAfterMerge: z.boolean().optional(),
     enableTerminalAgentHooks: z.boolean().optional(),
@@ -277,6 +281,8 @@ export const ProviderSnapshotEntrySchema = z.object({
   status: ProviderStatusSchema,
   enabled: z.boolean().optional().default(true),
   source: z.enum(["builtin", "custom"]).optional(),
+  /** Builtin provider this entry extends, when it is a custom provider account. */
+  baseProviderId: z.string().optional(),
   error: z.string().optional(),
   models: z.array(AgentModelDefinitionSchema).optional(),
   modes: z.array(AgentModeSchema).optional(),
@@ -1348,8 +1354,6 @@ export const ProviderDiagnosticRequestMessageSchema = z.object({
 
 export const ProviderUsageListRequestMessageSchema = z.object({
   type: z.literal("provider.usage.list.request"),
-  /** Bypass the daemon's quota cache for an explicit user-initiated refresh. */
-  forceRefresh: z.boolean().optional(),
   requestId: z.string(),
 });
 
@@ -2909,6 +2913,9 @@ export const ServerInfoStatusPayloadSchema = z
         providerRemoval: z.boolean().optional(),
         // COMPAT(providerConfigReplace): added in v0.2.X, remove after 2027-02-02 when old daemons are unsupported.
         providerConfigReplace: z.boolean().optional(),
+        // COMPAT(providerConfigRename): added in v0.2.X, remove after 2027-02-02 when old daemons are unsupported.
+        // Daemon migrates persisted agents when a provider account is renamed.
+        providerConfigRename: z.boolean().optional(),
         // COMPAT(importSessionWorkspaceTarget): added in v0.1.110, remove gate after 2027-01-16.
         importSessionWorkspaceTarget: z.boolean().optional(),
         // COMPAT(forgeProviders): added in v0.1.106, drop the gate when daemon floor >= v0.1.106.
@@ -5029,13 +5036,6 @@ export const ProviderUsageSchema = z.object({
   baseProviderId: z.string().optional(),
   displayName: z.string(),
   status: ProviderUsageStatusSchema,
-  /**
-   * True when the provider has no quota to report because nothing is being metered —
-   * a model served from localhost or a private network. Distinct from `unavailable`,
-   * which means limits exist but could not be read. Optional so an older client sees
-   * these rows as plain `unavailable` rather than failing to parse them.
-   */
-  unmetered: z.boolean().optional(),
   planLabel: z.string().nullable(),
   sourceLabel: z.string().nullable().optional(),
   fetchedAt: z.string().nullable().optional(),
