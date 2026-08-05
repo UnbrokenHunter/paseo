@@ -62,7 +62,8 @@ if (args.print) {
   process.exit(0);
 }
 
-const npmCommand = NPM_CLI ? process.execPath : process.platform === "win32" ? "npm.cmd" : "npm";
+const defaultNpmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const npmCommand = NPM_CLI ? process.execPath : defaultNpmCommand;
 const npmArgs = NPM_CLI
   ? [
       NPM_CLI,

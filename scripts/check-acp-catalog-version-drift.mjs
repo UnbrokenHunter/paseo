@@ -5,6 +5,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const NPM_CLI = process.env.npm_execpath;
 
 const CATALOG_PATH = new URL("../packages/app/src/data/acp-provider-catalog.ts", import.meta.url);
 const EXACT_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:[-+].*)?$/;
@@ -251,7 +252,11 @@ function getPinnedVersion(selector) {
 }
 
 async function getLatestNpmVersion(packageName) {
-  const { stdout } = await execFileAsync("npm", ["view", packageName, "version"], {
+  const npmCommand = NPM_CLI ? process.execPath : "npm";
+  const npmArgs = NPM_CLI
+    ? [NPM_CLI, "view", packageName, "version"]
+    : ["view", packageName, "version"];
+  const { stdout } = await execFileAsync(npmCommand, npmArgs, {
     encoding: "utf8",
     timeout: 30_000,
     maxBuffer: 1024 * 1024,
