@@ -194,6 +194,60 @@ npm run release:push         # Push HEAD + tag (triggers CI workflows)
 
 ## Beta flow
 
+### Fork preflight
+
+Run beta releases from the `custom` worktree. Do not infer the worktree from the
+conversation or from another checkout:
+
+```bash
+git worktree list --porcelain
+git branch --show-current                # custom
+git status --short --branch              # clean, tracking origin/custom
+git remote get-url origin                # https://github.com/UnbrokenHunter/paseo.git
+git rev-parse HEAD
+git rev-parse origin/custom              # same commit as HEAD
+```
+
+Always pass the fork explicitly to `gh`. GitHub CLI can select `upstream` from a
+multi-remote checkout even when `origin` is the fork.
+
+Confirm release credentials before creating a tag:
+
+```bash
+gh secret list --repo UnbrokenHunter/paseo --json name --jq '.[].name'
+```
+
+- `EXPO_TOKEN` is required by `Android APK Release` and must access the Expo
+  project in `packages/app`
+- npm uses trusted publishing for the six `@unbrokenhunter_/*` packages;
+  `NPM_TOKEN` is optional after the trusted publishers are registered
+- GitHub supplies `GITHUB_TOKEN` to the artifact workflows
+- Apple signing/notarization secrets are optional; when absent, the desktop
+  workflow removes the empty variables and builds without notarization credentials
+
+Run the exact `custom` commit through CI. Pushes to `custom` do not start the
+full CI workflow automatically, so dispatch it and wait for the result:
+
+```bash
+git push origin custom
+gh workflow run ci.yml --repo UnbrokenHunter/paseo --ref custom
+gh run list --repo UnbrokenHunter/paseo --workflow ci.yml --branch custom --limit 1
+gh run watch <run-id> --repo UnbrokenHunter/paseo --exit-status
+```
+
+Do not add symlinked instruction or documentation files inside runtime
+workspaces. Electron Builder traverses workspace package files and can fail on
+links that work in a Windows checkout but resolve differently while packaging
+on clean Windows, Linux, or macOS runners.
+
+On Windows, Lefthook may run through Git's `sh` with a PATH that cannot resolve
+`npm`, even though PowerShell can. If a commit fails only with `sh: npm: command
+not found`, run `npm run format`, `npm run lint`, and `npm run typecheck`
+directly, confirm they pass, then use `git commit --no-verify`. Do not bypass a
+hook that reached a check and reported a source or test failure.
+
+### Cut and observe a beta
+
 ```bash
 npm run release:beta:patch       # Start the next patch beta line
 npm run release:beta:minor       # Start the next minor beta line
@@ -201,6 +255,33 @@ npm run release:beta:minor       # Start the next minor beta line
 npm run release:beta:next        # Optional: cut X.Y.Z-beta.2, beta.3, ...
 npm run release:promote          # Promote X.Y.Z-beta.N to stable X.Y.Z
 ```
+
+These commands run local release checks, create the version commit and tag, and
+push both. They do not publish npm packages or build installers in the local
+process. The `v*` tag starts five GitHub workflows: `NPM Publish`, `Desktop
+Release`, `Android APK Release`, `Docker`, and `Release Notes Sync`.
+
+Monitor the tag workflows rather than treating a successful local command as a
+completed release:
+
+```bash
+tag="v$(node -p "require('./package.json').version")"
+gh run list --repo UnbrokenHunter/paseo --branch "$tag" --limit 10
+gh release view "$tag" --repo UnbrokenHunter/paseo
+```
+
+Verify the fork registry scope after `NPM Publish` succeeds:
+
+```bash
+for package in highlight relay protocol client server cli; do
+  npm view "@unbrokenhunter_/$package" dist-tags --json
+done
+```
+
+For a beta, every `beta` tag must equal the released version and `latest` must
+remain unchanged. A tag retry is safe: `NPM Publish` skips versions already in
+the registry after confirming the intended `beta` or `latest` dist-tag is
+already correct.
 
 - Beta tags are published GitHub prereleases like `v0.1.41-beta.1`
 - Betas publish npm packages with `--tag beta` from `NPM Publish`, so `npm install @unbrokenhunter_/cli@beta` opts in while plain `npm install @unbrokenhunter_/cli` stays on `latest`
@@ -448,7 +529,35 @@ git tag -f android-v0.1.28 HEAD && git push origin android-v0.1.28 --force
 git tag -f v0.1.29-beta.2 HEAD && git push origin v0.1.29-beta.2 --force
 ```
 
-This ensures the checkout ref matches the actual code on `main` with the fix included.
+This ensures the checkout ref matches the actual code on the release branch
+with the fix included. For this fork, beta fixes land on `custom`; stable fixes
+land on `main`.
+
+If the tagged source is correct and one hosted job fails transiently, do not
+move the tag. Retry only failed jobs:
+
+```bash
+gh run rerun <run-id> --failed --repo UnbrokenHunter/paseo
+gh run watch <run-id> --repo UnbrokenHunter/paseo --exit-status
+```
+
+`hdiutil: create failed - Device not configured` on a macOS runner is a known
+transient disk-image failure. Retry that failed job before changing source.
+
+If source must change after the version is published, commit the fix to the
+release branch, push the branch, then move the same annotated release tag. Do
+not create a new version for a build-only fix:
+
+```bash
+git tag -fa vX.Y.Z-beta.N -m vX.Y.Z-beta.N HEAD
+git push origin custom
+git push origin vX.Y.Z-beta.N --force
+```
+
+Moving a `v*` tag reruns every tag workflow. npm versions are immutable, so the
+publish workflow skips existing packages whose dist-tags are already correct.
+Artifact uploads use `--clobber` and replace files on the existing GitHub
+prerelease.
 
 - `vX.Y.Z` or `vX.Y.Z-beta.N` rebuilds the full tagged release
 - `desktop-vX.Y.Z` rebuilds desktop for all desktop platforms only
@@ -460,8 +569,8 @@ This ensures the checkout ref matches the actual code on `main` with the fix inc
 - `version:all:*` bumps root + syncs workspace versions and `@getpaseo/*` dependency versions
 - `release:prepare` refreshes workspace `node_modules` links to prevent stale types
 - `npm run dev:desktop` and `npm run build:desktop` target the Electron desktop package in `packages/desktop`
-- If `NPM Publish` partially fails, rerun the workflow or push the same tag again — npm skips already-published versions
-- If `NPM Publish` partially fails for a beta, rerun the workflow or push the same tag again — npm skips already-published versions and keeps prereleases off `latest` because beta publishes use `--tag beta`
+- If `NPM Publish` partially fails, rerun the workflow or push the same tag again; it skips already-published versions after verifying their intended dist-tag
+- If `Android APK Release` reports that an Expo account is required, configure the repository's `EXPO_TOKEN` secret before retrying; changing application code does not fix authentication
 - The website uses GitHub's latest published release API for download links, so published beta prereleases do not replace the stable download target.
 
 ## Changelog format
@@ -589,10 +698,12 @@ Betas are checkpoints along the way; the entry is the single record for the jump
 
 ### Beta release
 
-- [ ] Working tree is clean and the intended commit is on `main`
+- [ ] The active worktree is on `custom`, `origin` is `UnbrokenHunter/paseo`, the working tree is clean, and `HEAD` equals `origin/custom`
+- [ ] `EXPO_TOKEN` exists in the fork's Actions secrets and npm trusted publishing is configured for all six `@unbrokenhunter_/*` packages
 - [ ] Update the in-place beta entry in `CHANGELOG.md` (heading `## X.Y.Z-beta.N - YYYY-MM-DD`), review it against the changelog policy, get approval, and commit it before cutting the release
 - [ ] The previous-stable-to-`HEAD` diff is classified as patch or minor, with the target version and rationale approved
 - [ ] `npm run release:beta:patch`, `npm run release:beta:minor`, or `npm run release:beta:next` completes successfully
+- [ ] The release tag resolves to the intended `custom` commit and all tag-triggered workflows are monitored to completion
 - [ ] npm shows the version under the `beta` dist-tag, not `latest`
 - [ ] GitHub `Desktop Release` workflow for the `v*-beta.N` tag is green
 - [ ] GitHub `Android APK Release` workflow for the same tag is green
