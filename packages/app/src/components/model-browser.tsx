@@ -404,7 +404,6 @@ export function useModelBrowser({
   }, [
     handleBackToAll,
     handleSearchQueryChange,
-    providers,
     providerUsageView,
     refreshProviderUsage,
     searchResetKey,

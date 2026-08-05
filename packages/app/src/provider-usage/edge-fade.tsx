@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
 import MaskedView from "@react-native-masked-view/masked-view";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
@@ -25,13 +25,13 @@ export function EdgeFade({
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
     setWidth(event.nativeEvent.layout.width);
   }, []);
+  const maskElement = useMemo(
+    () => <EdgeFadeMask active={active && width > 0} width={width} />,
+    [active, width],
+  );
 
   return (
-    <MaskedView
-      style={style}
-      onLayout={handleLayout}
-      maskElement={<EdgeFadeMask active={active && width > 0} width={width} />}
-    >
+    <MaskedView style={style} onLayout={handleLayout} maskElement={maskElement}>
       {children}
     </MaskedView>
   );
