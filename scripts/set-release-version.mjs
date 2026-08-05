@@ -73,7 +73,14 @@ const npmArgs = NPM_CLI
       "--message",
       "chore(release): cut %s",
     ]
-  : ["version", nextVersion, "--include-workspace-root", "--no-commit-hooks", "--message", "chore(release): cut %s"];
+  : [
+      "version",
+      nextVersion,
+      "--include-workspace-root",
+      "--no-commit-hooks",
+      "--message",
+      "chore(release): cut %s",
+    ];
 
 execFileSync(npmCommand, npmArgs, {
   cwd: rootDir,

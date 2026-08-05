@@ -405,7 +405,7 @@ export function useModelBrowser({
     handleBackToAll,
     handleSearchQueryChange,
     providers,
-      providerUsageView,
+    providerUsageView,
     refreshProviderUsage,
     searchResetKey,
     serverId,
@@ -1315,6 +1315,3 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.foreground,
   },
 }));
-
-
-

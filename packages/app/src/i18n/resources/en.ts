@@ -2270,7 +2270,8 @@ export const en = {
           removeVariable: "Remove variable",
         },
         warnings: {
-          renameUnsupported: "This host can't move existing chats to the new ID. Chats using this account will be unavailable until you update the host or restore the old ID.",
+          renameUnsupported:
+            "This host can't move existing chats to the new ID. Chats using this account will be unavailable until you update the host or restore the old ID.",
         },
         errors: {
           labelRequired: "Enter a name.",
@@ -2425,4 +2426,3 @@ type WidenStringLeaves<T> = {
 };
 
 export type TranslationResources = WidenStringLeaves<typeof en>;
-
