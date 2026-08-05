@@ -28,7 +28,7 @@ MACOS_HELPER_EXECUTABLE="${RESOURCES_DIR}/../Frameworks/PaseoPlus Helper.app/Con
 # lifecycle behavior.
 if [ -d "${MACOS_DIR}" ]; then
   if [ ! -x "${MACOS_HELPER_EXECUTABLE}" ]; then
-    echo "Bundled Paseo Helper executable not found at ${MACOS_HELPER_EXECUTABLE}" >&2
+    echo "Bundled PaseoPlus Helper executable not found at ${MACOS_HELPER_EXECUTABLE}" >&2
     exit 1
   fi
   APP_EXECUTABLE="${MACOS_HELPER_EXECUTABLE}"

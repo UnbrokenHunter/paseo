@@ -1,8 +1,8 @@
-import { test, expect } from "../support/fixtures";
-import { gotoAppShell, openSettings } from "../support/helpers/app";
-import { injectDesktopBridge } from "../support/helpers/desktop-updates";
-import { openSettingsSection } from "../support/helpers/settings";
-import { getServerId } from "../support/helpers/server-id";
+import { test, expect } from "../../app/e2e/support/fixtures";
+import { gotoAppShell, openSettings } from "../../app/e2e/support/helpers/app";
+import { injectDesktopBridge } from "../../app/e2e/support/helpers/desktop-updates";
+import { openSettingsSection } from "../../app/e2e/support/helpers/settings";
+import { getServerId } from "../../app/e2e/support/helpers/server-id";
 
 // Settings > Keyboard Shortcuts is desktop-only (`desktopOnly` in
 // settings-screen.tsx), and the gate reads `getIsElectronRuntime()`, which the
