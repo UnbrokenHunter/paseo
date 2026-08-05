@@ -8,6 +8,8 @@ const repoRoot = new URL("../", import.meta.url);
 const ciWorkflowPath = new URL(".github/workflows/ci.yml", repoRoot);
 const dockerWorkflowPath = new URL(".github/workflows/docker.yml", repoRoot);
 const nixWorkflowPath = new URL(".github/workflows/nix.yml", repoRoot);
+const npmPublishWorkflowPath = new URL(".github/workflows/npm-publish.yml", repoRoot);
+const androidApkWorkflowPath = new URL(".github/workflows/android-apk-release.yml", repoRoot);
 const filtersPath = new URL(".github/ci-paths.yml", repoRoot);
 const serverTsconfigPath = new URL("packages/server/tsconfig.server.json", repoRoot);
 const desktopPackagePath = new URL("packages/desktop/package.json", repoRoot);
@@ -258,4 +260,16 @@ test("non-required Docker and Nix workflows avoid runners with workflow path fil
     assert.match(trigger, /^\s+paths:\s*$/m);
     assert.doesNotMatch(source, /dorny\/paths-filter/);
   }
+});
+
+test("release workflows support safe retries and fail early on missing credentials", () => {
+  const npmPublish = readFileSync(npmPublishWorkflowPath, "utf8");
+  const androidApk = readFileSync(androidApkWorkflowPath, "utf8");
+
+  assert.match(npmPublish, /npm view "\$package_name@\$RELEASE_VERSION" version/);
+  assert.match(npmPublish, /npm view "\$package_name" "dist-tags\.\$publish_tag"/);
+  assert.match(npmPublish, /already exists with the correct \$publish_tag dist-tag; skipping/);
+  assert.doesNotMatch(npmPublish, /npm dist-tag add/);
+  assert.match(androidApk, /- name: Verify Expo token/);
+  assert.match(androidApk, /EXPO_TOKEN is not configured for this repository/);
 });

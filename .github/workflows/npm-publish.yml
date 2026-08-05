@@ -70,12 +70,22 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
-          publish_args=()
+          publish_tag=latest
           if [[ "$IS_PRERELEASE" == "true" ]]; then
-            publish_args=(--tag beta)
+            publish_tag=beta
           fi
 
           # Selected by path, not by name: the scope rewrite already renamed them.
           for workspace in highlight relay protocol client server cli; do
-            npm publish --workspace="packages/$workspace" --access public "${publish_args[@]}"
+            package_name="$(node -p "require('./packages/$workspace/package.json').name")"
+            if npm view "$package_name@$RELEASE_VERSION" version >/dev/null 2>&1; then
+              current_tag="$(npm view "$package_name" "dist-tags.$publish_tag")"
+              if [[ "$current_tag" != "$RELEASE_VERSION" ]]; then
+                echo "::error::$package_name@$RELEASE_VERSION exists but $publish_tag points to $current_tag"
+                exit 1
+              fi
+              echo "$package_name@$RELEASE_VERSION already exists with the correct $publish_tag dist-tag; skipping"
+            else
+              npm publish --workspace="packages/$workspace" --access public --tag "$publish_tag"
+            fi
           done

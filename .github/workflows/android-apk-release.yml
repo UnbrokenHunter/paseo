@@ -75,6 +75,16 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          if [[ -z "$EXPO_TOKEN" ]]; then
+            echo "::error::EXPO_TOKEN is not configured for this repository. Add an Expo access token before cutting a release."
+            exit 1
+          fi
+
       - name: Setup Expo and EAS
         uses: expo/expo-github-action@v8
         with:
