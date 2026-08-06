@@ -7,7 +7,6 @@
 - Provider usage now shows in the model selector, context meter, and settings, with clearer cards, tooltips, and unmetered local models ([#13](https://github.com/getpaseo/paseo/pull/13))
 - Provider accounts can now be created, edited, renamed, and tracked with usage across the app and CLI ([#2785](https://github.com/getpaseo/paseo/pull/2785))
 - Chat timelines now keep sticky conversation headers and collapsed message previews while you scroll ([#14](https://github.com/getpaseo/paseo/pull/14), [#18](https://github.com/getpaseo/paseo/pull/18))
-- Desktop and browser icons now match your selected theme and show running or attention states ([#17](https://github.com/UnbrokenHunter/paseo/issues/17))
 
 ### Improved
 

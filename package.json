@@ -57,8 +57,6 @@
     "build:server": "npm run build:server-deps && npm run build --workspace=@getpaseo/server && npm run build --workspace=@getpaseo/cli",
     "build:server:clean": "npm run build:server-deps:clean && npm run build:clean --workspace=@getpaseo/server && npm run build:clean --workspace=@getpaseo/cli",
     "build:daemon-web-ui": "node scripts/build-daemon-web-ui.mjs",
-    "generate:app-icons": "node scripts/generate-app-icons.mjs",
-    "check:app-icons": "node scripts/generate-app-icons.mjs --check",
     "build:app-deps": "npm run build:highlight && npm run build:client && npm run build --workspace=@getpaseo/expo-two-way-audio",
     "build:app-deps:clean": "npm run build:highlight:clean && npm run build:client:clean && npm run build --workspace=@getpaseo/expo-two-way-audio",
     "watch:protocol": "npm run watch --workspace=@getpaseo/protocol",
@@ -129,7 +127,6 @@
     "oxlint-tsgolint": "^0.22.1",
     "patch-package": "^8.0.1",
     "playwright": "^1.56.1",
-    "sharp": "0.34.5",
     "typescript": "^5.9.3",
     "ws": "^8.20.0"
   },
