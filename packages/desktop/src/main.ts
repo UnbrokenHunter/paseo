@@ -664,10 +664,20 @@ function getThemedAppIconPath(assetName: string): string | null {
   const parsedAssetName = parseAppIconAssetName(assetName);
   if (!parsedAssetName) return null;
 
-  const iconPath = app.isPackaged
-    ? path.join(process.resourcesPath, "app-icons", parsedAssetName)
-    : path.resolve(__dirname, "../../app/public/app-icons", parsedAssetName);
-  return existsSync(iconPath) ? iconPath : null;
+  const directory = app.isPackaged
+    ? path.join(process.resourcesPath, "app-icons")
+    : path.resolve(__dirname, "../../app/public/app-icons");
+
+  // Windows draws the taskbar button and titlebar from ICON_SMALL at 16-24px.
+  // setIcon fills it from the single representation it is handed, so the 512px
+  // PNG downscales in one hop and the shell falls back to the executable icon.
+  // The .ico carries real small sizes.
+  const candidates =
+    process.platform === "win32"
+      ? [parsedAssetName.replace(/\.png$/, ".ico"), parsedAssetName]
+      : [parsedAssetName];
+
+  return candidates.map((name) => path.join(directory, name)).find((p) => existsSync(p)) ?? null;
 }
 
 function resolveAppIcon(assetName?: string | null): {
