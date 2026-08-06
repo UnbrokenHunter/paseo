@@ -111,8 +111,12 @@ const UPDATE_QUIT_DEADLINE_MS = 5_000;
 const pendingBrowserWindowOpenRequests = new PendingBrowserWindowOpenRequests();
 const agentNavigationInbox = new AgentNavigationInbox();
 const loggedAppIconFailures = new Set<string>();
+// Keep in sync with `appId` in electron-builder.yml — Windows groups taskbar
+// buttons by this value, and the installer stamps it onto the shortcut.
+const APP_USER_MODEL_ID = "com.unbrokenhunter.paseoplus";
 let appIconCache: AppIconCache | null = null;
 let activeAppIcon: Electron.NativeImage | null = null;
+let activeAppIconPath: string | null = null;
 
 // A second-instance launch can arrive before the packaged protocol handler,
 // IPC handlers, and first window exist. Wait for full bootstrap, not just
@@ -682,12 +686,14 @@ function getThemedAppIconPath(assetName: string): string | null {
 
 function resolveAppIcon(assetName?: string | null): {
   icon: Electron.NativeImage | null;
+  iconPath: string | null;
   resolvedRequestedAsset: boolean;
 } {
   if (assetName) {
-    const requestedIcon = loadAppIconPath(getThemedAppIconPath(assetName));
+    const requestedPath = getThemedAppIconPath(assetName);
+    const requestedIcon = loadAppIconPath(requestedPath);
     if (requestedIcon) {
-      return { icon: requestedIcon, resolvedRequestedAsset: true };
+      return { icon: requestedIcon, iconPath: requestedPath, resolvedRequestedAsset: true };
     }
     if (!loggedAppIconFailures.has(assetName)) {
       loggedAppIconFailures.add(assetName);
@@ -695,13 +701,38 @@ function resolveAppIcon(assetName?: string | null): {
     }
   }
 
+  const fallbackPath = getWindowIconPath();
   return {
-    icon: loadAppIconPath(getWindowIconPath()),
+    icon: loadAppIconPath(fallbackPath),
+    iconPath: fallbackPath,
     resolvedRequestedAsset: false,
   };
 }
 
-function applyRuntimeAppIcon(icon: Electron.NativeImage | null): void {
+// Windows resolves the taskbar button icon from the window's AppUserModel
+// relaunch icon, not from the HICON that setIcon assigns. With the property
+// unset the shell falls back to the executable icon, so setIcon alone moves
+// only the title bar and Alt+Tab. appId has to be set or the rest is ignored.
+//
+// The shell reads this once, when it builds the taskbar button. Calling it
+// again on a live window does not repaint the button, and neither does bouncing
+// setSkipTaskbar, so a theme switch reaches the taskbar on the next launch.
+// The icon cache persists the selection, so that next launch is already correct.
+function applyWindowsTaskbarIcon(win: BrowserWindow, iconPath: string | null): void {
+  if (process.platform !== "win32" || !iconPath) return;
+
+  try {
+    win.setAppDetails({ appId: APP_USER_MODEL_ID, appIconPath: iconPath, appIconIndex: 0 });
+  } catch (error) {
+    const key = "win32:appDetails";
+    if (!loggedAppIconFailures.has(key)) {
+      loggedAppIconFailures.add(key);
+      log.warn("[app-icon] Failed to apply taskbar icon", error);
+    }
+  }
+}
+
+function applyRuntimeAppIcon(icon: Electron.NativeImage | null, iconPath: string | null): void {
   if (!icon) return;
 
   try {
@@ -711,6 +742,7 @@ function applyRuntimeAppIcon(icon: Electron.NativeImage | null): void {
     }
     for (const win of BrowserWindow.getAllWindows()) {
       win.setIcon(icon);
+      applyWindowsTaskbarIcon(win, iconPath);
     }
   } catch (error) {
     const key = `${process.platform}:runtime`;
@@ -725,7 +757,8 @@ async function setRuntimeAppIcon(assetName: unknown): Promise<void> {
   const parsedAssetName = parseAppIconAssetName(assetName);
   const resolved = resolveAppIcon(parsedAssetName);
   activeAppIcon = resolved.icon;
-  applyRuntimeAppIcon(activeAppIcon);
+  activeAppIconPath = resolved.iconPath;
+  applyRuntimeAppIcon(activeAppIcon, activeAppIconPath);
 
   if (parsedAssetName && resolved.resolvedRequestedAsset) {
     try {
@@ -784,6 +817,11 @@ async function createWindow(
       webviewTag: true,
     },
   });
+
+  // The shell reads the relaunch icon when it creates the taskbar button, so
+  // this has to land before the window is shown; a later write does not repaint
+  // an existing button.
+  applyWindowsTaskbarIcon(mainWindow, activeAppIconPath);
 
   const webContentsId = mainWindow.webContents.id;
   pendingOpenProjectStore.set(webContentsId, options.pendingOpenProjectPath);
@@ -1038,8 +1076,10 @@ async function bootstrap(): Promise<void> {
   } catch (error) {
     log.warn("[app-icon] Failed to load startup icon cache", error);
   }
-  activeAppIcon = resolveAppIcon(cachedAppIconAssetName).icon;
-  applyRuntimeAppIcon(activeAppIcon);
+  const startupAppIcon = resolveAppIcon(cachedAppIconAssetName);
+  activeAppIcon = startupAppIcon.icon;
+  activeAppIconPath = startupAppIcon.iconPath;
+  applyRuntimeAppIcon(activeAppIcon, activeAppIconPath);
 
   ipcMain.handle("paseo:window:setAppIcon", (_event, assetName: unknown) =>
     setRuntimeAppIcon(assetName),
