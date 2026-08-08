@@ -9,6 +9,7 @@ const MODES = [
   { id: "build", label: "Build" },
   { id: "full-access", label: "Full Access" },
 ] satisfies AgentMode[];
+
 describe("resolveAgentControlsMode", () => {
   it("uses ready mode when no controlled agent controls are provided", () => {
     expect(resolveAgentControlsMode(undefined)).toBe("ready");
