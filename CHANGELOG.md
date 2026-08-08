@@ -1,9 +1,11 @@
 # Changelog
 
-## 0.3.0-beta.9 - 2026-08-05
+## 0.3.0-beta.10 - 2026-08-08
 
 ### Added
 
+- Launch a terminal, not just a chat, from the New workspace screen ([#2941](https://github.com/getpaseo/paseo/pull/2941))
+- Send custom headers with direct connections ([#2922](https://github.com/getpaseo/paseo/pull/2922))
 - New mobile terminal with text selection, copy, paste, and faster rendering ([#1607](https://github.com/getpaseo/paseo/pull/1607), [#2830](https://github.com/getpaseo/paseo/pull/2830))
 - Provider usage now shows in the model selector, context meter, and settings, with clearer cards, tooltips, and unmetered local models ([#13](https://github.com/getpaseo/paseo/pull/13))
 - Provider accounts can now be created, edited, renamed, and tracked with usage across the app and CLI ([#2785](https://github.com/getpaseo/paseo/pull/2785))
@@ -26,6 +28,10 @@
 
 ### Improved
 
+- Cycle agent mode with Cmd+Shift+M / Ctrl+Shift+M
+- Workspace Git status stays responsive on large repositories ([#2979](https://github.com/getpaseo/paseo/pull/2979))
+- Clearer reconnect status while a connection recovers ([#2931](https://github.com/getpaseo/paseo/pull/2931))
+- Claude keeps your model and thinking choices ([#2912](https://github.com/getpaseo/paseo/pull/2912))
 - Fork desktop installers, application identity, deep links, updates, and CLI integration now use PaseoPlus
 - Paseo starts faster
 - Coming back to a recent chat is instant ([#2842](https://github.com/getpaseo/paseo/pull/2842))
@@ -47,6 +53,11 @@
 
 ### Fixed
 
+- The terminal running indicator clears when you interrupt a turn ([#2942](https://github.com/getpaseo/paseo/pull/2942))
+- Pi replies stream smoothly instead of arriving all at once ([#2978](https://github.com/getpaseo/paseo/pull/2978))
+- A workspace recovers if it's interrupted while setting up ([#2987](https://github.com/getpaseo/paseo/pull/2987))
+- The composer toolbar no longer flickers when switching tabs ([#2937](https://github.com/getpaseo/paseo/pull/2937))
+- The desktop in-app browser stays interactive
 - Workspace file watching no longer stalls the daemon ([#2858](https://github.com/getpaseo/paseo/pull/2858))
 - Terminal output keeps updating when you leave the app and come back ([#2896](https://github.com/getpaseo/paseo/pull/2896))
 - Messages no longer duplicate or arrive out of order after a reconnect or resume ([#2789](https://github.com/getpaseo/paseo/pull/2789), [#2718](https://github.com/getpaseo/paseo/pull/2718))
