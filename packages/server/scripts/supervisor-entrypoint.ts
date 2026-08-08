@@ -16,6 +16,8 @@ import { applySherpaLoaderEnv } from "../src/server/speech/providers/local/sherp
 
 process.title = "Paseo Supervisor";
 
+const PASEOPLUS_DESKTOP_ORIGIN = "paseoplus://app";
+
 interface DaemonRunnerConfig {
   devMode: boolean;
   reclaimStalePidLock: boolean;
@@ -40,6 +42,19 @@ function parseConfig(argv: string[]): DaemonRunnerConfig {
   }
 
   return { devMode, reclaimStalePidLock, workerArgs };
+}
+
+function withPaseoPlusDesktopOrigin(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const configuredOrigins = (env.PASEO_CORS_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+  const allowedOrigins = new Set([...configuredOrigins, PASEOPLUS_DESKTOP_ORIGIN]);
+
+  return {
+    ...env,
+    PASEO_CORS_ORIGINS: Array.from(allowedOrigins).join(","),
+  };
 }
 
 function resolveWorkerEntry(): string {
@@ -101,7 +116,7 @@ async function main(): Promise<void> {
   const config = parseConfig(process.argv.slice(2));
   const workerEntry = config.devMode ? resolveDevWorkerEntry() : resolveWorkerEntry();
   const workerExecArgv = resolveWorkerExecArgv(workerEntry, config.devMode);
-  const workerEnv: NodeJS.ProcessEnv = { ...process.env };
+  const workerEnv: NodeJS.ProcessEnv = withPaseoPlusDesktopOrigin(process.env);
   const packagedNodeEntrypointRunner =
     process.env.ELECTRON_RUN_AS_NODE === "1"
       ? resolvePackagedNodeEntrypointRunnerPath(fileURLToPath(import.meta.url))
