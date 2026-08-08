@@ -511,8 +511,23 @@ export class ProviderCatalogSession {
     msg: Extract<SessionInboundMessage, { type: "accessModel.snapshot.request" }>,
   ): Promise<void> {
     try {
+      // Runtime-discovered models are what make non-Claude runtimes
+      // routable at all; without them the catalog would only ever contain
+      // the curated Claude manifest.
+      const discovered = this.providerSnapshotManager
+        .getSnapshot()
+        .filter((entry) => (entry.models?.length ?? 0) > 0)
+        .map((entry) => ({
+          providerId: entry.provider,
+          models: (entry.models ?? []).map((model) => ({
+            id: model.id,
+            label: model.label,
+            description: model.description,
+          })),
+        }));
       const snapshot = buildAccessModelSnapshot(
         this.providerSnapshotManager.getRegisteredProviderSummaries(),
+        discovered,
       );
       this.host.emit({
         type: "accessModel.snapshot.response",

@@ -14,10 +14,9 @@ import {
   deriveAccounts,
   deriveAgentRuntimes,
   deriveBindings,
-  deriveCanonicalModels,
+  deriveCatalog,
   deriveEntitlements,
-  deriveModelFamilies,
-  deriveRoutes,
+  type DiscoveredProviderModels,
 } from "./derive.js";
 import type { RegisteredProviderSummary } from "./registry-summary.js";
 
@@ -34,16 +33,18 @@ export interface AccessModelSnapshot {
 
 export function buildAccessModelSnapshot(
   providers: RegisteredProviderSummary[],
+  discovered: DiscoveredProviderModels[] = [],
 ): AccessModelSnapshot {
   const bindings = deriveBindings(providers);
+  const catalog = deriveCatalog(bindings, discovered);
   return {
     agentRuntimes: deriveAgentRuntimes(),
     accessServices: deriveAccessServices(providers),
     accounts: deriveAccounts(providers),
     entitlements: deriveEntitlements(providers),
     bindings,
-    modelFamilies: deriveModelFamilies(),
-    canonicalModels: deriveCanonicalModels(),
-    routes: deriveRoutes(bindings),
+    modelFamilies: catalog.families,
+    canonicalModels: catalog.canonicalModels,
+    routes: catalog.routes,
   };
 }

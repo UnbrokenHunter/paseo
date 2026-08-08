@@ -2262,6 +2262,23 @@ export const es: TranslationResources = {
         userLinked: "Vinculado al usuario",
         unknown: "Desconocido",
       },
+      modelRouting: {
+        title: "Enrutamiento de modelos",
+        description:
+          "Elige cualquier faceta primero. El resto se reduce a lo que este host puede ejecutar.",
+        selectModel: "Seleccionar modelo",
+        noOptions: "No hay opciones compatibles con la selección actual.",
+        noRoutes:
+          "Aún no hay modelos enrutables. Los runtimes informan sus modelos tras la primera consulta de catálogo.",
+        resolved: "Ejecuta {{binding}} · {{model}}",
+        incomplete: "Sigue eligiendo para resolver una única ruta ejecutable",
+        facets: {
+          family: "Familia",
+          access: "Acceso",
+          model: "Modelo",
+          agent: "Agente",
+        },
+      },
     },
     providers: {
       title: "Proveedores",

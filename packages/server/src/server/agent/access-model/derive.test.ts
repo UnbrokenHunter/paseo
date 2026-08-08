@@ -6,10 +6,8 @@ import {
   deriveAccounts,
   deriveAgentRuntimes,
   deriveBindings,
-  deriveCanonicalModels,
+  deriveCatalog,
   deriveEntitlements,
-  deriveModelFamilies,
-  deriveRoutes,
 } from "./derive.js";
 import { CLAUDE_MODEL_MANIFEST } from "../providers/claude/model-manifest.js";
 import type { RegisteredProviderSummary } from "./registry-summary.js";
@@ -52,6 +50,26 @@ const qwen: RegisteredProviderSummary = {
   derivedFromProviderId: "claude",
   hasCustomEndpoint: true,
   env: { ANTHROPIC_BASE_URL: "https://coding-intl.dashscope.aliyuncs.com/apps/anthropic" },
+};
+
+const opencode: RegisteredProviderSummary = {
+  providerId: "opencode",
+  label: "OpenCode",
+  description: "OpenCode",
+  enabled: true,
+  derivedFromProviderId: null,
+  hasCustomEndpoint: false,
+  env: undefined,
+};
+
+const customAcp: RegisteredProviderSummary = {
+  providerId: "my-acp",
+  label: "My Custom ACP Agent",
+  description: "A custom ACP agent with no canonical metadata",
+  enabled: true,
+  derivedFromProviderId: null,
+  hasCustomEndpoint: false,
+  env: undefined,
 };
 
 const claudeTwo: RegisteredProviderSummary = {
@@ -170,45 +188,126 @@ describe("deriveEntitlements", () => {
   });
 });
 
-describe("deriveModelFamilies", () => {
-  it("returns the claude model family", () => {
-    const families = deriveModelFamilies();
-    expect(families.map((family) => family.id)).toEqual(["claude"]);
-  });
-});
-
-describe("deriveCanonicalModels", () => {
-  it("returns one canonical model per entry in the claude manifest", () => {
-    const canonicalModels = deriveCanonicalModels();
-    expect(canonicalModels.map((model) => model.id).sort()).toEqual(
-      CLAUDE_MODEL_MANIFEST.map((model) => model.id).sort(),
-    );
-    expect(canonicalModels.every((model) => model.familyId === "claude")).toBe(true);
-  });
-});
-
-describe("deriveRoutes", () => {
+describe("deriveCatalog - curated Claude manifest", () => {
   it("routes the claude binding to every canonical claude model", () => {
-    const [binding] = deriveBindings([claude]);
-    const routes = deriveRoutes([binding]);
+    const bindings = deriveBindings([claude]);
+    const { routes, canonicalModels, families } = deriveCatalog(bindings);
     expect(routes.map((route) => route.canonicalModelId).sort()).toEqual(
       CLAUDE_MODEL_MANIFEST.map((model) => model.id).sort(),
     );
     expect(routes.every((route) => route.bindingId === "claude")).toBe(true);
     expect(routes.every((route) => route.modelId === route.canonicalModelId)).toBe(true);
+    expect(canonicalModels.every((model) => model.familyId === "claude")).toBe(true);
+    expect(families.map((family) => family.id)).toEqual(["claude"]);
   });
 
-  it("does not route a custom profile with a custom endpoint", () => {
-    const [binding] = deriveBindings([zai]);
-    expect(deriveRoutes([binding])).toEqual([]);
+  it("gives a custom-endpoint profile no manifest routes of its own", () => {
+    const bindings = deriveBindings([zai]);
+    expect(deriveCatalog(bindings).routes).toEqual([]);
   });
 
-  it("routes a same-endpoint profile to every canonical claude model under its own binding id", () => {
-    const [binding] = deriveBindings([claudeTwo]);
-    const routes = deriveRoutes([binding]);
+  it("routes a same-endpoint profile under its own binding id", () => {
+    const bindings = deriveBindings([claudeTwo]);
+    const { routes } = deriveCatalog(bindings);
     expect(routes.map((route) => route.canonicalModelId).sort()).toEqual(
       CLAUDE_MODEL_MANIFEST.map((model) => model.id).sort(),
     );
     expect(routes.every((route) => route.bindingId === "claude-two")).toBe(true);
+  });
+
+  it("emits no routes for a disabled binding", () => {
+    const bindings = deriveBindings([disabledCodex]);
+    const { routes } = deriveCatalog(bindings, [
+      { providerId: "codex", models: [{ id: "gpt-5", label: "GPT-5" }] },
+    ]);
+    expect(routes).toEqual([]);
+  });
+});
+
+describe("deriveCatalog - runtime-discovered models", () => {
+  it("routes a non-Claude runtime from its own discovered models", () => {
+    const bindings = deriveBindings([opencode]);
+    const { routes, canonicalModels, families } = deriveCatalog(bindings, [
+      {
+        providerId: "opencode",
+        models: [
+          { id: "openai/gpt-5", label: "GPT-5" },
+          { id: "google/gemini-3-pro", label: "Gemini 3 Pro" },
+        ],
+      },
+    ]);
+
+    expect(routes).toHaveLength(2);
+    expect(routes.every((route) => route.bindingId === "opencode")).toBe(true);
+    // Canonical ids drop the vendor prefix; the Route keeps the exact
+    // runtime id the harness will actually accept.
+    expect(routes.map((route) => route.modelId).sort()).toEqual([
+      "google/gemini-3-pro",
+      "openai/gpt-5",
+    ]);
+    expect(canonicalModels.map((model) => model.id)).toEqual(
+      expect.arrayContaining(["gpt-5", "gemini-3-pro"]),
+    );
+    expect(families.map((family) => family.id).sort()).toEqual(["gemini", "gpt"]);
+  });
+
+  it("collapses the same model reached through two runtimes into one canonical model", () => {
+    const bindings = deriveBindings([claude, opencode]);
+    const { routes, canonicalModels } = deriveCatalog(bindings, [
+      { providerId: "claude", models: [{ id: "claude-opus-5", label: "Opus 5" }] },
+      { providerId: "opencode", models: [{ id: "anthropic/claude-opus-5", label: "Opus 5" }] },
+    ]);
+
+    const opusRoutes = routes.filter((route) => route.canonicalModelId === "claude-opus-5");
+    expect(opusRoutes.map((route) => route.bindingId).sort()).toEqual(["claude", "opencode"]);
+    expect(opusRoutes.map((route) => route.modelId).sort()).toEqual([
+      "anthropic/claude-opus-5",
+      "claude-opus-5",
+    ]);
+    expect(canonicalModels.filter((model) => model.id === "claude-opus-5")).toHaveLength(1);
+  });
+
+  it("keeps an unrecognized model selectable under the Other family without inventing metadata", () => {
+    const bindings = deriveBindings([customAcp]);
+    const { routes, canonicalModels, families } = deriveCatalog(bindings, [
+      { providerId: "my-acp", models: [{ id: "internal-frontier-v3" }] },
+    ]);
+
+    expect(routes).toHaveLength(1);
+    expect(routes[0]?.modelId).toBe("internal-frontier-v3");
+    const model = canonicalModels.find((entry) => entry.id === "internal-frontier-v3");
+    expect(model?.familyId).toBe("unknown");
+    // No label was reported, so the runtime id stands in rather than a
+    // prettified guess.
+    expect(model?.label).toBe("internal-frontier-v3");
+    expect(model?.description).toBeUndefined();
+    expect(families.map((family) => family.id)).toEqual(["unknown"]);
+  });
+
+  it("lets runtime discovery override the curated manifest's runtime model id", () => {
+    const bindings = deriveBindings([claude]);
+    const { routes } = deriveCatalog(bindings, [
+      { providerId: "claude", models: [{ id: "claude-opus-5-latest", label: "Opus 5" }] },
+    ]);
+
+    // The manifest's own claude-opus-5 route survives (different canonical
+    // id), and the newly discovered alias is routable too.
+    expect(routes.some((route) => route.modelId === "claude-opus-5-latest")).toBe(true);
+  });
+
+  it("ignores the synthetic empty-id default model row", () => {
+    const bindings = deriveBindings([opencode]);
+    const { routes } = deriveCatalog(bindings, [
+      { providerId: "opencode", models: [{ id: "", label: "Default" }] },
+    ]);
+    expect(routes).toEqual([]);
+  });
+
+  it("ignores discovered models for a provider with no binding", () => {
+    const bindings = deriveBindings([claude]);
+    const { routes } = deriveCatalog(bindings, [
+      { providerId: "ghost", models: [{ id: "ghost-1", label: "Ghost" }] },
+    ]);
+    expect(routes.every((route) => route.bindingId === "claude")).toBe(true);
   });
 });

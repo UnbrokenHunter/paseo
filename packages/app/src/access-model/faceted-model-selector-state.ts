@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { i18n } from "@/i18n/i18next";
 import {
   applyFacetSelection,
   buildExpandedRoutes,
@@ -29,16 +30,7 @@ export type FacetLabels = ReturnType<typeof buildFacetLabels>;
 export const FACET_ORDER: readonly FacetKey[] = FACET_KEYS;
 
 export function facetTabLabel(facet: FacetKey): string {
-  switch (facet) {
-    case "family":
-      return "Family";
-    case "access":
-      return "Access";
-    case "model":
-      return "Model";
-    case "agent":
-      return "Agent";
-  }
+  return i18n.t(`settings.agentRuntimes.modelRouting.facets.${facet}`);
 }
 
 function nextUnresolvedFacet(state: FacetSelectionState, from: FacetKey): FacetKey | null {
@@ -58,7 +50,9 @@ export function summaryTitle(state: FacetSelectionState, labels: FacetLabels): s
     if (value === null) return null;
     return labels[facet].get(value) ?? value;
   }).filter((part): part is string => part !== null);
-  return parts.length > 0 ? parts.join(" · ") : "Select model";
+  return parts.length > 0
+    ? parts.join(" · ")
+    : i18n.t("settings.agentRuntimes.modelRouting.selectModel");
 }
 
 export interface FacetOption {

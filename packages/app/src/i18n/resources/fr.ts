@@ -2266,6 +2266,23 @@ export const fr: TranslationResources = {
         userLinked: "Lié à l'utilisateur",
         unknown: "Inconnu",
       },
+      modelRouting: {
+        title: "Routage des modèles",
+        description:
+          "Commencez par n'importe quelle facette. Les autres se limitent à ce que cet hôte peut exécuter.",
+        selectModel: "Sélectionner un modèle",
+        noOptions: "Aucune option compatible avec la sélection actuelle.",
+        noRoutes:
+          "Aucun modèle routable pour l'instant. Les runtimes déclarent leurs modèles après le premier chargement du catalogue.",
+        resolved: "Lance {{binding}} · {{model}}",
+        incomplete: "Continuez à choisir pour obtenir une seule route exécutable",
+        facets: {
+          family: "Famille",
+          access: "Accès",
+          model: "Modèle",
+          agent: "Agent",
+        },
+      },
     },
     providers: {
       title: "Fournisseurs",

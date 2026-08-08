@@ -2210,6 +2210,22 @@ export const ar: TranslationResources = {
         userLinked: "مرتبط بالمستخدم",
         unknown: "غير معروف",
       },
+      modelRouting: {
+        title: "توجيه النماذج",
+        description: "اختر أي جانب أولاً. تتقلص البقية لما يستطيع هذا المضيف تشغيله فعلياً.",
+        selectModel: "اختر نموذجاً",
+        noOptions: "لا توجد خيارات متوافقة مع التحديد الحالي.",
+        noRoutes:
+          "لا توجد نماذج قابلة للتوجيه بعد. تُبلّغ بيئات التشغيل عن نماذجها بعد أول جلب للفهرس.",
+        resolved: "يشغّل {{binding}} · {{model}}",
+        incomplete: "تابع الاختيار للوصول إلى مسار واحد قابل للتشغيل",
+        facets: {
+          family: "العائلة",
+          access: "الوصول",
+          model: "النموذج",
+          agent: "الوكيل",
+        },
+      },
     },
     providers: {
       title: "مقدمي الخدمات",

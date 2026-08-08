@@ -2232,6 +2232,23 @@ export const ja: TranslationResources = {
         userLinked: "ユーザーに関連付け済み",
         unknown: "不明",
       },
+      modelRouting: {
+        title: "モデルルーティング",
+        description:
+          "どのファセットから選んでも構いません。残りはこのホストで実行可能なものに絞り込まれます。",
+        selectModel: "モデルを選択",
+        noOptions: "現在の選択に一致する選択肢はありません。",
+        noRoutes:
+          "ルーティング可能なモデルはまだありません。ランタイムは初回のカタログ取得後にモデルを報告します。",
+        resolved: "{{binding}} · {{model}} を起動します",
+        incomplete: "実行可能なルートが1つに絞られるまで選択を続けてください",
+        facets: {
+          family: "ファミリー",
+          access: "アクセス",
+          model: "モデル",
+          agent: "エージェント",
+        },
+      },
     },
     providers: {
       title: "プロバイダー",

@@ -2224,6 +2224,23 @@ export const ko: TranslationResources = {
         userLinked: "사용자 연결됨",
         unknown: "알 수 없음",
       },
+      modelRouting: {
+        title: "모델 라우팅",
+        description:
+          "어떤 항목부터 선택해도 됩니다. 나머지는 이 호스트가 실제로 실행할 수 있는 것으로 좁혀집니다.",
+        selectModel: "모델 선택",
+        noOptions: "현재 선택과 호환되는 옵션이 없습니다.",
+        noRoutes:
+          "아직 라우팅 가능한 모델이 없습니다. 런타임은 첫 카탈로그 조회 후 모델을 보고합니다.",
+        resolved: "{{binding}} · {{model}} 실행",
+        incomplete: "실행 가능한 경로가 하나로 좁혀질 때까지 계속 선택하세요",
+        facets: {
+          family: "제품군",
+          access: "액세스",
+          model: "모델",
+          agent: "에이전트",
+        },
+      },
     },
     providers: {
       title: "프로바이더",

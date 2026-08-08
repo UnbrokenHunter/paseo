@@ -2183,6 +2183,21 @@ export const zhCN: TranslationResources = {
         userLinked: "已关联用户",
         unknown: "未知",
       },
+      modelRouting: {
+        title: "模型路由",
+        description: "可从任意维度开始选择，其余维度会收敛到此主机实际可运行的组合。",
+        selectModel: "选择模型",
+        noOptions: "没有与当前选择兼容的选项。",
+        noRoutes: "暂无可路由的模型。运行时会在首次获取目录后报告其模型。",
+        resolved: "将启动 {{binding}} · {{model}}",
+        incomplete: "继续选择以确定唯一可运行的路由",
+        facets: {
+          family: "系列",
+          access: "访问",
+          model: "模型",
+          agent: "智能体",
+        },
+      },
     },
     providers: {
       title: "Providers",

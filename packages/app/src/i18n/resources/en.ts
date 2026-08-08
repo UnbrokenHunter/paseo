@@ -2222,6 +2222,21 @@ export const en = {
         userLinked: "User-linked",
         unknown: "Unknown",
       },
+      modelRouting: {
+        title: "Model routing",
+        description: "Choose any facet first. The rest narrow to what this host can actually run.",
+        selectModel: "Select model",
+        noOptions: "No compatible options for the current selection.",
+        noRoutes: "No routable models yet. Runtimes report models after their first catalog fetch.",
+        resolved: "Launches {{binding}} · {{model}}",
+        incomplete: "Keep choosing to resolve a single runnable route",
+        facets: {
+          family: "Family",
+          access: "Access",
+          model: "Model",
+          agent: "Agent",
+        },
+      },
     },
     providers: {
       title: "Providers",

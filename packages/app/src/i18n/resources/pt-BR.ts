@@ -2247,6 +2247,23 @@ export const ptBR: TranslationResources = {
         userLinked: "Vinculado ao usuário",
         unknown: "Desconhecido",
       },
+      modelRouting: {
+        title: "Roteamento de modelos",
+        description:
+          "Escolha qualquer faceta primeiro. As demais se limitam ao que este host consegue executar.",
+        selectModel: "Selecionar modelo",
+        noOptions: "Nenhuma opção compatível com a seleção atual.",
+        noRoutes:
+          "Ainda não há modelos roteáveis. Os runtimes informam seus modelos após a primeira consulta de catálogo.",
+        resolved: "Executa {{binding}} · {{model}}",
+        incomplete: "Continue escolhendo para resolver uma única rota executável",
+        facets: {
+          family: "Família",
+          access: "Acesso",
+          model: "Modelo",
+          agent: "Agente",
+        },
+      },
     },
     providers: {
       title: "Provedores",

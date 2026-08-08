@@ -16,6 +16,11 @@ import {
   CLAUDE_MODEL_FAMILY,
   KNOWN_ACCESS_SERVICES,
 } from "./known-mappings.js";
+import {
+  inferModelFamily,
+  normalizeRuntimeModelId,
+  UNKNOWN_MODEL_FAMILY,
+} from "./model-family-inference.js";
 import type { RegisteredProviderSummary } from "./registry-summary.js";
 
 export function deriveAgentRuntimes(): AgentRuntime[] {
@@ -106,38 +111,123 @@ export function deriveBindings(providers: RegisteredProviderSummary[]): Binding[
   }));
 }
 
-export function deriveModelFamilies(): ModelFamily[] {
-  return [CLAUDE_MODEL_FAMILY];
+/**
+ * Models a runtime reported from a live catalog fetch, keyed by the
+ * provider/profile (binding) id that reported them. This is the discovery
+ * half of the catalog: static metadata (the Claude manifest) enriches it,
+ * but runtime discovery decides what is actually available, so a runtime
+ * exposing a model Paseo has never heard of still produces a usable route.
+ */
+export interface DiscoveredProviderModels {
+  providerId: string;
+  models: { id: string; label?: string; description?: string }[];
 }
 
-export function deriveCanonicalModels(): CanonicalModel[] {
-  return [...CLAUDE_CANONICAL_MODELS];
+interface DerivedCatalog {
+  families: ModelFamily[];
+  canonicalModels: CanonicalModel[];
+  routes: Route[];
 }
 
 /**
- * Routes only exist where a canonical model's runtime model id is known ahead
- * of a live session — today that's the curated Claude manifest only. A
- * binding only gets Claude routes when it resolves to the known "anthropic"
- * access service; a custom profile that merely extends "claude" (e.g. a Z.AI
- * endpoint) does not serve Anthropic's models under these ids, so it stays
- * routeless. Other runtimes report models dynamically from a live agent
- * process (see fetchCatalog in docs/providers.md), so they have no
- * synchronous source to route from yet.
+ * The whole capability catalog in one pass, because families, canonical
+ * models, and routes are three views of the same join and deriving them
+ * separately would mean repeating it (and risking them disagreeing).
+ *
+ * Two sources are merged:
+ * - the curated Claude manifest, which gives Anthropic bindings good
+ *   labels and full coverage before any live fetch has happened;
+ * - whatever each binding's runtime actually reported, which wins on
+ *   availability and is the only source for every non-Claude runtime.
+ *
+ * A discovered model keeps its exact runtime id on the Route while its
+ * canonical id is the vendor-prefix-stripped form, so the same model
+ * reached through two runtimes collapses to one entry in the Model facet
+ * instead of appearing once per runtime.
  */
-export function deriveRoutes(bindings: Binding[]): Route[] {
-  const routes: Route[] = [];
+export function deriveCatalog(
+  bindings: Binding[],
+  discovered: DiscoveredProviderModels[] = [],
+): DerivedCatalog {
+  const canonicalModelById = new Map<string, CanonicalModel>();
+  for (const model of CLAUDE_CANONICAL_MODELS) {
+    canonicalModelById.set(model.id, model);
+  }
+
+  const routeByKey = new Map<string, Route>();
+  const enabledBindingIds = new Set(
+    bindings.filter((binding) => binding.enabled).map((binding) => binding.id),
+  );
+
+  // Curated Claude coverage for bindings that resolve to Anthropic itself.
+  // A profile pointed at a different backend (Z.AI, Alibaba) is excluded:
+  // it does not serve Anthropic's models under these ids, so its models
+  // can only come from its own runtime discovery below.
   for (const binding of bindings) {
-    if (binding.accessServiceId !== "anthropic") {
-      continue;
-    }
+    if (!binding.enabled || binding.accessServiceId !== "anthropic") continue;
     for (const model of CLAUDE_CANONICAL_MODELS) {
-      routes.push({
-        id: `${binding.id}::${model.id}`,
+      const key = `${binding.id}::${model.id}`;
+      routeByKey.set(key, {
+        id: key,
         canonicalModelId: model.id,
         bindingId: binding.id,
         modelId: model.id,
       });
     }
   }
-  return routes;
+
+  for (const entry of discovered) {
+    if (!enabledBindingIds.has(entry.providerId)) continue;
+    for (const model of entry.models) {
+      const runtimeModelId = model.id.trim();
+      // The selector's synthetic "default model" row carries an empty id;
+      // it is a UI affordance, not a model, and has no canonical identity.
+      if (!runtimeModelId) continue;
+
+      const canonicalId = normalizeRuntimeModelId(runtimeModelId);
+      if (!canonicalModelById.has(canonicalId)) {
+        canonicalModelById.set(canonicalId, {
+          id: canonicalId,
+          familyId: inferModelFamily(runtimeModelId, model.label).id,
+          label: model.label?.trim() || runtimeModelId,
+          ...(model.description ? { description: model.description } : {}),
+        });
+      }
+
+      // Discovery wins over the curated manifest for the same binding and
+      // canonical model: the runtime is authoritative about the id it will
+      // actually accept.
+      const key = `${entry.providerId}::${canonicalId}`;
+      routeByKey.set(key, {
+        id: key,
+        canonicalModelId: canonicalId,
+        bindingId: entry.providerId,
+        modelId: runtimeModelId,
+      });
+    }
+  }
+
+  const canonicalModels = [...canonicalModelById.values()];
+  const referencedFamilyIds = new Set<string>();
+  for (const route of routeByKey.values()) {
+    const familyId = canonicalModelById.get(route.canonicalModelId)?.familyId;
+    if (familyId) referencedFamilyIds.add(familyId);
+  }
+
+  const familyById = new Map<string, ModelFamily>([
+    [CLAUDE_MODEL_FAMILY.id, CLAUDE_MODEL_FAMILY],
+    [UNKNOWN_MODEL_FAMILY.id, UNKNOWN_MODEL_FAMILY],
+  ]);
+  for (const model of canonicalModels) {
+    if (familyById.has(model.familyId)) continue;
+    familyById.set(model.familyId, inferModelFamily(model.id, model.label));
+  }
+
+  return {
+    // Only families something can actually route to, so the Family facet
+    // never offers a dead end.
+    families: [...familyById.values()].filter((family) => referencedFamilyIds.has(family.id)),
+    canonicalModels,
+    routes: [...routeByKey.values()],
+  };
 }

@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, Text, View, type PressableStateCallbackType } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { Check } from "lucide-react-native";
@@ -94,10 +95,11 @@ function FacetOptionRow({
 }
 
 export function FacetedModelSelectorBody({ state }: { state: FacetedModelSelectorState }) {
+  const { t } = useTranslation();
   if (state.optionsForActiveFacet.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>No compatible options for the current selection.</Text>
+        <Text style={styles.emptyText}>{t("settings.agentRuntimes.modelRouting.noOptions")}</Text>
       </View>
     );
   }

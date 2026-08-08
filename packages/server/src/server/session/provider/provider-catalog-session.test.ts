@@ -291,6 +291,17 @@ describe("ProviderCatalogSession", () => {
   it("derives an access model snapshot from the registered providers", async () => {
     const { subsystem, emitted } = makeSubsystem({
       snapshot: {
+        // Runtime-discovered models: the Z.AI profile serves a GLM model
+        // its own runtime reported, which is the only way a custom-endpoint
+        // profile becomes routable at all.
+        getSnapshot: () => [
+          {
+            provider: "zai",
+            status: "ready",
+            enabled: true,
+            models: [{ id: "glm-4.6", label: "GLM 4.6" }],
+          },
+        ],
         getRegisteredProviderSummaries: () => [
           {
             providerId: "claude",
@@ -329,9 +340,19 @@ describe("ProviderCatalogSession", () => {
     const zaiBinding = response?.payload.bindings.find((binding) => binding.id === "zai");
     expect(zaiBinding?.agentRuntimeId).toBe("claude");
     expect(zaiBinding?.accessServiceId).toBe("unknown:zai");
-    expect(response?.payload.modelFamilies.map((family) => family.id)).toEqual(["claude"]);
-    expect(response?.payload.routes.every((route) => route.bindingId === "claude")).toBe(true);
-    expect(response?.payload.routes.some((route) => route.bindingId === "zai")).toBe(false);
+    // The Z.AI profile gets no Anthropic manifest routes (different
+    // backend) but is routable through the GLM model its runtime reported.
+    expect(response?.payload.modelFamilies.map((family) => family.id).sort()).toEqual([
+      "claude",
+      "glm",
+    ]);
+    const zaiRoutes = response?.payload.routes.filter((route) => route.bindingId === "zai") ?? [];
+    expect(zaiRoutes.map((route) => route.modelId)).toEqual(["glm-4.6"]);
+    expect(
+      response?.payload.routes.some(
+        (route) => route.bindingId === "zai" && route.canonicalModelId.startsWith("claude-"),
+      ),
+    ).toBe(false);
     expect(response?.payload.entitlements.map((entitlement) => entitlement.id).sort()).toEqual([
       "ent:claude",
       "ent:zai",
