@@ -313,6 +313,20 @@ describe("keyboard-shortcuts", () => {
       payload: { kind: "dictation-toggle" },
     },
     {
+      name: "routes Cmd+Shift+M to cycle agent mode on Mac",
+      event: { key: "m", code: "KeyM", metaKey: true, shiftKey: true },
+      context: { isMac: true, focusScope: "message-input" },
+      action: "message-input.action",
+      payload: { kind: "mode-cycle" },
+    },
+    {
+      name: "routes Ctrl+Shift+M to cycle agent mode on non-Mac",
+      event: { key: "m", code: "KeyM", ctrlKey: true, shiftKey: true },
+      context: { isMac: false, focusScope: "message-input" },
+      action: "message-input.action",
+      payload: { kind: "mode-cycle" },
+    },
+    {
       name: "routes space to voice mute toggle outside editable scopes",
       event: { key: " ", code: "Space" },
       context: { focusScope: "other" },
@@ -459,6 +473,11 @@ describe("keyboard-shortcuts", () => {
       name: "does not route message-input actions when terminal is focused",
       event: { key: "d", code: "KeyD", metaKey: true },
       context: { isMac: true, focusScope: "terminal" },
+    },
+    {
+      name: "does not cycle agent mode outside the message input",
+      event: { key: "m", code: "KeyM", metaKey: true, shiftKey: true },
+      context: { isMac: true, focusScope: "other" },
     },
     {
       name: "does not bind Cmd+Enter as a rebindable message queue shortcut",
@@ -611,6 +630,7 @@ describe("keyboard-shortcut help sections", () => {
         "workspace-tab-close-current": ["alt", "shift", "W"],
         "workspace-pane-split-right": ["mod", "\\"],
         "workspace-pane-close": ["mod", "shift", "W"],
+        "cycle-agent-mode": ["mod", "shift", "M"],
       },
     },
     {
@@ -658,12 +678,14 @@ describe("keyboard-shortcut help sections", () => {
     const projects = sections.find((section) => section.id === "projects");
     const panels = sections.find((section) => section.id === "panels");
     const openProject = findRow(sections, "new-agent");
+    const cycleAgentMode = findRow(sections, "cycle-agent-mode");
     const showShortcuts = findRow(sections, "show-shortcuts");
 
     expect(projects?.titleKey).toBe("settings.shortcuts.sections.projects");
     expect(panels?.titleKey).toBe("settings.shortcuts.sections.panels");
     expect(openProject?.labelKey).toBe("settings.shortcuts.help.openProject");
     expect(openProject?.label).toBe("Open project");
+    expect(cycleAgentMode?.labelKey).toBe("settings.shortcuts.help.cycleAgentMode");
     expect(showShortcuts?.noteKey).toBe("settings.shortcuts.helpNotes.showKeyboardShortcuts");
   });
 
