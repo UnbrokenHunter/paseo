@@ -4,6 +4,7 @@ import type {
   AgentRuntime,
   Binding,
   CanonicalModel,
+  Entitlement,
   ModelFamily,
   Route,
 } from "@getpaseo/protocol/access-model";
@@ -70,6 +71,27 @@ export function deriveAccounts(providers: RegisteredProviderSummary[]): Account[
     accessServiceId: resolveAccessServiceId(provider),
     label: provider.label,
     identityConfidence: "unknown",
+  }));
+}
+
+function entitlementId(providerId: string): string {
+  return `ent:${providerId}`;
+}
+
+/**
+ * One entitlement per account, 1:1, until real evidence justifies treating
+ * two bindings as sharing one quota pool. Account.identityConfidence is
+ * always "unknown" today (see deriveAccounts) — there's no verified or
+ * user-linked identity signal yet, so entitlements are never merged.
+ * Merging on nothing but a shared access service would violate the
+ * architecture's "do not guess shared quota pools" invariant.
+ */
+export function deriveEntitlements(providers: RegisteredProviderSummary[]): Entitlement[] {
+  return providers.map((provider) => ({
+    id: entitlementId(provider.providerId),
+    accountId: accountId(provider.providerId),
+    label: provider.label,
+    planLabel: null,
   }));
 }
 

@@ -4,12 +4,22 @@ import type {
   AgentRuntime,
   Binding,
   CanonicalModel,
+  Entitlement,
   ModelFamily,
   Route,
 } from "@getpaseo/protocol/access-model";
 import type { AccessModelSnapshotResponseMessage } from "@getpaseo/protocol/messages";
 
-export type { AccessService, Account, AgentRuntime, Binding, CanonicalModel, ModelFamily, Route };
+export type {
+  AccessService,
+  Account,
+  AgentRuntime,
+  Binding,
+  CanonicalModel,
+  Entitlement,
+  ModelFamily,
+  Route,
+};
 
 export type AccessModelSnapshotPayload = AccessModelSnapshotResponseMessage["payload"];
 

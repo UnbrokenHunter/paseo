@@ -14,6 +14,7 @@ function snapshot(overrides: Partial<AccessModelSnapshotPayload>): AccessModelSn
     agentRuntimes: [],
     accessServices: [],
     accounts: [],
+    entitlements: [],
     bindings: [],
     modelFamilies: [],
     canonicalModels: [],

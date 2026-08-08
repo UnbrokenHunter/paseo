@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { RegisteredProviderSummary } from "../../server/agent/access-model/registry-summary.js";
 import type { ProviderUsage } from "../../server/messages.js";
 import type { ProviderUsageFetcher } from "./provider.js";
 import { ClaudeQuotaProvider } from "./providers/claude.js";
@@ -306,6 +307,103 @@ describe("ProviderUsageService", () => {
         },
       ],
     });
+  });
+});
+
+function bindingUsageProviderSummary(
+  overrides: Partial<RegisteredProviderSummary>,
+): RegisteredProviderSummary {
+  return {
+    providerId: "claude",
+    label: "Claude",
+    description: "Claude",
+    enabled: true,
+    derivedFromProviderId: null,
+    hasCustomEndpoint: false,
+    env: undefined,
+    ...overrides,
+  };
+}
+
+async function respondToTwoAccountClaudeRequest(
+  url: RequestInfo | URL,
+  init: RequestInit | undefined,
+): Promise<Response> {
+  if (url.toString() !== "https://api.anthropic.com/api/oauth/usage") {
+    // The other fixed fetchers (copilot/cursor/zai/grok/kimi/minimax) may
+    // still probe their own APIs even without local credentials; this test
+    // only cares that they ran unmodified, not what they returned.
+    return new Response(null, { status: 401 });
+  }
+  const auth = new Headers(init?.headers).get("Authorization");
+  if (auth === "Bearer token-personal") {
+    return new Response(JSON.stringify({ five_hour: { utilization: 10, resets_at: null } }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  if (auth === "Bearer token-work") {
+    return new Response(JSON.stringify({ five_hour: { utilization: 90, resets_at: null } }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  throw new Error(`Unexpected Authorization header: ${auth}`);
+}
+
+describe("ProviderUsageService binding-aware usage via the providers option", () => {
+  let personalHome: string;
+  let workHome: string;
+
+  beforeEach(() => {
+    personalHome = mkdtempSync(join(tmpdir(), "paseo-service-claude-personal-"));
+    workHome = mkdtempSync(join(tmpdir(), "paseo-service-claude-work-"));
+    writeClaudeCredentials(personalHome, "token-personal");
+    writeClaudeCredentials(workHome, "token-work");
+  });
+
+  afterEach(() => {
+    rmSync(personalHome, { recursive: true, force: true });
+    rmSync(workHome, { recursive: true, force: true });
+  });
+
+  it("fetches per binding for claude/codex and leaves other fixed fetchers untouched", async () => {
+    const fetch = vi.fn(respondToTwoAccountClaudeRequest) as unknown as typeof fetch;
+    const service = new ProviderUsageService({
+      logger: createLogger(),
+      now: () => Date.parse("2026-06-19T00:00:00.000Z"),
+      fetch,
+    });
+
+    const result = await service.listUsage({
+      providers: [
+        bindingUsageProviderSummary({
+          providerId: "claude",
+          label: "Claude (Personal)",
+          env: { CLAUDE_CONFIG_DIR: personalHome },
+        }),
+        bindingUsageProviderSummary({
+          providerId: "claude-work",
+          label: "Claude (Work)",
+          derivedFromProviderId: "claude",
+          env: { CLAUDE_CONFIG_DIR: workHome },
+        }),
+      ],
+    });
+
+    const byId = new Map(result.providers.map((usage) => [usage.providerId, usage]));
+    expect(byId.get("claude")?.windows[0]?.usedPct).toBe(10);
+    expect(byId.get("claude-work")?.displayName).toBe("Claude (Work)");
+    expect(byId.get("claude-work")?.windows[0]?.usedPct).toBe(90);
+
+    // The fixed manifest fetchers for every other known provider still ran
+    // unmodified (none of them have credentials in this test, so none
+    // report "available") - only the claude/codex entries were replaced
+    // by binding-derived ones.
+    expect(byId.has("codex")).toBe(false);
+    for (const otherId of ["copilot", "cursor", "zai", "grok", "kimi", "minimax"]) {
+      expect(byId.get(otherId)?.status).not.toBe("available");
+    }
   });
 });
 

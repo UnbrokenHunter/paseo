@@ -5636,6 +5636,9 @@ test("sends accessModel.snapshot.request and resolves accessModel.snapshot.respo
             identityConfidence: "unknown",
           },
         ],
+        entitlements: [
+          { id: "ent:claude", accountId: "acct:claude", label: "Claude Code", planLabel: null },
+        ],
         bindings: [
           {
             id: "claude",
@@ -5672,6 +5675,9 @@ test("sends accessModel.snapshot.request and resolves accessModel.snapshot.respo
         label: "Claude Code",
         identityConfidence: "unknown",
       },
+    ],
+    entitlements: [
+      { id: "ent:claude", accountId: "acct:claude", label: "Claude Code", planLabel: null },
     ],
     bindings: [
       {

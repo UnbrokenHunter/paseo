@@ -1,5 +1,7 @@
 import type { Logger } from "pino";
+import type { RegisteredProviderSummary } from "../../server/agent/access-model/registry-summary.js";
 import type { ProviderUsage } from "../../server/messages.js";
+import { BINDING_AWARE_RUNTIME_IDS, buildBindingUsageFetchers } from "./binding-usage.js";
 import { createProviderUsageFetchers } from "./manifest.js";
 import type { ProviderApiFetch, ProviderUsageFetcher } from "./provider.js";
 import { unavailableUsage } from "./usage.js";
@@ -21,6 +23,7 @@ const DEFAULT_PROVIDER_USAGE_CACHE_TTL_MS = 5 * 60 * 1000;
 
 export class ProviderUsageService {
   private readonly logger: Logger;
+  private readonly fetchApi: ProviderApiFetch | undefined;
   private readonly fetchers: ProviderUsageFetcher[];
   private readonly cacheTtlMs: number;
   private readonly now: () => number;
@@ -29,6 +32,7 @@ export class ProviderUsageService {
 
   constructor(options: ProviderUsageServiceOptions) {
     this.logger = options.logger.child({ module: "provider-usage-service" });
+    this.fetchApi = options.fetch;
     this.fetchers =
       options.fetchers ??
       createProviderUsageFetchers({
@@ -39,7 +43,17 @@ export class ProviderUsageService {
     this.now = options.now ?? Date.now;
   }
 
-  async listUsage(options?: { forceRefresh?: boolean }): Promise<ProviderUsageListResult> {
+  async listUsage(options?: {
+    forceRefresh?: boolean;
+    /**
+     * When supplied, usage is fetched per binding for runtimes with a known
+     * config-dir credential convention (see binding-usage.ts) instead of the
+     * fixed single fetch per literal provider id. Omit to preserve the
+     * original construction-time fetcher list (e.g. existing tests/callers
+     * that don't have a provider registry to consult).
+     */
+    providers?: RegisteredProviderSummary[];
+  }): Promise<ProviderUsageListResult> {
     const nowMs = this.now();
     if (
       !options?.forceRefresh &&
@@ -53,7 +67,7 @@ export class ProviderUsageService {
       return this.inFlight;
     }
 
-    const request = this.fetchFreshUsage(nowMs);
+    const request = this.fetchFreshUsage(nowMs, options?.providers);
     this.inFlight = request;
     try {
       return await request;
@@ -64,10 +78,31 @@ export class ProviderUsageService {
     }
   }
 
-  private async fetchFreshUsage(nowMs: number): Promise<ProviderUsageListResult> {
-    const settled = await Promise.allSettled(this.fetchers.map((fetcher) => fetcher.fetchUsage()));
-    const providers = settled.map((result, index) => {
-      const fetcher = this.fetchers[index];
+  private resolveFetchers(
+    providers: RegisteredProviderSummary[] | undefined,
+  ): ProviderUsageFetcher[] {
+    if (!providers) {
+      return this.fetchers;
+    }
+    const bindingFetchers = buildBindingUsageFetchers(providers, {
+      logger: this.logger,
+      fetch: this.fetchApi,
+    });
+    const boundRuntimeIds = new Set(BINDING_AWARE_RUNTIME_IDS);
+    const remainingFixedFetchers = this.fetchers.filter(
+      (fetcher) => !boundRuntimeIds.has(fetcher.providerId),
+    );
+    return [...bindingFetchers, ...remainingFixedFetchers];
+  }
+
+  private async fetchFreshUsage(
+    nowMs: number,
+    providers: RegisteredProviderSummary[] | undefined,
+  ): Promise<ProviderUsageListResult> {
+    const fetchers = this.resolveFetchers(providers);
+    const settled = await Promise.allSettled(fetchers.map((fetcher) => fetcher.fetchUsage()));
+    const usage = settled.map((result, index) => {
+      const fetcher = fetchers[index];
       if (result.status === "fulfilled") {
         return result.value;
       }
@@ -82,7 +117,7 @@ export class ProviderUsageService {
       });
     });
 
-    const result = { fetchedAt: new Date(nowMs).toISOString(), providers };
+    const result = { fetchedAt: new Date(nowMs).toISOString(), providers: usage };
     this.cached = { fetchedAtMs: nowMs, result };
     return result;
   }

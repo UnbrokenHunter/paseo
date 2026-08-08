@@ -4,6 +4,7 @@ import type {
   AgentRuntime,
   Binding,
   CanonicalModel,
+  Entitlement,
   ModelFamily,
   Route,
 } from "@getpaseo/protocol/access-model";
@@ -14,6 +15,7 @@ import {
   deriveAgentRuntimes,
   deriveBindings,
   deriveCanonicalModels,
+  deriveEntitlements,
   deriveModelFamilies,
   deriveRoutes,
 } from "./derive.js";
@@ -23,6 +25,7 @@ export interface AccessModelSnapshot {
   agentRuntimes: AgentRuntime[];
   accessServices: AccessService[];
   accounts: Account[];
+  entitlements: Entitlement[];
   bindings: Binding[];
   modelFamilies: ModelFamily[];
   canonicalModels: CanonicalModel[];
@@ -37,6 +40,7 @@ export function buildAccessModelSnapshot(
     agentRuntimes: deriveAgentRuntimes(),
     accessServices: deriveAccessServices(providers),
     accounts: deriveAccounts(providers),
+    entitlements: deriveEntitlements(providers),
     bindings,
     modelFamilies: deriveModelFamilies(),
     canonicalModels: deriveCanonicalModels(),

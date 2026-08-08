@@ -7,6 +7,7 @@ import {
   deriveAgentRuntimes,
   deriveBindings,
   deriveCanonicalModels,
+  deriveEntitlements,
   deriveModelFamilies,
   deriveRoutes,
 } from "./derive.js";
@@ -20,6 +21,7 @@ const claude: RegisteredProviderSummary = {
   enabled: true,
   derivedFromProviderId: null,
   hasCustomEndpoint: false,
+  env: undefined,
 };
 
 const disabledCodex: RegisteredProviderSummary = {
@@ -29,6 +31,7 @@ const disabledCodex: RegisteredProviderSummary = {
   enabled: false,
   derivedFromProviderId: null,
   hasCustomEndpoint: false,
+  env: undefined,
 };
 
 const zai: RegisteredProviderSummary = {
@@ -38,6 +41,7 @@ const zai: RegisteredProviderSummary = {
   enabled: true,
   derivedFromProviderId: "claude",
   hasCustomEndpoint: true,
+  env: { ANTHROPIC_BASE_URL: "https://api.z.ai/api/anthropic" },
 };
 
 const qwen: RegisteredProviderSummary = {
@@ -47,6 +51,7 @@ const qwen: RegisteredProviderSummary = {
   enabled: true,
   derivedFromProviderId: "claude",
   hasCustomEndpoint: true,
+  env: { ANTHROPIC_BASE_URL: "https://coding-intl.dashscope.aliyuncs.com/apps/anthropic" },
 };
 
 const claudeTwo: RegisteredProviderSummary = {
@@ -56,6 +61,7 @@ const claudeTwo: RegisteredProviderSummary = {
   enabled: true,
   derivedFromProviderId: "claude",
   hasCustomEndpoint: false,
+  env: { CLAUDE_CONFIG_DIR: "/home/user/accounts/claude-two/.claude" },
 };
 
 describe("deriveAgentRuntimes", () => {
@@ -137,6 +143,30 @@ describe("deriveAccounts", () => {
   it("scopes a same-endpoint profile's account to the base runtime's access service", () => {
     const [account] = deriveAccounts([claudeTwo]);
     expect(account.accessServiceId).toBe("anthropic");
+  });
+});
+
+describe("deriveEntitlements", () => {
+  it("creates one entitlement per account, pointed at that account", () => {
+    const entitlements = deriveEntitlements([claude, claudeTwo]);
+    expect(entitlements.map((entitlement) => entitlement.id).sort()).toEqual([
+      "ent:claude",
+      "ent:claude-two",
+    ]);
+    const [claudeEntitlement, claudeTwoEntitlement] = [...entitlements].sort((a, b) =>
+      a.id.localeCompare(b.id),
+    );
+    expect(claudeEntitlement?.accountId).toBe("acct:claude");
+    expect(claudeTwoEntitlement?.accountId).toBe("acct:claude-two");
+  });
+
+  it("never merges two bindings into one entitlement even when they share an access service", () => {
+    // claude and claude-two both resolve to the "anthropic" access service
+    // (see deriveAccessServices), but neither has verified or user-linked
+    // identity evidence - each keeps its own entitlement.
+    const entitlements = deriveEntitlements([claude, claudeTwo]);
+    expect(entitlements).toHaveLength(2);
+    expect(new Set(entitlements.map((entitlement) => entitlement.id)).size).toBe(2);
   });
 });
 

@@ -20,6 +20,13 @@ export interface RegisteredProviderSummary {
    * derivedFromProviderId is set; see BASE_URL_ENV_KEY_BY_BUILTIN_RUNTIME.
    */
   hasCustomEndpoint: boolean;
+  /**
+   * This profile's own declared env (not merged with its base's). Lets
+   * downstream consumers (e.g. per-binding usage fetch) read a specific
+   * override key, such as CLAUDE_CONFIG_DIR, without re-plumbing raw
+   * provider overrides through another layer.
+   */
+  env: Record<string, string> | undefined;
 }
 
 function resolveHasCustomEndpoint(
@@ -52,5 +59,6 @@ export function summarizeProviderRegistry(
       providerId,
       providerOverrides,
     ),
+    env: providerOverrides[providerId]?.env,
   }));
 }

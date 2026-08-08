@@ -5,6 +5,7 @@ import {
   AgentRuntimeSchema,
   BindingSchema,
   CanonicalModelSchema,
+  EntitlementSchema,
   ModelFamilySchema,
   RouteSchema,
 } from "./access-model.js";
@@ -5074,6 +5075,13 @@ export const ProviderUsageDetailSchema = z.object({
 export const ProviderUsageSchema = z.object({
   providerId: z.string(),
   displayName: z.string(),
+  /**
+   * The base agent runtime this entry's provider/binding id was derived
+   * from (e.g. "claude" for both the "claude" and "claude-two" bindings).
+   * Absent when providerId already names a runtime directly. UI can use
+   * this to resolve an icon for a binding id it doesn't otherwise recognize.
+   */
+  runtimeId: z.string().optional(),
   status: ProviderUsageStatusSchema,
   planLabel: z.string().nullable(),
   sourceLabel: z.string().nullable().optional(),
@@ -5102,6 +5110,7 @@ export const AccessModelSnapshotResponseMessageSchema = z.object({
     agentRuntimes: z.array(AgentRuntimeSchema),
     accessServices: z.array(AccessServiceSchema),
     accounts: z.array(AccountSchema),
+    entitlements: z.array(EntitlementSchema),
     bindings: z.array(BindingSchema),
     modelFamilies: z.array(ModelFamilySchema),
     canonicalModels: z.array(CanonicalModelSchema),

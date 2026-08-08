@@ -29,6 +29,20 @@ export const BASE_URL_ENV_KEY_BY_BUILTIN_RUNTIME: Record<string, string> = {
   codex: "OPENAI_BASE_URL",
 };
 
+/**
+ * The env var a profile sets to point a builtin runtime's native credential
+ * storage at a different directory — the same convention the runtime's own
+ * agent launch code already reads (see providers/claude/project-dir.ts and
+ * the CodexQuotaProvider default). Two profiles that share a base runtime
+ * and differ only by this var are two accounts with independent credential
+ * files, which is exactly what a per-binding usage fetch needs to read the
+ * right file.
+ */
+export const CONFIG_DIR_ENV_KEY_BY_BUILTIN_RUNTIME: Record<string, string> = {
+  claude: "CLAUDE_CONFIG_DIR",
+  codex: "CODEX_HOME",
+};
+
 export const KNOWN_ACCESS_SERVICES: Record<string, AccessService> = {
   anthropic: { id: "anthropic", label: "Anthropic" },
   openai: { id: "openai", label: "OpenAI" },

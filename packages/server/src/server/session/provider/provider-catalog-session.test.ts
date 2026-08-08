@@ -299,6 +299,7 @@ describe("ProviderCatalogSession", () => {
             enabled: true,
             derivedFromProviderId: null,
             hasCustomEndpoint: false,
+            env: undefined,
           },
           {
             providerId: "zai",
@@ -307,6 +308,7 @@ describe("ProviderCatalogSession", () => {
             enabled: true,
             derivedFromProviderId: "claude",
             hasCustomEndpoint: true,
+            env: { ANTHROPIC_BASE_URL: "https://api.z.ai/api/anthropic" },
           },
         ],
       },
@@ -330,6 +332,10 @@ describe("ProviderCatalogSession", () => {
     expect(response?.payload.modelFamilies.map((family) => family.id)).toEqual(["claude"]);
     expect(response?.payload.routes.every((route) => route.bindingId === "claude")).toBe(true);
     expect(response?.payload.routes.some((route) => route.bindingId === "zai")).toBe(false);
+    expect(response?.payload.entitlements.map((entitlement) => entitlement.id).sort()).toEqual([
+      "ent:claude",
+      "ent:zai",
+    ]);
   });
 
   it("surfaces an access-model snapshot failure as an rpc_error envelope", async () => {
