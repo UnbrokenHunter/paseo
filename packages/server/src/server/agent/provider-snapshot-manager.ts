@@ -271,7 +271,7 @@ export class ProviderSnapshotManager {
   }
 
   getRegisteredProviderSummaries(): RegisteredProviderSummary[] {
-    return summarizeProviderRegistry(this.providerRegistry);
+    return summarizeProviderRegistry(this.providerRegistry, this.providerOverrides ?? {});
   }
 
   getAgentManagerProviderState(): AgentManagerProviderState {

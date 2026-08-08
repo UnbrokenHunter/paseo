@@ -298,6 +298,7 @@ describe("ProviderCatalogSession", () => {
             description: "Claude Code",
             enabled: true,
             derivedFromProviderId: null,
+            hasCustomEndpoint: false,
           },
           {
             providerId: "zai",
@@ -305,6 +306,7 @@ describe("ProviderCatalogSession", () => {
             description: "Claude with a Z.AI endpoint",
             enabled: true,
             derivedFromProviderId: "claude",
+            hasCustomEndpoint: true,
           },
         ],
       },
@@ -325,6 +327,9 @@ describe("ProviderCatalogSession", () => {
     const zaiBinding = response?.payload.bindings.find((binding) => binding.id === "zai");
     expect(zaiBinding?.agentRuntimeId).toBe("claude");
     expect(zaiBinding?.accessServiceId).toBe("unknown:zai");
+    expect(response?.payload.modelFamilies.map((family) => family.id)).toEqual(["claude"]);
+    expect(response?.payload.routes.every((route) => route.bindingId === "claude")).toBe(true);
+    expect(response?.payload.routes.some((route) => route.bindingId === "zai")).toBe(false);
   });
 
   it("surfaces an access-model snapshot failure as an rpc_error envelope", async () => {

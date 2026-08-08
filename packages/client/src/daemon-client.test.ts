@@ -5646,6 +5646,16 @@ test("sends accessModel.snapshot.request and resolves accessModel.snapshot.respo
             enabled: true,
           },
         ],
+        modelFamilies: [{ id: "claude", label: "Claude" }],
+        canonicalModels: [{ id: "claude-opus-5", familyId: "claude", label: "Opus 5" }],
+        routes: [
+          {
+            id: "claude::claude-opus-5",
+            canonicalModelId: "claude-opus-5",
+            bindingId: "claude",
+            modelId: "claude-opus-5",
+          },
+        ],
       },
     }),
   );
@@ -5671,6 +5681,16 @@ test("sends accessModel.snapshot.request and resolves accessModel.snapshot.respo
         accountId: "acct:claude",
         label: "Claude Code",
         enabled: true,
+      },
+    ],
+    modelFamilies: [{ id: "claude", label: "Claude" }],
+    canonicalModels: [{ id: "claude-opus-5", familyId: "claude", label: "Opus 5" }],
+    routes: [
+      {
+        id: "claude::claude-opus-5",
+        canonicalModelId: "claude-opus-5",
+        bindingId: "claude",
+        modelId: "claude-opus-5",
       },
     ],
   });

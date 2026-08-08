@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View, type PressableStateCallbackType } from "react-native";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import type { AgentProvider } from "@getpaseo/protocol/agent-types";
+import { useAccessModelSnapshot } from "@/access-model/use-access-model-snapshot";
 import { ComboboxTrigger } from "@/components/ui/combobox-trigger";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Combobox, type ComboboxOption, type ComboboxProps } from "@/components/ui/combobox";
 import { ModelBrowser, ModelProviderGlyph, useModelBrowser } from "@/components/model-browser";
 import { isNative, isWeb } from "@/constants/platform";
+import { buildModelFamilyGrouping } from "@/provider-selection/model-family-grouping";
 import type { ProviderSelectorProvider } from "@/provider-selection/provider-selection";
 import { ICON_SIZE, type Theme } from "@/styles/theme";
 
@@ -84,6 +86,15 @@ export function CombinedModelSelector({
   const anchorRef = useRef<View>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isContentReady, setIsContentReady] = useState(isWeb);
+  const { view: accessModelView } = useAccessModelSnapshot(serverId);
+  const familyGrouping = useMemo(
+    () =>
+      buildModelFamilyGrouping({
+        providers,
+        snapshot: accessModelView.kind === "ready" ? accessModelView.payload : null,
+      }),
+    [providers, accessModelView],
+  );
   const browser = useModelBrowser({
     providers,
     selectedProvider,
@@ -91,6 +102,7 @@ export function CombinedModelSelector({
     isLoading,
     favoriteKeys,
     serverId,
+    familyGrouping,
   });
   const { prepareToOpen, reset } = browser;
 

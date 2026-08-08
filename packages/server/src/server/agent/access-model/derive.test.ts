@@ -6,7 +6,11 @@ import {
   deriveAccounts,
   deriveAgentRuntimes,
   deriveBindings,
+  deriveCanonicalModels,
+  deriveModelFamilies,
+  deriveRoutes,
 } from "./derive.js";
+import { CLAUDE_MODEL_MANIFEST } from "../providers/claude/model-manifest.js";
 import type { RegisteredProviderSummary } from "./registry-summary.js";
 
 const claude: RegisteredProviderSummary = {
@@ -15,6 +19,7 @@ const claude: RegisteredProviderSummary = {
   description: "Claude Code",
   enabled: true,
   derivedFromProviderId: null,
+  hasCustomEndpoint: false,
 };
 
 const disabledCodex: RegisteredProviderSummary = {
@@ -23,6 +28,7 @@ const disabledCodex: RegisteredProviderSummary = {
   description: "Codex",
   enabled: false,
   derivedFromProviderId: null,
+  hasCustomEndpoint: false,
 };
 
 const zai: RegisteredProviderSummary = {
@@ -31,6 +37,7 @@ const zai: RegisteredProviderSummary = {
   description: "Claude with a Z.AI endpoint",
   enabled: true,
   derivedFromProviderId: "claude",
+  hasCustomEndpoint: true,
 };
 
 const qwen: RegisteredProviderSummary = {
@@ -39,6 +46,16 @@ const qwen: RegisteredProviderSummary = {
   description: "Claude with a Qwen endpoint",
   enabled: true,
   derivedFromProviderId: "claude",
+  hasCustomEndpoint: true,
+};
+
+const claudeTwo: RegisteredProviderSummary = {
+  providerId: "claude-two",
+  label: "Claude · Claude-Two",
+  description: "A second Anthropic account, same endpoint",
+  enabled: true,
+  derivedFromProviderId: "claude",
+  hasCustomEndpoint: false,
 };
 
 describe("deriveAgentRuntimes", () => {
@@ -74,10 +91,17 @@ describe("deriveBindings", () => {
     expect(binding.id).toBe("zai");
   });
 
-  it("does not inherit the base runtime's access service for a custom profile", () => {
+  it("does not inherit the base runtime's access service for a custom profile with a custom endpoint", () => {
     const [binding] = deriveBindings([zai]);
     expect(binding.accessServiceId).toBe("unknown:zai");
     expect(binding.accessServiceId).not.toBe("anthropic");
+  });
+
+  it("inherits the base runtime's access service for a same-endpoint profile", () => {
+    const [binding] = deriveBindings([claudeTwo]);
+    expect(binding.agentRuntimeId).toBe("claude");
+    expect(binding.id).toBe("claude-two");
+    expect(binding.accessServiceId).toBe("anthropic");
   });
 });
 
@@ -91,6 +115,11 @@ describe("deriveAccessServices", () => {
     const services = deriveAccessServices([zai, qwen]);
     expect(services.map((service) => service.id).sort()).toEqual(["unknown:qwen", "unknown:zai"]);
   });
+
+  it("dedupes a same-endpoint profile into its base runtime's access service", () => {
+    const services = deriveAccessServices([claude, claudeTwo]);
+    expect(services.map((service) => service.id)).toEqual(["anthropic"]);
+  });
 });
 
 describe("deriveAccounts", () => {
@@ -103,5 +132,53 @@ describe("deriveAccounts", () => {
   it("scopes each account to the provider's resolved access service", () => {
     const [account] = deriveAccounts([zai]);
     expect(account.accessServiceId).toBe("unknown:zai");
+  });
+
+  it("scopes a same-endpoint profile's account to the base runtime's access service", () => {
+    const [account] = deriveAccounts([claudeTwo]);
+    expect(account.accessServiceId).toBe("anthropic");
+  });
+});
+
+describe("deriveModelFamilies", () => {
+  it("returns the claude model family", () => {
+    const families = deriveModelFamilies();
+    expect(families.map((family) => family.id)).toEqual(["claude"]);
+  });
+});
+
+describe("deriveCanonicalModels", () => {
+  it("returns one canonical model per entry in the claude manifest", () => {
+    const canonicalModels = deriveCanonicalModels();
+    expect(canonicalModels.map((model) => model.id).sort()).toEqual(
+      CLAUDE_MODEL_MANIFEST.map((model) => model.id).sort(),
+    );
+    expect(canonicalModels.every((model) => model.familyId === "claude")).toBe(true);
+  });
+});
+
+describe("deriveRoutes", () => {
+  it("routes the claude binding to every canonical claude model", () => {
+    const [binding] = deriveBindings([claude]);
+    const routes = deriveRoutes([binding]);
+    expect(routes.map((route) => route.canonicalModelId).sort()).toEqual(
+      CLAUDE_MODEL_MANIFEST.map((model) => model.id).sort(),
+    );
+    expect(routes.every((route) => route.bindingId === "claude")).toBe(true);
+    expect(routes.every((route) => route.modelId === route.canonicalModelId)).toBe(true);
+  });
+
+  it("does not route a custom profile with a custom endpoint", () => {
+    const [binding] = deriveBindings([zai]);
+    expect(deriveRoutes([binding])).toEqual([]);
+  });
+
+  it("routes a same-endpoint profile to every canonical claude model under its own binding id", () => {
+    const [binding] = deriveBindings([claudeTwo]);
+    const routes = deriveRoutes([binding]);
+    expect(routes.map((route) => route.canonicalModelId).sort()).toEqual(
+      CLAUDE_MODEL_MANIFEST.map((model) => model.id).sort(),
+    );
+    expect(routes.every((route) => route.bindingId === "claude-two")).toBe(true);
   });
 });

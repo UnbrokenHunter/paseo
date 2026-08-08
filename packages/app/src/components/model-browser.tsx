@@ -25,6 +25,11 @@ import { getProviderIcon } from "@/components/provider-icons";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isNative, isWeb } from "@/constants/platform";
 import {
+  EMPTY_MODEL_FAMILY_GROUPING,
+  type ModelFamilyGroup,
+  type ModelFamilyGrouping,
+} from "@/provider-selection/model-family-grouping";
+import {
   buildSelectedTriggerLabel,
   filterAndRankModelRows,
   getAllProviderModelRows,
@@ -116,6 +121,7 @@ interface ModelBrowserInput {
   isLoading: boolean;
   favoriteKeys: Set<string>;
   serverId?: string | null;
+  familyGrouping?: ModelFamilyGrouping;
 }
 
 export interface ModelBrowserState {
@@ -123,6 +129,7 @@ export interface ModelBrowserState {
   selectedProvider: string;
   selectedModel: string;
   favoriteKeys: Set<string>;
+  familyGrouping: ModelFamilyGrouping;
   view: ModelBrowserView;
   searchQuery: string;
   header: SheetHeader;
@@ -133,6 +140,8 @@ export interface ModelBrowserState {
   prepareToOpen: () => void;
   reset: () => void;
   drillDown: (providerId: string, providerLabel: string) => void;
+  drillIntoFamily: (group: ModelFamilyGroup) => void;
+  switchFamilyAccess: (providerId: string) => void;
 }
 
 interface ModelBrowserProps {
@@ -151,7 +160,10 @@ interface ModelBrowserContentProps extends Omit<ModelBrowserProps, "state" | "sc
   selectedModel: string;
   searchQuery: string;
   favoriteKeys: Set<string>;
+  familyGrouping: ModelFamilyGrouping;
   onDrillDown: (providerId: string, providerLabel: string) => void;
+  onDrillIntoFamily: (group: ModelFamilyGroup) => void;
+  onSwitchFamilyAccess: (providerId: string) => void;
   scrolling: "sheet" | "independent";
 }
 
@@ -204,7 +216,18 @@ function iconButtonStyle({ hovered, pressed }: PressableStateCallbackType & { ho
 function resolveDesktopFixedHeight(
   view: ModelBrowserView,
   providers: ProviderSelectorProvider[],
+  familyGrouping: ModelFamilyGrouping,
 ): number | undefined {
+  if (view.kind === "family") {
+    const modelCount = familyGrouping.modelRowsByProviderId.get(view.providerId)?.length ?? 0;
+    return Math.min(
+      Math.max(
+        DESKTOP_PROVIDER_VIEW_MIN_HEIGHT,
+        DESKTOP_PROVIDER_VIEW_BASE_HEIGHT + modelCount * DESKTOP_MODEL_ROW_HEIGHT,
+      ),
+      DESKTOP_PROVIDER_VIEW_MAX_HEIGHT,
+    );
+  }
   if (view.kind !== "provider") {
     return undefined;
   }
@@ -229,6 +252,7 @@ export function useModelBrowser({
   isLoading,
   favoriteKeys,
   serverId = null,
+  familyGrouping = EMPTY_MODEL_FAMILY_GROUPING,
 }: ModelBrowserInput): ModelBrowserState {
   const { t } = useTranslation();
   const [view, setView] = useState<ModelBrowserView>({ kind: "all" });
@@ -242,8 +266,9 @@ export function useModelBrowser({
         selectedProvider,
         selectedModel,
         favoriteKeys,
+        familyGroupByProviderId: familyGrouping.groupByProviderId,
       }),
-    [favoriteKeys, providers, selectedModel, selectedProvider],
+    [familyGrouping, favoriteKeys, providers, selectedModel, selectedProvider],
   );
 
   const prepareToOpen = useCallback(() => {
@@ -264,6 +289,39 @@ export function useModelBrowser({
     setView({ kind: "provider", providerId, providerLabel });
   }, []);
 
+  const drillIntoFamily = useCallback(
+    (group: ModelFamilyGroup) => {
+      const providerId = group.providerIds.includes(selectedProvider)
+        ? selectedProvider
+        : (group.providerIds[0] ?? "");
+      setView({
+        kind: "family",
+        familyId: group.familyId,
+        familyLabel: group.familyLabel,
+        providerId,
+        providerLabel: group.providerLabelById.get(providerId) ?? providerId,
+      });
+    },
+    [selectedProvider],
+  );
+
+  const switchFamilyAccess = useCallback(
+    (providerId: string) => {
+      setView((current) => {
+        if (current.kind !== "family") {
+          return current;
+        }
+        const group = familyGrouping.groupByProviderId.get(current.providerId);
+        return {
+          ...current,
+          providerId,
+          providerLabel: group?.providerLabelById.get(providerId) ?? providerId,
+        };
+      });
+    },
+    [familyGrouping],
+  );
+
   const handleSearchQueryChange = useCallback((value: string) => {
     setSearchQuery(value);
   }, []);
@@ -273,12 +331,14 @@ export function useModelBrowser({
     if (view.kind === "all") {
       return { title: t("modelSelector.title") };
     }
+    const title = view.kind === "family" ? view.familyLabel : view.providerLabel;
     return {
-      title: view.providerLabel,
+      title,
       leading: (
         <ModelProviderGlyph provider={view.providerId} size={ICON_SIZE.md} tone="foreground" />
       ),
-      back: singleProviderView ? undefined : { onPress: handleBackToAll },
+      back:
+        view.kind === "family" || !singleProviderView ? { onPress: handleBackToAll } : undefined,
       actions: (
         <ProviderSettingsAction
           serverId={serverId}
@@ -290,7 +350,7 @@ export function useModelBrowser({
       ),
       search: {
         onChange: handleSearchQueryChange,
-        resetKey: `${view.providerId}:${searchResetKey}`,
+        resetKey: `${view.kind}:${view.kind === "family" ? view.familyId : view.providerId}:${searchResetKey}`,
         placeholder: t("modelSelector.searchPlaceholder"),
         autoFocus: isWeb,
         testID: "model-search-input",
@@ -325,8 +385,8 @@ export function useModelBrowser({
   }, [selectedModelLabel, t]);
 
   const desktopFixedHeight = useMemo(
-    () => resolveDesktopFixedHeight(view, providers),
-    [providers, view],
+    () => resolveDesktopFixedHeight(view, providers, familyGrouping),
+    [familyGrouping, providers, view],
   );
 
   return {
@@ -334,16 +394,19 @@ export function useModelBrowser({
     selectedProvider,
     selectedModel,
     favoriteKeys,
+    familyGrouping,
     view,
     searchQuery,
     header,
     selectedModelLabel,
     triggerLabel,
     desktopFixedHeight,
-    isProviderView: view.kind === "provider",
+    isProviderView: view.kind === "provider" || view.kind === "family",
     prepareToOpen,
     reset,
     drillDown,
+    drillIntoFamily,
+    switchFamilyAccess,
   };
 }
 
@@ -719,22 +782,172 @@ function GroupProviderButton({
   );
 }
 
+function GroupFamilyButton({
+  group,
+  representative,
+  onDrillIntoFamily,
+}: {
+  group: ModelFamilyGroup;
+  representative: ProviderSelectorProvider;
+  onDrillIntoFamily: (group: ModelFamilyGroup) => void;
+}) {
+  const { t } = useTranslation();
+  const handlePress = useCallback(() => {
+    onDrillIntoFamily(group);
+  }, [group, onDrillIntoFamily]);
+  const leadingSlot = useMemo(
+    () => <ModelProviderGlyph provider={representative.id} size={ICON_SIZE.sm} />,
+    [representative.id],
+  );
+  const trailingSlot = useMemo(() => {
+    const count = group.providerIds.length;
+    return (
+      <View style={styles.drillDownTrailing}>
+        <Text style={styles.drillDownCount}>
+          {t(count === 1 ? "modelSelector.accessCount" : "modelSelector.accessCountPlural", {
+            count,
+          })}
+        </Text>
+        <ThemedChevronRight size={ICON_SIZE.sm} uniProps={foregroundMutedMapping} />
+      </View>
+    );
+  }, [group.providerIds.length, t]);
+
+  return (
+    <ModelBrowserRow
+      label={group.familyLabel}
+      leadingSlot={leadingSlot}
+      trailingSlot={trailingSlot}
+      tone="drillDown"
+      spacing="provider"
+      onPress={handlePress}
+      testID={`model-family-${group.familyId}`}
+    />
+  );
+}
+
+type AllPageEntry =
+  | { kind: "provider"; provider: ProviderSelectorProvider }
+  | { kind: "family"; group: ModelFamilyGroup; representative: ProviderSelectorProvider };
+
+function buildAllPageEntries(
+  providers: ProviderSelectorProvider[],
+  groupByProviderId: Map<string, ModelFamilyGroup>,
+): AllPageEntry[] {
+  const entries: AllPageEntry[] = [];
+  const seenFamilyIds = new Set<string>();
+  for (const provider of providers) {
+    const group = groupByProviderId.get(provider.id);
+    if (!group) {
+      entries.push({ kind: "provider", provider });
+      continue;
+    }
+    if (seenFamilyIds.has(group.familyId)) {
+      continue;
+    }
+    seenFamilyIds.add(group.familyId);
+    entries.push({ kind: "family", group, representative: provider });
+  }
+  return entries;
+}
+
+function allPageEntryKey(entry: AllPageEntry): string {
+  return entry.kind === "family"
+    ? `family:${entry.group.familyId}`
+    : `provider:${entry.provider.id}`;
+}
+
 function GroupedProviderRows({
   providers,
+  familyGroupByProviderId,
   onDrillDown,
+  onDrillIntoFamily,
 }: {
   providers: ProviderSelectorProvider[];
+  familyGroupByProviderId: Map<string, ModelFamilyGroup>;
   onDrillDown: (providerId: string, providerLabel: string) => void;
+  onDrillIntoFamily: (group: ModelFamilyGroup) => void;
 }) {
+  const entries = useMemo(
+    () => buildAllPageEntries(providers, familyGroupByProviderId),
+    [providers, familyGroupByProviderId],
+  );
   return (
     <View>
-      {providers.map((provider, index) => (
-        <View key={provider.id}>
+      {entries.map((entry, index) => (
+        <View key={allPageEntryKey(entry)}>
           {index > 0 ? <View style={styles.separator} /> : null}
-          <GroupProviderButton provider={provider} onDrillDown={onDrillDown} />
+          {entry.kind === "provider" ? (
+            <GroupProviderButton provider={entry.provider} onDrillDown={onDrillDown} />
+          ) : (
+            <GroupFamilyButton
+              group={entry.group}
+              representative={entry.representative}
+              onDrillIntoFamily={onDrillIntoFamily}
+            />
+          )}
         </View>
       ))}
     </View>
+  );
+}
+
+function FamilyAccessSwitcher({
+  group,
+  selectedProviderId,
+  onSwitchFamilyAccess,
+}: {
+  group: ModelFamilyGroup;
+  selectedProviderId: string;
+  onSwitchFamilyAccess: (providerId: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.favoritesContainer}>
+      <View style={styles.sectionHeading}>
+        <Text style={styles.sectionHeadingText}>{t("modelSelector.access")}</Text>
+      </View>
+      {group.providerIds.map((providerId) => (
+        <FamilyAccessRow
+          key={providerId}
+          providerId={providerId}
+          label={group.providerLabelById.get(providerId) ?? providerId}
+          isSelected={providerId === selectedProviderId}
+          onSwitchFamilyAccess={onSwitchFamilyAccess}
+        />
+      ))}
+    </View>
+  );
+}
+
+function FamilyAccessRow({
+  providerId,
+  label,
+  isSelected,
+  onSwitchFamilyAccess,
+}: {
+  providerId: string;
+  label: string;
+  isSelected: boolean;
+  onSwitchFamilyAccess: (providerId: string) => void;
+}) {
+  const handlePress = useCallback(() => {
+    onSwitchFamilyAccess(providerId);
+  }, [onSwitchFamilyAccess, providerId]);
+  const leadingSlot = useMemo(
+    () => <ModelProviderGlyph provider={providerId} size={ICON_SIZE.sm} />,
+    [providerId],
+  );
+
+  return (
+    <ModelBrowserRow
+      label={label}
+      selected={isSelected}
+      selectionIndicator
+      leadingSlot={leadingSlot}
+      onPress={handlePress}
+      testID={`model-family-access-${providerId}`}
+    />
   );
 }
 
@@ -866,9 +1079,43 @@ function ProviderModelRows({
   }
 
   return (
+    <PlainModelRows
+      rows={displayRows}
+      selectedProvider={selectedProvider}
+      selectedModel={selectedModel}
+      favoriteKeys={favoriteKeys}
+      onSelect={onSelect}
+      onToggleFavorite={onToggleFavorite}
+    />
+  );
+}
+
+function PlainModelRows({
+  rows,
+  selectedProvider,
+  selectedModel,
+  favoriteKeys,
+  onSelect,
+  onToggleFavorite,
+}: {
+  rows: ProviderSelectionModelRow[];
+  selectedProvider: string;
+  selectedModel: string;
+  favoriteKeys: Set<string>;
+  onSelect: (provider: string, modelId: string) => void;
+  onToggleFavorite?: (provider: string, modelId: string) => void;
+}) {
+  return (
     <View>
-      {displayRows.map((row) => (
-        <View key={row.favoriteKey}>{renderItem({ item: row })}</View>
+      {rows.map((row) => (
+        <SelectableModelRow
+          key={row.favoriteKey}
+          row={row}
+          isSelected={row.provider === selectedProvider && row.modelId === selectedModel}
+          isFavorite={favoriteKeys.has(row.favoriteKey)}
+          onSelect={onSelect}
+          onToggleFavorite={onToggleFavorite}
+        />
       ))}
     </View>
   );
@@ -909,9 +1156,12 @@ function ModelBrowserContent({
   selectedModel,
   searchQuery,
   favoriteKeys,
+  familyGrouping,
   onSelect,
   onToggleFavorite,
   onDrillDown,
+  onDrillIntoFamily,
+  onSwitchFamilyAccess,
   onRetryProvider,
   isRetryingProvider = false,
   scrolling,
@@ -932,6 +1182,16 @@ function ModelBrowserContent({
         : [],
     [normalizedQuery, selectedViewProvider],
   );
+  const familyRows = useMemo(() => {
+    if (view.kind !== "family") {
+      return [];
+    }
+    const rows = filterAndRankModelRows(
+      familyGrouping.modelRowsByProviderId.get(view.providerId) ?? [],
+      normalizedQuery,
+    );
+    return normalizedQuery ? rows : sortFavoritesFirst(rows, favoriteKeys);
+  }, [familyGrouping, favoriteKeys, normalizedQuery, view]);
   const favoriteRows = useMemo(
     () => getAllProviderModelRows(providers).filter((row) => favoriteKeys.has(row.favoriteKey)),
     [favoriteKeys, providers],
@@ -943,6 +1203,39 @@ function ModelBrowserContent({
       <Text style={styles.emptyStateText}>{t("modelSelector.noMatches")}</Text>
     </View>
   );
+
+  if (view.kind === "family") {
+    const group = familyGrouping.groupByProviderId.get(view.providerId);
+    const accessSwitcher = group ? (
+      <FamilyAccessSwitcher
+        group={group}
+        selectedProviderId={view.providerId}
+        onSwitchFamilyAccess={onSwitchFamilyAccess}
+      />
+    ) : null;
+    const familyContent = (
+      <View>
+        {accessSwitcher}
+        {familyRows.length > 0 ? (
+          <PlainModelRows
+            rows={familyRows}
+            selectedProvider={selectedProvider}
+            selectedModel={selectedModel}
+            favoriteKeys={favoriteKeys}
+            onSelect={onSelect}
+            onToggleFavorite={onToggleFavorite}
+          />
+        ) : (
+          emptyState
+        )}
+      </View>
+    );
+    return scrolling === "independent" ? (
+      <IndependentProviderList>{familyContent}</IndependentProviderList>
+    ) : (
+      familyContent
+    );
+  }
 
   if (view.kind === "provider") {
     if (!selectedViewProvider) return emptyState;
@@ -993,7 +1286,12 @@ function ModelBrowserContent({
         onToggleFavorite={onToggleFavorite}
       />
       {providers.length > 0 ? (
-        <GroupedProviderRows providers={providers} onDrillDown={onDrillDown} />
+        <GroupedProviderRows
+          providers={providers}
+          familyGroupByProviderId={familyGrouping.groupByProviderId}
+          onDrillDown={onDrillDown}
+          onDrillIntoFamily={onDrillIntoFamily}
+        />
       ) : null}
       {!hasResults ? emptyState : null}
     </View>
@@ -1022,9 +1320,12 @@ export function ModelBrowser({
       selectedModel={state.selectedModel}
       searchQuery={state.searchQuery}
       favoriteKeys={state.favoriteKeys}
+      familyGrouping={state.familyGrouping}
       onSelect={onSelect}
       onToggleFavorite={onToggleFavorite}
       onDrillDown={state.drillDown}
+      onDrillIntoFamily={state.drillIntoFamily}
+      onSwitchFamilyAccess={state.switchFamilyAccess}
       onRetryProvider={onRetryProvider}
       isRetryingProvider={isRetryingProvider}
       scrolling={scrolling}

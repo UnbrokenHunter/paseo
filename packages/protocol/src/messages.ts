@@ -4,6 +4,9 @@ import {
   AccountSchema,
   AgentRuntimeSchema,
   BindingSchema,
+  CanonicalModelSchema,
+  ModelFamilySchema,
+  RouteSchema,
 } from "./access-model.js";
 import { TerminalActivitySchema } from "./terminal-activity.js";
 import { CLIENT_CAPS } from "./client-capabilities.js";
@@ -5100,6 +5103,9 @@ export const AccessModelSnapshotResponseMessageSchema = z.object({
     accessServices: z.array(AccessServiceSchema),
     accounts: z.array(AccountSchema),
     bindings: z.array(BindingSchema),
+    modelFamilies: z.array(ModelFamilySchema),
+    canonicalModels: z.array(CanonicalModelSchema),
+    routes: z.array(RouteSchema),
   }),
 });
 

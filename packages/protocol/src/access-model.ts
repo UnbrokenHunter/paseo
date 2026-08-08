@@ -82,10 +82,13 @@ export const BindingSchema = z.object({
 export type Binding = z.infer<typeof BindingSchema>;
 
 // A capability resolution from a canonical model to the binding that can
-// currently serve it.
+// currently serve it. `modelId` is the runtime-facing model id to send that
+// binding when using this route — distinct from `canonicalModelId`, which is
+// runtime-independent.
 export const RouteSchema = z.object({
   id: z.string(),
   canonicalModelId: z.string(),
   bindingId: z.string(),
+  modelId: z.string(),
 });
 export type Route = z.infer<typeof RouteSchema>;

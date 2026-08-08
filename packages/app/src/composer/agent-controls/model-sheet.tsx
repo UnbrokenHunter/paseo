@@ -3,11 +3,13 @@ import { useTranslation } from "react-i18next";
 import { Keyboard, ScrollView, Text, View, type PressableStateCallbackType } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import type { AgentProvider } from "@getpaseo/protocol/agent-types";
+import { useAccessModelSnapshot } from "@/access-model/use-access-model-snapshot";
 import { AdaptiveModalSheet } from "@/components/adaptive-modal-sheet";
 import { ComboboxTrigger } from "@/components/ui/combobox-trigger";
 import { getProviderIcon } from "@/components/provider-icons";
 import { ModelBrowser, useModelBrowser } from "@/components/model-browser";
 import { ComposerToolbarGlyph } from "@/composer/agent-controls/glyph";
+import { buildModelFamilyGrouping } from "@/provider-selection/model-family-grouping";
 import type { ProviderSelectorProvider } from "@/provider-selection/provider-selection";
 import { useIsCompactFormFactor } from "@/constants/layout";
 
@@ -61,6 +63,15 @@ export function CompactModelSheet({
   const { t } = useTranslation();
   const usesBottomSheet = useIsCompactFormFactor();
   const [isOpen, setIsOpen] = useState(false);
+  const { view: accessModelView } = useAccessModelSnapshot(serverId);
+  const familyGrouping = useMemo(
+    () =>
+      buildModelFamilyGrouping({
+        providers,
+        snapshot: accessModelView.kind === "ready" ? accessModelView.payload : null,
+      }),
+    [providers, accessModelView],
+  );
   const browser = useModelBrowser({
     providers,
     selectedProvider,
@@ -68,6 +79,7 @@ export function CompactModelSheet({
     isLoading,
     favoriteKeys,
     serverId,
+    familyGrouping,
   });
   const { prepareToOpen, reset } = browser;
   const ProviderIcon =
