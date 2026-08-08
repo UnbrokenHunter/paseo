@@ -5593,6 +5593,89 @@ test("sends provider.usage.list.request and resolves provider.usage.list.respons
   });
 });
 
+test("sends accessModel.snapshot.request and resolves accessModel.snapshot.response", async () => {
+  const logger = createMockLogger();
+  const mock = createMockTransport();
+
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "clsk_unit_test",
+    logger,
+    reconnect: { enabled: false },
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+
+  const connectPromise = client.connect();
+  mock.triggerOpen();
+  await connectPromise;
+
+  const snapshotPromise = client.getAccessModelSnapshot({ requestId: "am-1" });
+
+  expect(JSON.parse(assertStr(mock.sent[0]))).toEqual({
+    type: "session",
+    message: {
+      type: "accessModel.snapshot.request",
+      requestId: "am-1",
+    },
+  });
+
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "accessModel.snapshot.response",
+      payload: {
+        requestId: "am-1",
+        fetchedAt: "2026-06-19T00:00:00.000Z",
+        agentRuntimes: [{ id: "claude", label: "Claude Code" }],
+        accessServices: [{ id: "anthropic", label: "Anthropic" }],
+        accounts: [
+          {
+            id: "acct:claude",
+            accessServiceId: "anthropic",
+            label: "Claude Code",
+            identityConfidence: "unknown",
+          },
+        ],
+        bindings: [
+          {
+            id: "claude",
+            agentRuntimeId: "claude",
+            accessServiceId: "anthropic",
+            accountId: "acct:claude",
+            label: "Claude Code",
+            enabled: true,
+          },
+        ],
+      },
+    }),
+  );
+
+  await expect(snapshotPromise).resolves.toEqual({
+    requestId: "am-1",
+    fetchedAt: "2026-06-19T00:00:00.000Z",
+    agentRuntimes: [{ id: "claude", label: "Claude Code" }],
+    accessServices: [{ id: "anthropic", label: "Anthropic" }],
+    accounts: [
+      {
+        id: "acct:claude",
+        accessServiceId: "anthropic",
+        label: "Claude Code",
+        identityConfidence: "unknown",
+      },
+    ],
+    bindings: [
+      {
+        id: "claude",
+        agentRuntimeId: "claude",
+        accessServiceId: "anthropic",
+        accountId: "acct:claude",
+        label: "Claude Code",
+        enabled: true,
+      },
+    ],
+  });
+});
+
 test("sends close_items_request and resolves close_items_response", async () => {
   const logger = createMockLogger();
   const mock = createMockTransport();

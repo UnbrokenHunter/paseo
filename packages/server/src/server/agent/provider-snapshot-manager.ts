@@ -28,6 +28,10 @@ import {
   shutdownAgentClients,
   type ProviderDefinition,
 } from "./provider-registry.js";
+import {
+  summarizeProviderRegistry,
+  type RegisteredProviderSummary,
+} from "./access-model/registry-summary.js";
 import { BUILTIN_PROVIDER_IDS } from "@getpaseo/protocol/provider-manifest";
 import { applyMutableProviderConfigToOverrides } from "../daemon-config-store.js";
 import {
@@ -264,6 +268,10 @@ export class ProviderSnapshotManager {
 
   getProviderLabel(provider: AgentProvider): string {
     return this.providerRegistry[provider]?.label ?? provider;
+  }
+
+  getRegisteredProviderSummaries(): RegisteredProviderSummary[] {
+    return summarizeProviderRegistry(this.providerRegistry);
   }
 
   getAgentManagerProviderState(): AgentManagerProviderState {

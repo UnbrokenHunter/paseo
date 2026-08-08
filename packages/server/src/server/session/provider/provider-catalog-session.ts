@@ -19,6 +19,7 @@ import {
 } from "../../agent/agent-sdk-types.js";
 import type { ProviderAvailability } from "../../agent/agent-manager.js";
 import type { ProviderUsageService } from "../../../services/quota-fetcher/service.js";
+import { buildAccessModelSnapshot } from "../../agent/access-model/snapshot.js";
 import { expandTilde } from "../../../utils/path.js";
 
 // COMPAT(customModeIcons): the only mode icons known to clients before v0.1.84. Any
@@ -499,6 +500,36 @@ export class ProviderCatalogSession {
           requestType: msg.type,
           error: `Failed to list provider usage: ${err.message}`,
           code: "provider_usage_list_failed",
+        },
+      });
+    }
+  }
+
+  async handleAccessModelSnapshotRequest(
+    msg: Extract<SessionInboundMessage, { type: "accessModel.snapshot.request" }>,
+  ): Promise<void> {
+    try {
+      const snapshot = buildAccessModelSnapshot(
+        this.providerSnapshotManager.getRegisteredProviderSummaries(),
+      );
+      this.host.emit({
+        type: "accessModel.snapshot.response",
+        payload: {
+          requestId: msg.requestId,
+          fetchedAt: new Date().toISOString(),
+          ...snapshot,
+        },
+      });
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error({ err }, "Failed to build access model snapshot");
+      this.host.emit({
+        type: "rpc_error",
+        payload: {
+          requestId: msg.requestId,
+          requestType: msg.type,
+          error: `Failed to build access model snapshot: ${err.message}`,
+          code: "access_model_snapshot_failed",
         },
       });
     }

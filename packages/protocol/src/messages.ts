@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  AccessServiceSchema,
+  AccountSchema,
+  AgentRuntimeSchema,
+  BindingSchema,
+} from "./access-model.js";
 import { TerminalActivitySchema } from "./terminal-activity.js";
 import { CLIENT_CAPS } from "./client-capabilities.js";
 import { AGENT_LIFECYCLE_STATUSES } from "./agent-lifecycle.js";
@@ -1374,6 +1380,11 @@ export const ProviderUsageListRequestMessageSchema = z.object({
   requestId: z.string(),
 });
 
+export const AccessModelSnapshotRequestMessageSchema = z.object({
+  type: z.literal("accessModel.snapshot.request"),
+  requestId: z.string(),
+});
+
 export const ResumeAgentRequestMessageSchema = z.object({
   type: z.literal("resume_agent_request"),
   handle: AgentPersistenceHandleSchema,
@@ -2578,6 +2589,7 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   RefreshProvidersSnapshotRequestMessageSchema,
   ProviderDiagnosticRequestMessageSchema,
   ProviderUsageListRequestMessageSchema,
+  AccessModelSnapshotRequestMessageSchema,
   ResumeAgentRequestMessageSchema,
   ImportAgentRequestMessageSchema,
   RefreshAgentRequestMessageSchema,
@@ -2896,6 +2908,8 @@ export const ServerInfoStatusPayloadSchema = z
         workspaceFileEditing: z.boolean().optional(),
         // COMPAT(providerUsageList): added in v0.1.98, drop the gate when daemon floor >= v0.1.98.
         providerUsageList: z.boolean().optional(),
+        // COMPAT(accessModelSnapshot): added in v0.3.0-beta.5, drop the gate when daemon floor >= v0.3.0-beta.5.
+        accessModelSnapshot: z.boolean().optional(),
         // COMPAT(agentDetach): added in v0.1.98, remove gate after 2026-12-19 once daemon floor >= v0.1.98.
         agentDetach: z.boolean().optional(),
         // COMPAT(agentThinkingUpdate): added in v0.2.4, remove gate after 2027-01-28.
@@ -5077,6 +5091,18 @@ export const ProviderUsageListResponseMessageSchema = z.object({
   }),
 });
 
+export const AccessModelSnapshotResponseMessageSchema = z.object({
+  type: z.literal("accessModel.snapshot.response"),
+  payload: z.object({
+    requestId: z.string(),
+    fetchedAt: z.string(),
+    agentRuntimes: z.array(AgentRuntimeSchema),
+    accessServices: z.array(AccessServiceSchema),
+    accounts: z.array(AccountSchema),
+    bindings: z.array(BindingSchema),
+  }),
+});
+
 const AgentSlashCommandSchema = z.object({
   name: z.string(),
   description: z.string(),
@@ -5480,6 +5506,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   RefreshProvidersSnapshotResponseMessageSchema,
   ProviderDiagnosticResponseMessageSchema,
   ProviderUsageListResponseMessageSchema,
+  AccessModelSnapshotResponseMessageSchema,
   ListCommandsResponseSchema,
   ListTerminalsResponseSchema,
   TerminalsChangedSchema,
@@ -5660,6 +5687,9 @@ export type ProviderUsageBalance = z.infer<typeof ProviderUsageBalanceSchema>;
 export type ProviderUsageDetail = z.infer<typeof ProviderUsageDetailSchema>;
 export type ProviderUsageListResponseMessage = z.infer<
   typeof ProviderUsageListResponseMessageSchema
+>;
+export type AccessModelSnapshotResponseMessage = z.infer<
+  typeof AccessModelSnapshotResponseMessageSchema
 >;
 export type ChatCreateResponse = z.infer<typeof ChatCreateResponseSchema>;
 export type ChatListResponse = z.infer<typeof ChatListResponseSchema>;

@@ -2224,6 +2224,8 @@ export class Session {
         return this.providerCatalogSession.handleProviderDiagnosticRequest(msg);
       case "provider.usage.list.request":
         return this.providerCatalogSession.handleProviderUsageListRequest(msg);
+      case "accessModel.snapshot.request":
+        return this.providerCatalogSession.handleAccessModelSnapshotRequest(msg);
       default:
         return undefined;
     }

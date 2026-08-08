@@ -288,6 +288,64 @@ describe("ProviderCatalogSession", () => {
     expect(err?.payload.requestId).toBe("u1");
   });
 
+  it("derives an access model snapshot from the registered providers", async () => {
+    const { subsystem, emitted } = makeSubsystem({
+      snapshot: {
+        getRegisteredProviderSummaries: () => [
+          {
+            providerId: "claude",
+            label: "Claude Code",
+            description: "Claude Code",
+            enabled: true,
+            derivedFromProviderId: null,
+          },
+          {
+            providerId: "zai",
+            label: "ZAI",
+            description: "Claude with a Z.AI endpoint",
+            enabled: true,
+            derivedFromProviderId: "claude",
+          },
+        ],
+      },
+    });
+
+    await subsystem.handleAccessModelSnapshotRequest({
+      type: "accessModel.snapshot.request",
+      requestId: "am1",
+    });
+
+    const response = findByType(emitted, "accessModel.snapshot.response");
+    expect(response?.payload.requestId).toBe("am1");
+    expect(response?.payload.bindings.map((binding) => binding.id).sort()).toEqual([
+      "claude",
+      "zai",
+    ]);
+    expect(response?.payload.agentRuntimes.map((runtime) => runtime.id)).toContain("claude");
+    const zaiBinding = response?.payload.bindings.find((binding) => binding.id === "zai");
+    expect(zaiBinding?.agentRuntimeId).toBe("claude");
+    expect(zaiBinding?.accessServiceId).toBe("unknown:zai");
+  });
+
+  it("surfaces an access-model snapshot failure as an rpc_error envelope", async () => {
+    const { subsystem, emitted } = makeSubsystem({
+      snapshot: {
+        getRegisteredProviderSummaries: () => {
+          throw new Error("registry unavailable");
+        },
+      },
+    });
+
+    await subsystem.handleAccessModelSnapshotRequest({
+      type: "accessModel.snapshot.request",
+      requestId: "am2",
+    });
+
+    const err = findByType(emitted, "rpc_error");
+    expect(err?.payload.code).toBe("access_model_snapshot_failed");
+    expect(err?.payload.requestId).toBe("am2");
+  });
+
   it("surfaces a feature-list failure inline, not as an rpc_error", async () => {
     const { subsystem, emitted } = makeSubsystem({
       host: {

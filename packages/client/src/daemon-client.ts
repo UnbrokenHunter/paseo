@@ -82,6 +82,7 @@ import type {
   RefreshProvidersSnapshotResponseMessage,
   ProviderDiagnosticResponseMessage,
   ProviderUsageListResponseMessage,
+  AccessModelSnapshotResponseMessage,
   DaemonGetStatusResponse,
   DaemonGetPairingOfferResponse,
   DiagnosticsResponse,
@@ -448,6 +449,7 @@ type GetProvidersSnapshotPayload = GetProvidersSnapshotResponseMessage["payload"
 type RefreshProvidersSnapshotPayload = RefreshProvidersSnapshotResponseMessage["payload"];
 type ProviderDiagnosticPayload = ProviderDiagnosticResponseMessage["payload"];
 type ProviderUsageListPayload = ProviderUsageListResponseMessage["payload"];
+type AccessModelSnapshotPayload = AccessModelSnapshotResponseMessage["payload"];
 type DaemonStatusPayload = DaemonGetStatusResponse["payload"];
 type DaemonPairingOfferPayload = DaemonGetPairingOfferResponse["payload"];
 type DiagnosticsPayload = DiagnosticsResponse["payload"];
@@ -4662,6 +4664,17 @@ export class DaemonClient {
       requestId: options?.requestId,
       message: {
         type: "provider.usage.list.request",
+      },
+    });
+  }
+
+  async getAccessModelSnapshot(options?: {
+    requestId?: string;
+  }): Promise<AccessModelSnapshotPayload> {
+    return this.sendNamespacedCorrelatedSessionRequest({
+      requestId: options?.requestId,
+      message: {
+        type: "accessModel.snapshot.request",
       },
     });
   }
