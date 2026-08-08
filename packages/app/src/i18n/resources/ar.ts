@@ -1714,6 +1714,7 @@ export const ar: TranslationResources = {
       agents: "Agents",
       workspaces: "Workspaces",
       providers: "مقدمي الخدمات",
+      agentRuntimes: "بيئات تشغيل الوكيل",
       usage: "الاستخدام",
       terminals: "Terminals",
       host: "نظرة عامة",
@@ -2188,6 +2189,23 @@ export const ar: TranslationResources = {
           errorMessage: "غير قادر على إزالة المضيف",
           localErrorMessage: "Unable to remove localhost connection",
         },
+      },
+    },
+    agentRuntimes: {
+      title: "بيئات تشغيل الوكيل",
+      unavailable: "اتصل بهذا المضيف لرؤية بيئات تشغيل الوكيل",
+      upgradeRequired: "قم بتحديث المضيف لرؤية بيئات تشغيل الوكيل",
+      loading: "جارٍ تحميل بيئات تشغيل الوكيل...",
+      empty: "لا توجد بيئات تشغيل وكيل مُهيأة",
+      retry: "حاول مرة أخرى",
+      statuses: {
+        enabled: "مفعّل",
+        disabled: "معطّل",
+      },
+      identityConfidence: {
+        verified: "موثّق",
+        userLinked: "مرتبط بالمستخدم",
+        unknown: "غير معروف",
       },
     },
     providers: {

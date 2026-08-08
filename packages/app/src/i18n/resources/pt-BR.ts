@@ -1743,6 +1743,7 @@ export const ptBR: TranslationResources = {
       agents: "Agentes",
       workspaces: "Workspaces",
       providers: "Provedores",
+      agentRuntimes: "Runtimes de agente",
       usage: "Uso",
       terminals: "Terminais",
       host: "Visão geral",
@@ -2225,6 +2226,23 @@ export const ptBR: TranslationResources = {
           errorMessage: "Não foi possível remover host",
           localErrorMessage: "Não foi possível remover a conexão localhost",
         },
+      },
+    },
+    agentRuntimes: {
+      title: "Runtimes de agente",
+      unavailable: "Conecte-se a este host para ver os runtimes de agente",
+      upgradeRequired: "Atualize o host para ver os runtimes de agente",
+      loading: "Carregando runtimes de agente...",
+      empty: "Nenhum runtime de agente configurado",
+      retry: "Tentar novamente",
+      statuses: {
+        enabled: "Ativado",
+        disabled: "Desativado",
+      },
+      identityConfidence: {
+        verified: "Verificado",
+        userLinked: "Vinculado ao usuário",
+        unknown: "Desconhecido",
       },
     },
     providers: {

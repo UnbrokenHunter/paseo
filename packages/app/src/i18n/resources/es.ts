@@ -1757,6 +1757,7 @@ export const es: TranslationResources = {
       agents: "Agents",
       workspaces: "Workspaces",
       providers: "Proveedores",
+      agentRuntimes: "Entornos de agente",
       usage: "Uso",
       terminals: "Terminals",
       host: "Resumen",
@@ -2240,6 +2241,23 @@ export const es: TranslationResources = {
           errorMessage: "No se puede eliminar el host",
           localErrorMessage: "Unable to remove localhost connection",
         },
+      },
+    },
+    agentRuntimes: {
+      title: "Entornos de agente",
+      unavailable: "Conéctate a este host para ver los entornos de agente",
+      upgradeRequired: "Actualiza el host para ver los entornos de agente",
+      loading: "Cargando entornos de agente...",
+      empty: "No hay entornos de agente configurados",
+      retry: "Inténtalo de nuevo",
+      statuses: {
+        enabled: "Habilitado",
+        disabled: "Deshabilitado",
+      },
+      identityConfidence: {
+        verified: "Verificado",
+        userLinked: "Vinculado al usuario",
+        unknown: "Desconocido",
       },
     },
     providers: {

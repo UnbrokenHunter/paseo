@@ -1748,6 +1748,7 @@ export const ru: TranslationResources = {
       agents: "Agents",
       workspaces: "Workspaces",
       providers: "Провайдеры",
+      agentRuntimes: "Среды выполнения агента",
       usage: "Использование",
       terminals: "Terminals",
       host: "Обзор",
@@ -2228,6 +2229,23 @@ export const ru: TranslationResources = {
           errorMessage: "Невозможно удалить хост",
           localErrorMessage: "Unable to remove localhost connection",
         },
+      },
+    },
+    agentRuntimes: {
+      title: "Среды выполнения агента",
+      unavailable: "Подключитесь к этому хосту, чтобы увидеть среды выполнения агента",
+      upgradeRequired: "Обновите хост, чтобы увидеть среды выполнения агента",
+      loading: "Загрузка сред выполнения агента...",
+      empty: "Нет настроенных сред выполнения агента",
+      retry: "Повторить",
+      statuses: {
+        enabled: "Включено",
+        disabled: "Отключено",
+      },
+      identityConfidence: {
+        verified: "Подтверждено",
+        userLinked: "Связано с пользователем",
+        unknown: "Неизвестно",
       },
     },
     providers: {

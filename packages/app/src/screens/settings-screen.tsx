@@ -24,6 +24,7 @@ import {
   Network,
   Bot,
   Boxes,
+  Cpu,
   Gauge,
   Keyboard,
   Stethoscope,
@@ -101,6 +102,7 @@ import {
   HostAgentsPage,
   HostSettingsPage,
   HostProvidersPage,
+  HostAgentRuntimesPage,
   HostUsagePage,
   HostWorkspacesPage,
   HostTerminalsPage,
@@ -178,6 +180,7 @@ const HOST_SECTION_ITEMS: HostSectionItem[] = [
   { id: "agents", labelKey: "settings.hostSections.agents", icon: Bot },
   { id: "workspaces", labelKey: "settings.hostSections.workspaces", icon: FolderGit2 },
   { id: "providers", labelKey: "settings.hostSections.providers", icon: Boxes },
+  { id: "agent-runtimes", labelKey: "settings.hostSections.agentRuntimes", icon: Cpu },
   { id: "usage", labelKey: "settings.hostSections.usage", icon: Gauge },
   { id: "terminals", labelKey: "settings.hostSections.terminals", icon: SquareTerminal },
 ];
@@ -199,6 +202,8 @@ function renderHostSettingsContent(
       return <HostWorkspacesPage serverId={view.serverId} />;
     case "providers":
       return <HostProvidersPage serverId={view.serverId} />;
+    case "agent-runtimes":
+      return <HostAgentRuntimesPage serverId={view.serverId} />;
     case "usage":
       return <HostUsagePage serverId={view.serverId} />;
     case "terminals":

@@ -1730,6 +1730,7 @@ export const ja: TranslationResources = {
       agents: "エージェント",
       workspaces: "ワークスペース",
       providers: "プロバイダー",
+      agentRuntimes: "エージェントランタイム",
       usage: "使用状況",
       terminals: "ターミナル",
       host: "概要",
@@ -2210,6 +2211,23 @@ export const ja: TranslationResources = {
           errorMessage: "ホストを削除できません",
           localErrorMessage: "localhost接続を削除できません",
         },
+      },
+    },
+    agentRuntimes: {
+      title: "エージェントランタイム",
+      unavailable: "このホストに接続するとエージェントランタイムが表示されます",
+      upgradeRequired: "エージェントランタイムを表示するにはホストを更新してください",
+      loading: "エージェントランタイムを読み込み中...",
+      empty: "設定されたエージェントランタイムはありません",
+      retry: "再試行",
+      statuses: {
+        enabled: "有効",
+        disabled: "無効",
+      },
+      identityConfidence: {
+        verified: "確認済み",
+        userLinked: "ユーザーに関連付け済み",
+        unknown: "不明",
       },
     },
     providers: {

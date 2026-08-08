@@ -55,6 +55,8 @@ import {
 import { ProvidersSection } from "@/screens/settings/providers-section";
 import { ProviderUsageSettingsSection } from "@/provider-usage/settings-section";
 import { useProviderUsage } from "@/provider-usage/use-provider-usage";
+import { AgentRuntimesSettingsSection } from "@/access-model/agent-runtimes-settings-section";
+import { useAccessModelSnapshot } from "@/access-model/use-access-model-snapshot";
 import { HostAppearanceSection } from "@/screens/settings/host-appearance-section";
 import { SettingsSection } from "@/screens/settings/settings-section";
 import { useSessionStore } from "@/stores/session-store";
@@ -326,6 +328,24 @@ export function HostProvidersPage({ serverId }: { serverId: string }) {
   return (
     <View>
       <ProvidersSection serverId={serverId} />
+    </View>
+  );
+}
+
+export function HostAgentRuntimesPage({ serverId }: { serverId: string }) {
+  const host = useHostProfile(serverId);
+  const { view: accessModelView, refresh: refreshAccessModel } = useAccessModelSnapshot(serverId);
+  const handleRefresh = useCallback(() => {
+    void refreshAccessModel();
+  }, [refreshAccessModel]);
+
+  if (!host) {
+    return <HostNotFound />;
+  }
+
+  return (
+    <View>
+      <AgentRuntimesSettingsSection view={accessModelView} onRefresh={handleRefresh} />
     </View>
   );
 }

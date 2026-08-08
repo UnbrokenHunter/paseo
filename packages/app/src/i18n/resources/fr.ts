@@ -1761,6 +1761,7 @@ export const fr: TranslationResources = {
       agents: "Agents",
       workspaces: "Workspaces",
       providers: "Fournisseurs",
+      agentRuntimes: "Environnements d'agent",
       usage: "Utilisation",
       terminals: "Terminals",
       host: "Aperçu",
@@ -2244,6 +2245,23 @@ export const fr: TranslationResources = {
           errorMessage: "Impossible de supprimer l'hôte",
           localErrorMessage: "Unable to remove localhost connection",
         },
+      },
+    },
+    agentRuntimes: {
+      title: "Environnements d'agent",
+      unavailable: "Connectez-vous à cet hôte pour voir les environnements d'agent",
+      upgradeRequired: "Mettez à jour l'hôte pour voir les environnements d'agent",
+      loading: "Chargement des environnements d'agent...",
+      empty: "Aucun environnement d'agent configuré",
+      retry: "Réessayer",
+      statuses: {
+        enabled: "Activé",
+        disabled: "Désactivé",
+      },
+      identityConfidence: {
+        verified: "Vérifié",
+        userLinked: "Lié à l'utilisateur",
+        unknown: "Inconnu",
       },
     },
     providers: {

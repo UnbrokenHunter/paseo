@@ -1724,6 +1724,7 @@ export const ko: TranslationResources = {
       agents: "에이전트",
       workspaces: "워크스페이스",
       providers: "프로바이더",
+      agentRuntimes: "에이전트 런타임",
       usage: "사용량",
       terminals: "터미널",
       host: "개요",
@@ -2202,6 +2203,23 @@ export const ko: TranslationResources = {
           errorMessage: "호스트를 제거할 수 없습니다",
           localErrorMessage: "localhost 연결을 제거할 수 없습니다",
         },
+      },
+    },
+    agentRuntimes: {
+      title: "에이전트 런타임",
+      unavailable: "에이전트 런타임을 보려면 이 호스트에 연결하세요",
+      upgradeRequired: "에이전트 런타임을 보려면 호스트를 업데이트하세요",
+      loading: "에이전트 런타임을 불러오는 중...",
+      empty: "구성된 에이전트 런타임이 없습니다",
+      retry: "다시 시도",
+      statuses: {
+        enabled: "사용",
+        disabled: "사용 안 함",
+      },
+      identityConfidence: {
+        verified: "확인됨",
+        userLinked: "사용자 연결됨",
+        unknown: "알 수 없음",
       },
     },
     providers: {

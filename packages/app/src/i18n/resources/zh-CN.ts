@@ -1694,6 +1694,7 @@ export const zhCN: TranslationResources = {
       agents: "Agents",
       workspaces: "Workspaces",
       providers: "Providers",
+      agentRuntimes: "代理运行时",
       usage: "使用情况",
       terminals: "Terminals",
       host: "概览",
@@ -2161,6 +2162,23 @@ export const zhCN: TranslationResources = {
           errorMessage: "无法移除 Host",
           localErrorMessage: "无法移除 localhost 连接",
         },
+      },
+    },
+    agentRuntimes: {
+      title: "代理运行时",
+      unavailable: "连接到此主机以查看代理运行时",
+      upgradeRequired: "更新主机以查看代理运行时",
+      loading: "正在加载代理运行时...",
+      empty: "未配置代理运行时",
+      retry: "重试",
+      statuses: {
+        enabled: "已启用",
+        disabled: "已禁用",
+      },
+      identityConfidence: {
+        verified: "已验证",
+        userLinked: "已关联用户",
+        unknown: "未知",
       },
     },
     providers: {

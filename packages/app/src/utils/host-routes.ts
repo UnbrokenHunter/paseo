@@ -513,6 +513,7 @@ export const HOST_SECTION_SLUGS = [
   "agents",
   "workspaces",
   "providers",
+  "agent-runtimes",
   "usage",
   "terminals",
   "host",

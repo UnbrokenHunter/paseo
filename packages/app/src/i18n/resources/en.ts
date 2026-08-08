@@ -1725,6 +1725,7 @@ export const en = {
       agents: "Agents",
       workspaces: "Workspaces",
       providers: "Providers",
+      agentRuntimes: "Agent Runtimes",
       usage: "Usage",
       terminals: "Terminals",
       host: "Overview",
@@ -2200,6 +2201,23 @@ export const en = {
           errorMessage: "Unable to remove host",
           localErrorMessage: "Unable to remove localhost connection",
         },
+      },
+    },
+    agentRuntimes: {
+      title: "Agent Runtimes",
+      unavailable: "Connect to this host to see agent runtimes",
+      upgradeRequired: "Update the host to see agent runtimes",
+      loading: "Loading agent runtimes...",
+      empty: "No agent runtimes configured",
+      retry: "Try again",
+      statuses: {
+        enabled: "Enabled",
+        disabled: "Disabled",
+      },
+      identityConfidence: {
+        verified: "Verified",
+        userLinked: "User-linked",
+        unknown: "Unknown",
       },
     },
     providers: {
