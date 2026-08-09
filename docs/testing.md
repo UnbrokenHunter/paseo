@@ -180,6 +180,34 @@ Test suites in this repo are heavy. Running them in bulk freezes the machine, es
 - Tests whose subject is daemon-global state, such as an empty history or daemon restart, start a dedicated host explicitly. Filenames and directories describe product behavior, never execution order or isolation mechanics.
 - Global setup accepts Metro as ready only when `/status` returns `packager-status:running`, then fetches the document's scripts so the cold bundle compilation finishes before Playwright's per-test timeout starts. A generic TCP listener is not sufficient readiness evidence. The browser suite uses direct local daemon connections and does not start a relay.
 
+## Sandboxed agent testing & isolated daemons
+
+When testing Paseo as an AI agent or automated harness, never attach to the user's active daemon (`127.0.0.1:6768`) or mutate their active state in `~/.paseo`.
+
+To launch a completely clean, isolated dev build on a separate port with an unpopulated state:
+
+```bash
+# Launch isolated dev daemon on port 6770 with a temporary home:
+PASEO_HOME=/tmp/paseo-clean-home PASEO_LISTEN=127.0.0.1:6770 ./scripts/dev-daemon.sh
+```
+
+### Dev test agents for UI & stream testing
+
+Dev builds include mock agent providers (`Mock Load Test` and `Mock Slow Provider`) designed for UI, layout, and timeline debugging without requiring external model API keys:
+
+- **`Ten second stream`**: Fast realistic stream for quick manual UI checks and smoke tests.
+- **`One minute stream`**: Realistic stream for timeline and scroll-anchor verification.
+- **`Thirty minute stream`**: Extended stream for long-running scroll-anchor and memory debugging.
+
+### Container / Docker Electron execution
+
+In Linux container environments mounted against a Windows/macOS host, `node_modules/electron/path.txt` may point to a host binary. Run the native installer inside the container before launching Electron:
+
+```bash
+node node_modules/electron/install.js
+./node_modules/electron/dist/electron packages/desktop/dist/main.js --no-sandbox
+```
+
 ## Pull-request test routing
 
 PR checks are routed by the behavior each suite proves, using `.github/ci-paths.yml`. A package does not inherit every test suite of its runtime consumers: app changes do not run CLI or Electron-wrapper tests, and protocol changes do not run every package that imports the protocol. Cross-package static compatibility belongs to `typecheck`; full integration coverage runs after merge on main and in manual CI runs.

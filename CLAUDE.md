@@ -48,7 +48,6 @@ At the start of non-trivial work, list `docs/` and skim anything relevant to the
 | [docs/terminal-performance.md](docs/terminal-performance.md)       | Terminal latency pipeline, coalescing/backpressure invariants, benchmark + perf spec usage                                     |
 | [docs/testing.md](docs/testing.md)                                 | TDD workflow, determinism, real dependencies over mocks, test organization                                                     |
 | [docs/qa.md](docs/qa.md)                                           | QA evidence bar for pull requests — platform matrix, version drift, performance, UI proof                                      |
-| [docs/browser-ui-testing.md](docs/browser-ui-testing.md)           | Driving the web app in a browser — isolated instance, animation sampling, video capture, responsive layout                     |
 | [docs/mobile-testing.md](docs/mobile-testing.md)                   | Maestro and mobile test workflows                                                                                              |
 | [docs/mobile-panels.md](docs/mobile-panels.md)                     | Compact left/center/right panel ownership, worklet motion, gesture revisions, and Fabric constraints                           |
 | [docs/ad-hoc-daemon-testing.md](docs/ad-hoc-daemon-testing.md)     | Isolated in-process daemon test harness                                                                                        |
@@ -56,8 +55,10 @@ At the start of non-trivial work, list `docs/` and skim anything relevant to the
 | [docs/android.md](docs/android.md)                                 | App variants, local/cloud builds, EAS workflows                                                                                |
 | [docs/docker.md](docs/docker.md)                                   | Running the daemon and bundled web UI in Docker, volumes, agent images, security                                               |
 | [docs/release.md](docs/release.md)                                 | Release playbook, draft releases, completion checklist                                                                         |
+| [docs/fork-workflow.md](docs/fork-workflow.md)                     | Fork branching strategy: main (upstream 1:1), custom (primary dev branch), tracking and upstreaming rules                      |
 | [docs/terminal-activity.md](docs/terminal-activity.md)             | Terminal activity indicators — source-agnostic tracker, agent hook reporting, adding a new hook provider                       |
 | [SECURITY.md](SECURITY.md)                                         | Relay threat model, E2E encryption, DNS rebinding, agent auth                                                                  |
+| [public-docs/hub/security.md](public-docs/hub/security.md)         | Public Hub guide — trust boundaries, untrusted triggers, provider controls, and output authority                               |
 
 ### Writing docs
 

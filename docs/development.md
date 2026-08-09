@@ -9,6 +9,7 @@
 
 ```bash
 npm run dev:server
+npm run dev:server:isolated      # Clean state on custom PASEO_HOME
 npm run dev:app
 npm run dev:desktop
 ```
@@ -515,11 +516,11 @@ Get the session ID from the agent JSON (`persistence.sessionId`), then:
 ~/.codex/sessions/{YYYY}/{MM}/{DD}/rollout-{timestamp}-{session-id}.jsonl
 ```
 
-## Testing the UI in a browser
+## Testing with Playwright MCP
 
-Driving the running web app to verify a UI change — an isolated instance, the browser tools,
-animation sampling, video capture, and responsive layout — lives in
-[browser-ui-testing.md](browser-ui-testing.md).
+Point Playwright MCP at the running Expo web target. For root checkout dev, `npm run dev:app` reserves `http://localhost:8081`. For Paseo-managed worktree app services, use the service URL or port shown by Paseo for that worktree.
+
+Do NOT use browser history (back/forward). Always navigate by clicking UI elements or using `browser_navigate` with the full URL — the app uses client-side routing and browser history breaks state.
 
 ## App web deploys
 
