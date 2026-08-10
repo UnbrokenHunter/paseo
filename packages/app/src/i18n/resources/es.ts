@@ -244,8 +244,13 @@ export const es: TranslationResources = {
   sessions: {
     title: "Historial",
     empty: "Aún no hay sesiones",
+    noMatches: "No hay sesiones que coincidan",
+    tooManyMatches: "Demasiadas coincidencias: acota la búsqueda",
+    hostLoadFailed: "{{host}}: No se pudo cargar el historial",
+    searchPlaceholder: "Buscar en el historial",
     actions: {
       loadMore: "Cargar más",
+      clearSearch: "Borrar búsqueda",
     },
   },
   agentList: {
@@ -1288,7 +1293,6 @@ export const es: TranslationResources = {
     },
   },
   rootError: {
-    kicker: "Algo salió mal",
     title: "Paseo tuvo un problema.",
     body: "Vuelve a intentarlo para recargar la app. Si sigue ocurriendo, incluye los detalles de abajo al reportarlo.",
     details: "Detalles",
@@ -1472,19 +1476,6 @@ export const es: TranslationResources = {
         label: "Avanzado",
         show: "Mostrar avanzado",
         hide: "Ocultar avanzado",
-      },
-      headers: {
-        title: "Encabezados personalizados",
-        add: "Añadir encabezado",
-        name: "Nombre",
-        value: "Valor",
-        remove: "Eliminar encabezado",
-        errors: {
-          missingName: "Introduce un nombre para cada encabezado",
-          invalidName: "{{name}} no es un nombre de encabezado válido",
-          invalidValue: "{{name}} contiene un salto de línea no válido",
-          duplicateName: "{{name}} se ha introducido más de una vez",
-        },
       },
       passwordVisibility: {
         show: "Mostrar contraseña",
@@ -1784,6 +1775,7 @@ export const es: TranslationResources = {
       editor: "Editor",
       shortcuts: "Atajos",
       integrations: "Integraciones",
+      notifications: "Notificaciones",
       permissions: "Permisos",
       diagnostics: "Diagnóstico",
       about: "Acerca de",
@@ -1792,6 +1784,21 @@ export const es: TranslationResources = {
       title: "Editor",
       vimKeybindings: "Atajos de Vim",
       vimHint: "Se aplica a archivos fuente en web y escritorio.",
+    },
+    notifications: {
+      title: "Notificaciones",
+      permission: "Permiso de notificaciones",
+      refreshAccessibility: "Actualizar permiso de notificaciones",
+      playSound: "Reproducir sonido",
+      playSoundHint: "Reproduce un sonido cuando llega una notificación de escritorio",
+      test: "Probar notificación",
+      testHint: "Envía una notificación con esta configuración",
+      permissionRequired: "Permite el acceso a las notificaciones antes de probar",
+      send: "Enviar",
+      sending: "Enviando...",
+      sentTitle: "Notificación de prueba enviada",
+      sentDescription: "Paseo entregó la notificación al sistema operativo.",
+      sendFailedTitle: "No se pudo enviar la notificación de prueba",
     },
     hostSections: {
       projects: "Proyectos",
@@ -1958,6 +1965,7 @@ export const es: TranslationResources = {
           midnight: "Medianoche",
           claude: "claudio",
           ghostty: "fantasmal",
+          pureBlack: "Negro puro",
           auto: "Sistema",
         },
       },
@@ -2002,12 +2010,13 @@ export const es: TranslationResources = {
       capturePrompt: "Presione el acceso directo...",
       unassigned: "Sin asignar",
       actions: {
+        menu: "Acciones para {{name}}",
         done: "Hecho",
         cancel: "Cancelar",
         bind: "Asignar",
         rebind: "Reencuadernar",
         clear: "Borrar",
-        reset: "Reiniciar",
+        reset: "Restablecer al valor predeterminado",
         resetAll: "Restablecer todo",
       },
       sections: {
@@ -2115,17 +2124,14 @@ export const es: TranslationResources = {
     },
     permissions: {
       title: "Permisos",
-      notifications: "Notificaciones",
       microphone: "Micrófono",
       refresh: "Refrescar",
       refreshing: "Refrescante...",
       refreshAccessibility: "Actualizar permisos de escritorio",
-      test: "Prueba",
       actions: {
         granted: "Otorgada",
         request: "Pedido",
         requesting: "Solicitando...",
-        busySuffix: "{{label}}...",
       },
     },
     host: {

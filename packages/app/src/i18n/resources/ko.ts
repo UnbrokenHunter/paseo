@@ -242,8 +242,13 @@ export const ko: TranslationResources = {
   sessions: {
     title: "기록",
     empty: "아직 세션이 없습니다",
+    noMatches: "일치하는 세션이 없습니다",
+    tooManyMatches: "일치 항목이 너무 많습니다 — 검색 범위를 좁히세요",
+    hostLoadFailed: "{{host}}: 기록을 불러오지 못했습니다",
+    searchPlaceholder: "기록 검색",
     actions: {
       loadMore: "더 불러오기",
+      clearSearch: "검색 지우기",
     },
   },
   agentList: {
@@ -1257,7 +1262,6 @@ export const ko: TranslationResources = {
     },
   },
   rootError: {
-    kicker: "문제가 발생했습니다.",
     title: "Paseo에 문제가 발생했습니다.",
     body: "앱을 다시 로드해 보세요. 이런 일이 계속 발생하면 신고할 때 아래 세부정보를 포함하세요.",
     details: "세부",
@@ -1441,19 +1445,6 @@ export const ko: TranslationResources = {
         label: "고급",
         show: "고급 표시",
         hide: "고급 숨기기",
-      },
-      headers: {
-        title: "사용자 지정 헤더",
-        add: "헤더 추가",
-        name: "이름",
-        value: "값",
-        remove: "헤더 삭제",
-        errors: {
-          missingName: "각 헤더의 이름을 입력하세요",
-          invalidName: "{{name}}은(는) 올바른 헤더 이름이 아닙니다",
-          invalidValue: "{{name}}에 잘못된 줄바꿈이 있습니다",
-          duplicateName: "{{name}}이(가) 두 번 이상 입력되었습니다",
-        },
       },
       passwordVisibility: {
         show: "비밀번호 표시",
@@ -1750,6 +1741,7 @@ export const ko: TranslationResources = {
       editor: "편집기",
       shortcuts: "단축키",
       integrations: "통합",
+      notifications: "알림",
       permissions: "권한",
       diagnostics: "진단",
       about: "정보",
@@ -1758,6 +1750,21 @@ export const ko: TranslationResources = {
       title: "편집기",
       vimKeybindings: "Vim 키 바인딩",
       vimHint: "웹 및 데스크톱의 소스 파일에 적용됩니다.",
+    },
+    notifications: {
+      title: "알림",
+      permission: "알림 권한",
+      refreshAccessibility: "알림 권한 새로 고침",
+      playSound: "소리 재생",
+      playSoundHint: "데스크톱 알림이 도착하면 소리를 재생합니다",
+      test: "알림 테스트",
+      testHint: "현재 설정으로 테스트 알림을 보냅니다",
+      permissionRequired: "테스트하기 전에 알림 접근을 허용하세요",
+      send: "보내기",
+      sending: "보내는 중...",
+      sentTitle: "테스트 알림을 보냈습니다",
+      sentDescription: "Paseo가 알림을 운영 체제에 전달했습니다.",
+      sendFailedTitle: "테스트 알림을 보낼 수 없음",
     },
     hostSections: {
       projects: "프로젝트",
@@ -1921,6 +1928,7 @@ export const ko: TranslationResources = {
           midnight: "Midnight",
           claude: "Claude",
           ghostty: "Ghostty",
+          pureBlack: "순수 검정",
           auto: "시스템",
         },
       },
@@ -1964,12 +1972,13 @@ export const ko: TranslationResources = {
       capturePrompt: "단축키를 누르세요...",
       unassigned: "설정되지 않음",
       actions: {
+        menu: "{{name}} 작업",
         done: "완료",
         cancel: "취소",
         bind: "지정",
         rebind: "다시 지정",
         clear: "지우기",
-        reset: "재설정",
+        reset: "기본값으로 재설정",
         resetAll: "모두 재설정",
       },
       sections: {
@@ -2076,17 +2085,14 @@ export const ko: TranslationResources = {
     },
     permissions: {
       title: "권한",
-      notifications: "알림",
       microphone: "마이크",
       refresh: "새로고침",
       refreshing: "새로고침 중...",
       refreshAccessibility: "데스크톱 권한 새로고침",
-      test: "테스트",
       actions: {
         granted: "허용됨",
         request: "요청",
         requesting: "요청 중...",
-        busySuffix: "{{label}}...",
       },
     },
     host: {

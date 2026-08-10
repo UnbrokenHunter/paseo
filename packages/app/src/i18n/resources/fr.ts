@@ -245,8 +245,13 @@ export const fr: TranslationResources = {
   sessions: {
     title: "Historique",
     empty: "Aucune séance pour l'instant",
+    noMatches: "Aucune séance correspondante",
+    tooManyMatches: "Trop de résultats — affinez la recherche",
+    hostLoadFailed: "{{host}} : Impossible de charger l'historique",
+    searchPlaceholder: "Rechercher dans l'historique",
     actions: {
       loadMore: "Charger plus",
+      clearSearch: "Effacer la recherche",
     },
   },
   agentList: {
@@ -1291,7 +1296,6 @@ export const fr: TranslationResources = {
     },
   },
   rootError: {
-    kicker: "Une erreur s'est produite",
     title: "Paseo a rencontré un problème.",
     body: "Réessayez pour recharger l'application. Si cela continue, joignez les détails ci-dessous au signalement.",
     details: "Détails",
@@ -1476,19 +1480,6 @@ export const fr: TranslationResources = {
         label: "Avancé",
         show: "Afficher avancé",
         hide: "Masquer avancé",
-      },
-      headers: {
-        title: "En-têtes personnalisés",
-        add: "Ajouter un en-tête",
-        name: "Nom",
-        value: "Valeur",
-        remove: "Supprimer l'en-tête",
-        errors: {
-          missingName: "Saisissez un nom pour chaque en-tête",
-          invalidName: "{{name}} n'est pas un nom d'en-tête valide",
-          invalidValue: "{{name}} contient un saut de ligne non valide",
-          duplicateName: "{{name}} est saisi plusieurs fois",
-        },
       },
       passwordVisibility: {
         show: "Afficher le mot de passe",
@@ -1788,6 +1779,7 @@ export const fr: TranslationResources = {
       editor: "Éditeur",
       shortcuts: "Raccourcis",
       integrations: "Intégrations",
+      notifications: "Notifications",
       permissions: "Autorisations",
       diagnostics: "Diagnostic",
       about: "À propos",
@@ -1796,6 +1788,21 @@ export const fr: TranslationResources = {
       title: "Éditeur",
       vimKeybindings: "Raccourcis Vim",
       vimHint: "S’applique aux fichiers source sur le web et le bureau.",
+    },
+    notifications: {
+      title: "Notifications",
+      permission: "Autorisation des notifications",
+      refreshAccessibility: "Actualiser l’autorisation des notifications",
+      playSound: "Émettre un son",
+      playSoundHint: "Émet un son lorsqu’une notification de bureau arrive",
+      test: "Tester la notification",
+      testHint: "Envoie une notification avec ces réglages",
+      permissionRequired: "Autorisez l’accès aux notifications avant le test",
+      send: "Envoyer",
+      sending: "Envoi...",
+      sentTitle: "Notification de test envoyée",
+      sentDescription: "Paseo a transmis la notification au système d’exploitation.",
+      sendFailedTitle: "Impossible d’envoyer la notification de test",
     },
     hostSections: {
       projects: "Projets",
@@ -1962,6 +1969,7 @@ export const fr: TranslationResources = {
           midnight: "Minuit",
           claude: "Claude",
           ghostty: "Fantôme",
+          pureBlack: "Noir pur",
           auto: "Système",
         },
       },
@@ -2006,12 +2014,13 @@ export const fr: TranslationResources = {
       capturePrompt: "Appuyez sur le raccourci...",
       unassigned: "Non défini",
       actions: {
+        menu: "Actions pour {{name}}",
         done: "Fait",
         cancel: "Annuler",
         bind: "Attribuer",
         rebind: "Relier",
         clear: "Effacer",
-        reset: "Réinitialiser",
+        reset: "Rétablir la valeur par défaut",
         resetAll: "Tout réinitialiser",
       },
       sections: {
@@ -2120,17 +2129,14 @@ export const fr: TranslationResources = {
     },
     permissions: {
       title: "Autorisations",
-      notifications: "Notifications",
       microphone: "Microphone",
       refresh: "Rafraîchir",
       refreshing: "Rafraîchissant...",
       refreshAccessibility: "Actualiser les autorisations du bureau",
-      test: "Test",
       actions: {
         granted: "Accordé",
         request: "Demande",
         requesting: "Demander...",
-        busySuffix: "{{label}}...",
       },
     },
     host: {

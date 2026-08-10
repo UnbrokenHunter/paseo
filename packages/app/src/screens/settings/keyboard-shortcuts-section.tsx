@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View, Text } from "react-native";
+import { View, Text, type PressableStateCallbackType } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
-import { StyleSheet } from "react-native-unistyles";
+import { MoreHorizontal, Pencil, Undo2, X } from "lucide-react-native";
+import { StyleSheet, withUnistyles } from "react-native-unistyles";
+import type { Theme } from "@/styles/theme";
 import { settingsStyles } from "@/styles/settings";
 import { SettingsSection } from "@/screens/settings/settings-section";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Shortcut } from "@/components/ui/shortcut";
 import { useKeyboardShortcutOverrides } from "@/hooks/use-keyboard-shortcut-overrides";
 import {
@@ -28,6 +36,18 @@ import { isNative } from "@/constants/platform";
 import { getDesktopHost } from "@/desktop/host";
 
 const EMPTY_CAPTURED_COMBOS: string[] = [];
+
+const ThemedMoreHorizontal = withUnistyles(MoreHorizontal);
+const ThemedPencil = withUnistyles(Pencil);
+const ThemedUndo2 = withUnistyles(Undo2);
+const ThemedX = withUnistyles(X);
+
+const foregroundColorMapping = (theme: Theme) => ({ color: theme.colors.foreground });
+const foregroundMutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
+
+const bindLeadingIcon = <ThemedPencil size={14} uniProps={foregroundMutedColorMapping} />;
+const clearLeadingIcon = <ThemedX size={14} uniProps={foregroundMutedColorMapping} />;
+const resetLeadingIcon = <ThemedUndo2 size={14} uniProps={foregroundMutedColorMapping} />;
 
 function ShortcutSequence({
   chord,
@@ -136,6 +156,84 @@ function ShortcutRowKeys({
   return <Shortcut chord={displayChord} />;
 }
 
+function ShortcutActionsMenu({
+  row,
+  bindLabel,
+  showClear,
+  showReset,
+  onRebind,
+  onClear,
+  onReset,
+}: {
+  row: KeyboardShortcutHelpRow;
+  bindLabel: "bind" | "rebind";
+  showClear: boolean;
+  showReset: boolean;
+  onRebind: () => void;
+  onClear: () => void;
+  onReset: () => void;
+}) {
+  const { t } = useTranslation();
+  const triggerStyle = useCallback(
+    ({
+      pressed,
+      hovered,
+      open,
+    }: PressableStateCallbackType & { hovered?: boolean; open?: boolean }) => [
+      styles.menuButton,
+      (hovered || open) && styles.menuButtonHovered,
+      pressed && styles.menuButtonPressed,
+    ],
+    [],
+  );
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        hitSlop={8}
+        style={triggerStyle}
+        accessibilityRole="button"
+        accessibilityLabel={t("settings.shortcuts.actions.menu", { name: t(row.labelKey) })}
+        testID={`shortcut-actions-${row.id}`}
+      >
+        {({ hovered, open }) => (
+          <ThemedMoreHorizontal
+            size={14}
+            uniProps={hovered || open ? foregroundColorMapping : foregroundMutedColorMapping}
+          />
+        )}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" width={220}>
+        <DropdownMenuItem
+          leading={bindLeadingIcon}
+          onSelect={onRebind}
+          testID={`shortcut-bind-${row.id}`}
+        >
+          {t(`settings.shortcuts.actions.${bindLabel}`)}
+        </DropdownMenuItem>
+        {showClear && (
+          <DropdownMenuItem
+            leading={clearLeadingIcon}
+            onSelect={onClear}
+            testID={`shortcut-clear-${row.id}`}
+          >
+            {t("settings.shortcuts.actions.clear")}
+          </DropdownMenuItem>
+        )}
+        {showReset && (
+          <DropdownMenuItem
+            leading={resetLeadingIcon}
+            onSelect={onReset}
+            testID={`shortcut-reset-${row.id}`}
+          >
+            {t("settings.shortcuts.actions.reset")}
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function ShortcutRow({
   row,
   bindingId,
@@ -170,11 +268,11 @@ function ShortcutRow({
 
   const isBindable = bindingId !== null;
   const showDone = isCapturing && capturedCombos.length > 0;
-  const showClear = isBindable && !isCapturing && displayChord !== null;
+  const showClear = displayChord !== null;
   // Reset restores the default, so it is only meaningful when there is a
   // default to restore. A binding that ships without one would otherwise show a
   // Reset that lands on the same "Not set" state Clear already produced.
-  const showReset = hasOverride && hasDefault && !isCapturing;
+  const showReset = hasOverride && hasDefault;
   // Nothing is bound in the unassigned state, so there is nothing to *re*-bind.
   const bindLabel = displayChord === null ? "bind" : "rebind";
 
@@ -182,36 +280,43 @@ function ShortcutRow({
     <View style={rowStyle}>
       <Text style={styles.rowLabel}>{t(row.labelKey)}</Text>
       <View style={styles.rowActions}>
-        <ShortcutRowKeys
-          displayChord={displayChord}
-          isCapturing={isCapturing}
-          capturedCombos={capturedCombos}
-          heldModifiers={heldModifiers}
-        />
-        {showDone && (
-          <Button variant="ghost" size="sm" onPress={onDone}>
-            {t("settings.shortcuts.actions.done")}
-          </Button>
-        )}
-        {isBindable && isCapturing && (
-          <Button variant="ghost" size="sm" onPress={onCancel}>
-            {t("settings.shortcuts.actions.cancel")}
-          </Button>
-        )}
-        {isBindable && !isCapturing && (
-          <Button variant="ghost" size="sm" onPress={onRebind} testID={`shortcut-bind-${row.id}`}>
-            {t(`settings.shortcuts.actions.${bindLabel}`)}
-          </Button>
-        )}
-        {showClear && (
-          <Button variant="ghost" size="sm" onPress={onClear} testID={`shortcut-clear-${row.id}`}>
-            <Text style={styles.mutedActionText}>{t("settings.shortcuts.actions.clear")}</Text>
-          </Button>
-        )}
-        {showReset && (
-          <Button variant="ghost" size="sm" onPress={onReset} testID={`shortcut-reset-${row.id}`}>
-            <Text style={styles.mutedActionText}>{t("settings.shortcuts.actions.reset")}</Text>
-          </Button>
+        <View style={styles.rowKeys}>
+          <ShortcutRowKeys
+            displayChord={displayChord}
+            isCapturing={isCapturing}
+            capturedCombos={capturedCombos}
+            heldModifiers={heldModifiers}
+          />
+        </View>
+        {isCapturing ? (
+          <>
+            {showDone && (
+              <Button variant="ghost" size="sm" onPress={onDone}>
+                {t("settings.shortcuts.actions.done")}
+              </Button>
+            )}
+            {isBindable && (
+              <Button variant="ghost" size="sm" onPress={onCancel}>
+                {t("settings.shortcuts.actions.cancel")}
+              </Button>
+            )}
+          </>
+        ) : (
+          // Fixed slot, occupied or not, so the keys column keeps one rail on
+          // every row instead of sliding with whatever actions the row offers.
+          <View style={styles.menuSlot}>
+            {isBindable && (
+              <ShortcutActionsMenu
+                row={row}
+                bindLabel={bindLabel}
+                showClear={showClear}
+                showReset={showReset}
+                onRebind={onRebind}
+                onClear={onClear}
+                onReset={onReset}
+              />
+            )}
+          </View>
         )}
       </View>
     </View>
@@ -409,11 +514,28 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: theme.spacing[2],
   },
+  rowKeys: {
+    alignItems: "flex-end",
+  },
+  menuSlot: {
+    width: 32,
+    height: 32,
+  },
+  menuButton: {
+    width: 32,
+    height: 32,
+    borderRadius: theme.borderRadius.lg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuButtonHovered: {
+    backgroundColor: theme.colors.surface2,
+  },
+  menuButtonPressed: {
+    backgroundColor: theme.colors.surface3,
+  },
   capturingText: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.foregroundMuted,
-  },
-  mutedActionText: {
     color: theme.colors.foregroundMuted,
   },
   unassignedText: {
