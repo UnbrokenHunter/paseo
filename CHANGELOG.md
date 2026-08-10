@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.3.0-beta.11 - 2026-08-10
+
+### Added
+
+- Pure black theme for OLED displays ([#3012](https://github.com/getpaseo/paseo/pull/3012) by [@shrimpwtf](https://github.com/shrimpwtf))
+- Visual running status ring and lighter status indicators for active agents
+- Option to unassign keyboard shortcuts and view effective bindings in the cheat sheet ([#2510](https://github.com/getpaseo/paseo/pull/2510), [#2985](https://github.com/getpaseo/paseo/pull/2985) by [@cleiter](https://github.com/cleiter))
+- Kimi plan label surfacing from membership level and custom ACP profile adapter opt-in
+- Support for Shift+Tab inverse navigation shortcut in terminal and input views
+
+### Improved
+
+- Merged upstream releases through v0.3.1
+- History search by workspace, agent, and branch ([#2995](https://github.com/getpaseo/paseo/pull/2995))
+- Restored notification sounds on desktop ([#2582](https://github.com/getpaseo/paseo/pull/2582) by [@gstamp](https://github.com/gstamp))
+- Restored macOS direct local network connections ([#3071](https://github.com/getpaseo/paseo/pull/3071))
+- Preserved selected list markers, line breaks, and indentation when copying assistant text and code ([#3055](https://github.com/getpaseo/paseo/pull/3055), [#2935](https://github.com/getpaseo/paseo/pull/2935))
+- Touch-friendly sidebar resize handle and session rename in mobile dropdowns ([#2924](https://github.com/getpaseo/paseo/pull/2924), [#2953](https://github.com/getpaseo/paseo/pull/2953) by [@kaspesi](https://github.com/kaspesi), [@ivanmalison](https://github.com/ivanmalison))
+
+### Fixed
+
+- Prevented inline code formatting from obscuring nearby text
+- Prevented daemon worker stalls under workspace Git pressure ([#3033](https://github.com/getpaseo/paseo/pull/3033) by [@dwyanewang](https://github.com/dwyanewang), [@timigod](https://github.com/timigod))
+- Summarized Claude AskUserQuestion permission notifications ([#2925](https://github.com/getpaseo/paseo/pull/2925) by [@sihyeon-dev](https://github.com/sihyeon-dev))
+- Omitted disabled skills from slash commands ([#2759](https://github.com/getpaseo/paseo/pull/2759) by [@MildReins](https://github.com/MildReins))
+- Fixed Kimi model probing fallback and reasoning option handling
+
 ## 0.3.0-beta.10 - 2026-08-08
 
 ### Added
