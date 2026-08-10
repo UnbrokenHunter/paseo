@@ -43,7 +43,7 @@
     "test:e2e:mobile": "./scripts/test-mobile-agent-device.sh",
     "dev:website": "npm run dev --workspace=@getpaseo/website",
     "postinstall": "node scripts/postinstall-patches.mjs",
-    "prepare": "lefthook install --force",
+    "prepare": "lefthook install --force && node scripts/setup-git-merge-drivers.mjs",
     "build": "npm run build --workspaces --if-present",
     "build:highlight": "npm run build --workspace=@getpaseo/highlight",
     "build:highlight:clean": "npm run build:clean --workspace=@getpaseo/highlight",

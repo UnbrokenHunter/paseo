@@ -524,6 +524,8 @@ later transitions and stops itself when the release is complete.
 
 The GitHub Release body is populated automatically by the `Release Notes Sync` workflow (`.github/workflows/release-notes-sync.yml`). It triggers on every `v*` tag push and on any push to `main` that touches `CHANGELOG.md`, then runs `scripts/sync-release-notes-from-changelog.mjs` to mirror the matching changelog entry into the release body. You don't need to write release notes on GitHub manually — keep `CHANGELOG.md` correct and the workflow will sync it. To force a re-sync, dispatch the workflow with the tag input.
 
+`CHANGELOG.md` mirrors upstream's copy verbatim — a `theirs` merge driver (`.gitattributes`, registered locally by `npm run prepare`) resolves it to upstream's file on every merge, so it is never hand-edited and never conflicts. `CHANGELOG.fork.md` holds fork-only notes instead. Neither the `Release Notes Sync` workflow nor the public `/changelog` page reads it yet — pending a decision on how fork-only release notes should surface there.
+
 ## Website behavior
 
 - The website download page defaults to GitHub's latest published **stable** release.

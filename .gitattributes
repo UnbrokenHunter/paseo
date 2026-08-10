@@ -1,0 +1,4 @@
+# On every merge, always take the incoming side verbatim instead of hand-resolving conflicts.
+# Registered by scripts/setup-git-merge-drivers.mjs (run via `npm run prepare`). See
+# docs/release.md for why CHANGELOG.md is a pure upstream mirror in this fork.
+CHANGELOG.md merge=theirs
