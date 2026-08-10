@@ -926,7 +926,6 @@ const SHORTCUT_BINDINGS: readonly ShortcutBinding[] = [
       id: "cycle-agent-mode",
       section: "agent-input",
       label: "Cycle agent mode",
-      label: "Cycle agent mode",
     },
   },
   {
